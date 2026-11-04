@@ -62,3 +62,20 @@ function carregar_jogo(slot) {
         show_debug_message("Erro: Slot " + string(slot) + " vazio.");
     }
 }
+// Inicia um novo jogo do zero em um slot específico
+function novo_jogo(slot) {
+    var nome_arquivo = "save_slot_" + string(slot) + ".ini";
+    
+    // Se já existir um save nesse slot, deleta para começar limpo
+    if (file_exists(nome_arquivo)) {
+        file_delete(nome_arquivo);
+    }
+    
+    // Zera os recursos globais
+    global.scrap = 0;
+    
+    // Manda para a primeira fase do jogo (substitua pelo nome da sua Room inicial)
+    room_goto(rm_floresta_1); 
+    
+    show_debug_message("Novo jogo iniciado no Slot " + string(slot));
+}

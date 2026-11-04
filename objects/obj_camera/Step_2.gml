@@ -18,12 +18,12 @@ if (instance_exists(target)) {
     var final_x = lerp(current_x, target_x, lerp_speed);
     var final_y = lerp(current_y, target_y, lerp_speed);
     
-    // 5. APLICA O SCREEN SHAKE (Sincronizado com o obj_game_controller)
-    if (instance_exists(obj_game_controller) && obj_game_controller.shake_magnitude > 0) {
-        var _mag = obj_game_controller.shake_magnitude;
-        final_x += random_range(-_mag, _mag);
-        final_y += random_range(-_mag, _mag);
-    }
+ // 5. APLICA O SCREEN SHAKE (Sincronizado com o obj_game_controller e Opções)
+if (instance_exists(obj_game_controller) && obj_game_controller.shake_magnitude > 0 && global.tremer_tela) {
+    var _mag = obj_game_controller.shake_magnitude;
+    final_x += random_range(-_mag, _mag);
+    final_y += random_range(-_mag, _mag);
+}
     
     // 6. Aplica a posição final na câmera do jogo
     camera_set_view_pos(camera, final_x, final_y);

@@ -7,7 +7,7 @@ if (key_down) { menu_index++; if (menu_index >= array_length(opcoes)) menu_index
 
 if (key_confirm) {
     if (menu_index == 0) {
-        room_goto(Room1); // Vai para a sala do teu jogo (confirma se o nome é Room1)
+        room_goto(rm_game); // Vai para a sala do teu jogo (confirma se o nome é Room1)
     } else if (menu_index == 1) {
         game_end(); // Fecha o jogo
     }

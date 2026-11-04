@@ -23,19 +23,18 @@ if (move_dir != 0 && state != player_state.menu && state != player_state.craft) 
     facing = move_dir; 
 }
 
-var key_jump          = keyboard_check_pressed(vk_space) || gamepad_button_check_pressed(0, gp_face1);
-var key_jump_released = keyboard_check_released(vk_space) || gamepad_button_check_pressed(0, gp_face1); 
-var key_attack        = keyboard_check_pressed(ord("J"))  || gamepad_button_check_pressed(0, gp_face3); 
-var key_roll          = keyboard_check_pressed(ord("K"))  || gamepad_button_check_pressed(0, gp_face2); 
-var key_throw         = keyboard_check_pressed(ord("F"))  || gamepad_button_check_pressed(0, gp_shoulderr);
+var key_jump          = keyboard_check_pressed(global.key_jump) || gamepad_button_check_pressed(0, gp_face1);
+var key_jump_released = keyboard_check_released(global.key_jump) || gamepad_button_check_released(0, gp_face1); 
+var key_attack        = keyboard_check_pressed(global.key_attack)  || gamepad_button_check_pressed(0, gp_face3); 
+var key_roll          = keyboard_check_pressed(global.key_roll)  || gamepad_button_check_pressed(0, gp_face2); 
+var key_throw         = keyboard_check_pressed(global.key_throw)  || gamepad_button_check_pressed(0, gp_shoulderr);
 
 // Hub do Personagem (Inventário/Maestria) no I ou Select do comando
-var key_menu    = keyboard_check_pressed(ord("I")) || gamepad_button_check_pressed(0, gp_select);
-var key_heal    = keyboard_check_pressed(ord("Q")) || gamepad_button_check_pressed(0, gp_padl);
-var key_up      = keyboard_check_pressed(vk_up)    || gamepad_button_check_pressed(0, gp_padu);
-var key_down    = keyboard_check_pressed(vk_down)  || gamepad_button_check_pressed(0, gp_padd);
-var key_confirm = keyboard_check_pressed(vk_enter) || gamepad_button_check_pressed(0, gp_face1);
-
+var key_menu    = keyboard_check_pressed(global.key_menu) || gamepad_button_check_pressed(0, gp_select);
+var key_heal    = keyboard_check_pressed(global.key_heal) || gamepad_button_check_pressed(0, gp_padl);
+var key_up      = keyboard_check_pressed(global.key_up)    || gamepad_button_check_pressed(0, gp_padu);
+var key_down    = keyboard_check_pressed(global.key_down)  || gamepad_button_check_pressed(0, gp_padd);
+var key_confirm = keyboard_check_pressed(global.key_confirm) || gamepad_button_check_pressed(0, gp_face1);
 // Teclas de Aba (LB / RB ou Q / E)
 var key_tab_left  = keyboard_check_pressed(ord("Q")) || gamepad_button_check_pressed(0, gp_shoulderl);
 var key_tab_right = keyboard_check_pressed(ord("E")) || gamepad_button_check_pressed(0, gp_shoulderr);

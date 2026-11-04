@@ -26,9 +26,22 @@ audio_master_gain(global.vol_master);
 // Função para carregar as opções ao abrir o jogo
 function carregar_configuracoes() {
     ini_open("config.ini");
+    
     global.idioma = ini_read_string("Geral", "Idioma", "PT");
-    global.vol_master = ini_read_real("Audio", "Master", 1.0);
     global.tela_cheia = ini_read_real("Video", "Fullscreen", 0);
+    global.tremer_tela = ini_read_real("Video", "TremerTela", 1); // 1 é true
+    
+    // Volumes
+    global.vol_master = ini_read_real("Audio", "Master", 1.0);
+    global.vol_sfx = ini_read_real("Audio", "SFX", 0.8);
+    global.vol_musica = ini_read_real("Audio", "Musica", 0.5);
+    
+    // Controles
+    global.key_jump = ini_read_real("Controles", "Pulo", vk_space);
+    global.key_attack = ini_read_real("Controles", "Ataque", ord("J"));
+    global.key_roll = ini_read_real("Controles", "Esquiva", ord("K"));
+    global.key_heal = ini_read_real("Controles", "Cura", ord("Q"));
+    
     ini_close();
     
     // Aplica as configurações carregadas
@@ -36,12 +49,10 @@ function carregar_configuracoes() {
     window_set_fullscreen(global.tela_cheia);
 }
 
-carregar_configuracoes(); // Chama a função logo ao iniciar
+global.key_throw = ord("F");
+global.key_menu = ord("I");
+global.key_up = vk_up;
+global.key_down = vk_down;
+global.key_confirm = vk_enter;
 
-// Teclas padrão
-global.key_jump = vk_space;
-global.key_attack = ord("J");
-global.key_roll = ord("K");
-global.key_heal = ord("Q");
-
-global.tremer_tela = true;
+carregar_configuracoes();
