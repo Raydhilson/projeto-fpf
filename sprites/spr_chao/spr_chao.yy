@@ -23,7 +23,7 @@
   ],
   "name":"spr_chao",
   "nineSlice":null,
-  "origin":4,
+  "origin":7,
   "parent":{
     "name":"FISICOS",
     "path":"folders/SPRITES/FISICOS.yy",
@@ -76,7 +76,7 @@
     "visibleRange":null,
     "volume":1.0,
     "xorigin":16,
-    "yorigin":16,
+    "yorigin":32,
   },
   "swatchColours":null,
   "swfPrecision":0.5,

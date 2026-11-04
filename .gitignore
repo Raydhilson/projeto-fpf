@@ -61,7 +61,7 @@ Temporary Items
 # GMRT build directory
 Build
 
-*/options/
-*.yyz
-*/.yy/
-*/cache/
+# GameMaker - Configuracoes de layout do usuario
+*.user
+*.yyp.user
+*.yyp.user.json

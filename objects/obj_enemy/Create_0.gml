@@ -19,5 +19,7 @@ state = enemy_state.patrol;
 vision_range = 150;        
 lose_interest_range = 250; 
 
-// --- GAME FEEL E COMBATE ---
-piscar = 0; // Controla o brilho branco e a imunidade rápida
+// --- GAME FEEL, BUFF E EFEITOS DE COMBATE ---
+piscar = 0;            // Controla o brilho branco e a imunidade rápida do knockback
+eh_bombardeiro = true; // Se true, ao morrer concede o Buff de Fogo direto para a lança do Rato
+queimando_timer = 0;   // Tempo que o inimigo fica pegando fogo (dano contínuo)

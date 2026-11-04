@@ -1,3 +1,6 @@
+// Se o jogo estiver pausado, não roda a lógica de hitstop
+if (is_paused) exit;
+
 // ==========================================
 // SISTEMA DE HITSTOP (Congelamento de Tempo)
 // ==========================================
@@ -18,7 +21,7 @@ if (hitstop_timer > 0) {
         }
     }
 } else {
-    // Restaura as velocidades
+    // Restaura as velocidades assim que o hitstop acaba
     with (all) {
         if (variable_instance_exists(id, "hspd_save") && !is_undefined(hspd_save)) {
             hspd = hspd_save;

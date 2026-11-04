@@ -45,23 +45,27 @@ draw_circle(gui_x + 6, scrap_y + 6, 5, false);
 draw_set_color(c_white);
 draw_text(gui_x + 16, scrap_y - 2, "x " + string(global.scrap));
 
+// Indicador Visual do Buff Instintivo do Besouro Bombardeiro
+if (buff_fogo_timer > 0) {
+    var seg_restantes = ceil(buff_fogo_timer / 60);
+    draw_set_color(c_orange);
+    draw_text(gui_x, scrap_y + 18, "LANCA EM CHAMAS: " + string(seg_restantes) + "s");
+    draw_set_color(c_white);
+}
 
 // =======================================================
 // --- 2. HUB DO PERSONAGEM (Menu de Abas Pausado) ---
 // =======================================================
 if (state == player_state.menu) {
     
-    // ATENÇÃO: Aplica a fonte que você criou (fnt_menu)
-    // Se ainda não criou na pasta Fonts, comente a linha abaixo.
     draw_set_font(fnt_menu);
     
-    // Pega o tamanho do seu ecrã
     var gw = display_get_gui_width();
     var gh = display_get_gui_height();
     
     // Fundo Escurecido
     draw_set_color(c_black);
-    draw_set_alpha(0.85); // 85% escuro para dar destaque às letras
+    draw_set_alpha(0.85);
     draw_rectangle(0, 0, gw, gh, false);
     draw_set_alpha(1.0); 
     
@@ -71,7 +75,7 @@ if (state == player_state.menu) {
     
     for (var i = 0; i < 3; i++) {
         var xx = (gw / 4) * (i + 1); 
-        var yy = 20; // Ajustado mais para o topo
+        var yy = 20;
         
         if (aba_atual == i) {
             draw_set_color(c_yellow); 
@@ -105,7 +109,7 @@ if (state == player_state.menu) {
         draw_text(margem_x, margem_y + 20, "Suas Sucatas: " + string(global.scrap));
         
         for (var j = 0; j < array_length(craft_recipes); j++) {
-            var yy = margem_y + 60 + (j * 20); // Espaçamento mais curto para telas pequenas
+            var yy = margem_y + 60 + (j * 20);
             if (menu_index == j) {
                 draw_set_color(c_yellow);
                 draw_text(margem_x, yy, "-> " + craft_recipes[j] + " (Custo: " + string(craft_cost_array[j]) + ")");
@@ -129,10 +133,11 @@ if (state == player_state.menu) {
         draw_text(margem_x, margem_y + 100, "NV 2: Avanco Duplo (Aperte J duas vezes)");
         
         draw_set_color(arma_nivel >= 3 ? c_yellow : c_dkgray);
-        draw_text(margem_x, margem_y + 120, "NV 3: Furia da Sucata (Bloqueado)");
+        var txt_nv3 = (arma_nivel >= 3) ? "NV 3: Predador Alfa (Critico Dobrado Ativo!)" : "NV 3: Predador Alfa (Bloqueado)";
+        draw_text(margem_x, margem_y + 120, txt_nv3);
     }
     
-    // Reseta o alinhamento e a fonte para não bugar o HUD nos próximos frames
+    // Reseta o alinhamento e a fonte
     draw_set_halign(fa_left);
     draw_set_color(c_white);
     draw_set_font(-1); 

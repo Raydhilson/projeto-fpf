@@ -14,11 +14,17 @@ if (instance_exists(target)) {
     var current_y = camera_get_view_y(camera);
     
     // 4. A MÁGICA DA SUAVIZAÇÃO (LERP)
-    // O 0.1 define a velocidade de atraso. Quanto menor o número, mais "solta" e cinematográfica é a câmera.
     var lerp_speed = 0.1;
     var final_x = lerp(current_x, target_x, lerp_speed);
     var final_y = lerp(current_y, target_y, lerp_speed);
     
-    // 5. Aplica a posição final na câmera do jogo
+    // 5. APLICA O SCREEN SHAKE (Sincronizado com o obj_game_controller)
+    if (instance_exists(obj_game_controller) && obj_game_controller.shake_magnitude > 0) {
+        var _mag = obj_game_controller.shake_magnitude;
+        final_x += random_range(-_mag, _mag);
+        final_y += random_range(-_mag, _mag);
+    }
+    
+    // 6. Aplica a posição final na câmera do jogo
     camera_set_view_pos(camera, final_x, final_y);
 }

@@ -3,8 +3,7 @@ hitstop_timer = 0;
 
 // Tremor de câmera (Screen Shake)
 shake_magnitude = 0;
-shake_magnitude = 0;
-shake_fade = 0.4; // Antes era 0.2. Com 0.5, o tremor dura apenas 2 ou 3 frames.
+shake_fade = 0.4; // Controla a rapidez com que o tremor para
 
 // --- SISTEMA DE PAUSA ---
 is_paused = false;

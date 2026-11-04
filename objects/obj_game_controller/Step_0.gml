@@ -34,3 +34,8 @@ if (is_paused) {
         }
     }
 }
+// Alternar entre Tela Cheia e Modo Janela
+if (keyboard_check_pressed(vk_f11)) {
+    var tela_cheia = window_get_fullscreen();
+    window_set_fullscreen(!tela_cheia);
+}
