@@ -33,8 +33,8 @@
   ],
   "name":"rm_game",
   "parent":{
-    "name":"gp_room",
-    "path":"folders/gp_room.yy",
+    "name":"GP_ROOM",
+    "path":"folders/GP_ROOM.yy",
   },
   "parentRoom":null,
   "physicsSettings":{
