@@ -9,9 +9,9 @@ if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 
 }
 
 // =====================================================================
-// 1. LEITURA DE CONTROLES E DIREÇÃO
+// 1. LEITURA DE CONTROLES E DIREÇÃO (100% DINÂMICO)
 // =====================================================================
-var move_dir = keyboard_check(vk_right) - keyboard_check(vk_left);
+var move_dir = keyboard_check(global.key_right) - keyboard_check(global.key_left);
 
 if (move_dir == 0) {
     var deadzone = 0.2;
@@ -32,12 +32,13 @@ var key_throw         = keyboard_check_pressed(global.key_throw)  || gamepad_but
 // Hub do Personagem (Inventário/Maestria) no I ou Select do comando
 var key_menu    = keyboard_check_pressed(global.key_menu) || gamepad_button_check_pressed(0, gp_select);
 var key_heal    = keyboard_check_pressed(global.key_heal) || gamepad_button_check_pressed(0, gp_padl);
-var key_up      = keyboard_check_pressed(global.key_up)    || gamepad_button_check_pressed(0, gp_padu);
-var key_down    = keyboard_check_pressed(global.key_down)  || gamepad_button_check_pressed(0, gp_padd);
+var key_up   = keyboard_check_pressed(global.key_up)   || keyboard_check_pressed(vk_up)   || keyboard_check_pressed(ord("W")) || gamepad_button_check_pressed(0, gp_padu);
+var key_down = keyboard_check_pressed(global.key_down) || keyboard_check_pressed(vk_down) || keyboard_check_pressed(ord("S")) || gamepad_button_check_pressed(0, gp_padd);
 var key_confirm = keyboard_check_pressed(global.key_confirm) || gamepad_button_check_pressed(0, gp_face1);
-// Teclas de Aba (LB / RB ou Q / E)
-var key_tab_left  = keyboard_check_pressed(ord("Q")) || gamepad_button_check_pressed(0, gp_shoulderl);
-var key_tab_right = keyboard_check_pressed(ord("E")) || gamepad_button_check_pressed(0, gp_shoulderr);
+
+// Teclas de Aba (LB / RB ou Q / E dinâmicos)
+var key_tab_left  = keyboard_check_pressed(global.key_tab_left) || gamepad_button_check_pressed(0, gp_shoulderl);
+var key_tab_right = keyboard_check_pressed(global.key_tab_right) || gamepad_button_check_pressed(0, gp_shoulderr);
 
 // =====================================================================
 // 2. USO DE ITENS (CURATIVO), BUFFS E TIMERS FÍSICOS

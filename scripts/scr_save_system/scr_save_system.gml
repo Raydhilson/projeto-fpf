@@ -1,81 +1,92 @@
-// Verifica se um slot específico tem um jogo salvo (Útil para acender o botão "Continue")
-function save_existe(slot) {
-    var nome_arquivo = "save_slot_" + string(slot) + ".ini";
-    return file_exists(nome_arquivo);
-}
-
-// Salva o progresso atual em um slot (1, 2 ou 3)
-function salvar_jogo(slot) {
-    var nome_arquivo = "save_slot_" + string(slot) + ".ini";
+// =======================================================
+// 1. SALVAR O PROGRESSO (Funciona na Fogueira e no Pause)
+// =======================================================
+function salvar_jogo(_slot) {
+    var _arquivo = "save_" + string(_slot) + ".ini";
     
-    ini_open(nome_arquivo);
-    
-    // Salva a sala e posição
-    ini_write_real("Localizacao", "Room", room);
-    if (instance_exists(obj_player)) {
-        ini_write_real("Localizacao", "X", obj_player.x);
-        ini_write_real("Localizacao", "Y", obj_player.y);
-        
-        // Salva os status do Rato
-        ini_write_real("Status", "HP", obj_player.hp);
-        ini_write_real("Status", "NivelArma", obj_player.arma_nivel);
-        ini_write_real("Inventario", "Curativos", obj_player.curativo_count);
-        ini_write_real("Inventario", "Molotovs", obj_player.molotov_count);
+    // SEGURANÇA DO PAUSE: Se o player foi desativado pelo Pause, ativa rapidinho para ler os dados
+    var _reativar_pause = false;
+    if (!instance_exists(obj_player)) {
+        instance_activate_object(obj_player);
+        _reativar_pause = true;
     }
     
-    // Salva recursos globais
-    ini_write_real("Global", "Sucata", global.scrap);
+    ini_open(_arquivo);
+    
+    // Salva a sala atual pelo nome (mais seguro que o ID numérico)
+    ini_write_string("Mundo", "Sala", room_get_name(room));
+    ini_write_real("Economia", "Sucata", global.scrap);
+    
+    // Salva os dados diretos do ratinho
+    if (instance_exists(obj_player)) {
+        ini_write_real("Player", "X", obj_player.x);
+        ini_write_real("Player", "Y", obj_player.y);
+        ini_write_real("Player", "HP", obj_player.hp);
+        ini_write_real("Player", "Curativos", obj_player.curativo_count);
+        ini_write_real("Player", "Molotovs", obj_player.molotov_count);
+        ini_write_real("Player", "ArmaNivel", obj_player.arma_nivel);
+        ini_write_real("Player", "ArmaXP", obj_player.arma_xp);
+    }
     
     ini_close();
-    show_debug_message("Jogo salvo no Slot " + string(slot));
+    
+    // Se estava pausado e só queríamos salvar, desativa o player de novo
+    if (_reativar_pause && instance_exists(obj_game_controller) && obj_game_controller.is_paused) {
+        instance_deactivate_object(obj_player);
+    }
+    
+    show_debug_message("Jogo salvo com sucesso no " + _arquivo);
 }
 
-// Carrega o progresso de um slot específico
-function carregar_jogo(slot) {
-    var nome_arquivo = "save_slot_" + string(slot) + ".ini";
+// =======================================================
+// 2. CARREGAR O PROGRESSO (Chamado no Menu Inicial)
+// =======================================================
+function carregar_jogo(_slot) {
+    var _arquivo = "save_" + string(_slot) + ".ini";
     
-    if (file_exists(nome_arquivo)) {
-        ini_open(nome_arquivo);
+    if (file_exists(_arquivo)) {
+        ini_open(_arquivo);
         
-        // Carrega dados globais
-        global.scrap = ini_read_real("Global", "Sucata", 0);
+        var _nome_sala = ini_read_string("Mundo", "Sala", "");
+        global.scrap   = ini_read_real("Economia", "Sucata", 0);
         
-        // Vai para a sala salva
-        var sala_salva = ini_read_real("Localizacao", "Room", room);
-        if (room != sala_salva) {
-            room_goto(sala_salva);
-        }
-        
-        // Aplica os status no jogador (se ele já existir na sala)
-        if (instance_exists(obj_player)) {
-            obj_player.x = ini_read_real("Localizacao", "X", obj_player.x);
-            obj_player.y = ini_read_real("Localizacao", "Y", obj_player.y);
-            obj_player.hp = ini_read_real("Status", "HP", obj_player.hp_max);
-            obj_player.arma_nivel = ini_read_real("Status", "NivelArma", 1);
-            obj_player.curativo_count = ini_read_real("Inventario", "Curativos", 0);
-            obj_player.molotov_count = ini_read_real("Inventario", "Molotovs", 0);
-        }
+        // Guarda numa fila global para o obj_player puxar assim que a sala abrir
+        global.carregando_save = true;
+        global.load_x          = ini_read_real("Player", "X", 0);
+        global.load_y          = ini_read_real("Player", "Y", 0);
+        global.load_hp         = ini_read_real("Player", "HP", 100);
+        global.load_curativos  = ini_read_real("Player", "Curativos", 0);
+        global.load_molotovs   = ini_read_real("Player", "Molotovs", 0);
+        global.load_arma_nivel = ini_read_real("Player", "ArmaNivel", 1);
+        global.load_arma_xp    = ini_read_real("Player", "ArmaXP", 0);
         
         ini_close();
-        show_debug_message("Jogo carregado do Slot " + string(slot));
+        
+        // Vai para a sala salva (ou começa novo jogo se der falha no nome)
+        var _id_sala = asset_get_index(_nome_sala);
+        if (_id_sala > -1) {
+            room_goto(_id_sala);
+        } else {
+            novo_jogo(_slot);
+        }
     } else {
-        show_debug_message("Erro: Slot " + string(slot) + " vazio.");
+        // Se não existir save ainda, inicia um Novo Jogo direto
+        novo_jogo(_slot);
     }
 }
-// Inicia um novo jogo do zero em um slot específico
-function novo_jogo(slot) {
-    var nome_arquivo = "save_slot_" + string(slot) + ".ini";
-    
-    // Se já existir um save nesse slot, deleta para começar limpo
-    if (file_exists(nome_arquivo)) {
-        file_delete(nome_arquivo);
+
+// =======================================================
+// 3. INICIAR NOVO JOGO DO ZERO
+// =======================================================
+function novo_jogo(_slot) {
+    var _arquivo = "save_" + string(_slot) + ".ini";
+    if (file_exists(_arquivo)) {
+        file_delete(_arquivo); // Limpa o save antigo daquele slot
     }
     
-    // Zera os recursos globais
     global.scrap = 0;
+    global.carregando_save = false;
     
-    // Manda para a primeira fase do jogo (substitua pelo nome da sua Room inicial)
-    room_goto(rm_floresta_1); 
-    
-    show_debug_message("Novo jogo iniciado no Slot " + string(slot));
+    // ATENÇÃO: Confirme se este é o nome exato da sua sala da floresta!
+    room_goto(rm_forest_1); 
 }

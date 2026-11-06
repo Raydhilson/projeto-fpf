@@ -54,7 +54,7 @@ switch (opcao_atual) {
             ini_close();
             
             // Volta para o menu inicial (substitua pelo nome da sua room principal)
-            room_goto(rm_menu_principal); 
+            room_goto(rm_main_menu); 
         }
         break;
 }

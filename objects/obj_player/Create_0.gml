@@ -1,7 +1,26 @@
 // ==========================================
+// 0. SEGURANÇA DE CONTROLES (FALLBACK)
+// Garante que o jogo não crashe se testar a room direto sem o obj_settings
+// ==========================================
+if (!variable_global_exists("key_right"))     global.key_right     = vk_right;
+if (!variable_global_exists("key_left"))      global.key_left      = vk_left;
+if (!variable_global_exists("key_up"))        global.key_up        = vk_up;
+if (!variable_global_exists("key_down"))      global.key_down      = vk_down;
+if (!variable_global_exists("key_jump"))      global.key_jump      = vk_space;
+if (!variable_global_exists("key_attack"))    global.key_attack    = ord("Z");
+if (!variable_global_exists("key_roll"))      global.key_roll      = ord("C");
+if (!variable_global_exists("key_throw"))     global.key_throw     = ord("V");
+if (!variable_global_exists("key_heal"))      global.key_heal      = ord("F");
+if (!variable_global_exists("key_menu"))      global.key_menu      = ord("I");
+if (!variable_global_exists("key_confirm"))   global.key_confirm   = vk_enter;
+if (!variable_global_exists("key_tab_left"))  global.key_tab_left  = ord("Q");
+if (!variable_global_exists("key_tab_right")) global.key_tab_right = ord("E");
+if (!variable_global_exists("idioma"))        global.idioma        = "PT";
+
+// ==========================================
 // 1. ECONOMIA E RECURSOS
 // ==========================================
-global.scrap = 0;
+if (!variable_global_exists("scrap")) global.scrap = 0;
 curativo_count = 0; 
 molotov_count = 0;
 
@@ -105,3 +124,18 @@ enum player_state {
 }
 
 state = player_state.idle;
+
+// ==========================================
+// 8. RESTAURA DADOS SE VEIO DO "CARREGAR JOGO"
+// ==========================================
+if (variable_global_exists("carregando_save") && global.carregando_save == true) {
+    x              = global.load_x;
+    y              = global.load_y;
+    hp             = global.load_hp;
+    curativo_count = global.load_curativos;
+    molotov_count  = global.load_molotovs;
+    arma_nivel     = global.load_arma_nivel;
+    arma_xp        = global.load_arma_xp;
+    
+    global.carregando_save = false; // Desliga a bandeira para não teleportar toda vez
+}

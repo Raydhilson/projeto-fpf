@@ -9,7 +9,6 @@ if (hitstop_timer > 0) {
     
     with (all) {
         if (variable_instance_exists(id, "hspd") && variable_instance_exists(id, "vspd")) {
-            // Se ainda não salvou, ou se está vazio (undefined), salva os valores reais!
             if (!variable_instance_exists(id, "hspd_save") || is_undefined(hspd_save)) {
                 hspd_save = hspd;
                 vspd_save = vspd;
@@ -27,8 +26,6 @@ if (hitstop_timer > 0) {
             hspd = hspd_save;
             vspd = vspd_save;
             image_speed = image_speed_save;
-            
-            // Esvazia para o próximo golpe de forma segura
             hspd_save = undefined;
         }
     }

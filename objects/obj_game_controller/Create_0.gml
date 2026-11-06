@@ -1,11 +1,51 @@
-// Congelamento de tempo (Hitstop)
+// ==========================================
+// 0. SEGURANÇA DE VARIÁVEIS GLOBAIS (FALLBACK)
+// ==========================================
+if (!variable_global_exists("idioma"))        global.idioma        = "PT";
+if (!variable_global_exists("tremer_tela"))   global.tremer_tela   = 1;
+if (!variable_global_exists("tela_cheia"))    global.tela_cheia    = window_get_fullscreen();
+if (!variable_global_exists("key_jump"))      global.key_jump      = vk_space;
+if (!variable_global_exists("key_attack"))    global.key_attack    = ord("J");
+if (!variable_global_exists("key_roll"))      global.key_roll      = ord("K");
+if (!variable_global_exists("key_heal"))      global.key_heal      = ord("H");
+if (!variable_global_exists("key_throw"))     global.key_throw     = ord("F");
+if (!variable_global_exists("key_right"))     global.key_right     = vk_right;
+if (!variable_global_exists("key_left"))      global.key_left      = vk_left;
+
+// ==========================================
+// 1. EFEITOS DE CÂMERA E TEMPO
+// ==========================================
 hitstop_timer = 0;
-
-// Tremor de câmera (Screen Shake)
 shake_magnitude = 0;
-shake_fade = 0.4; // Controla a rapidez com que o tremor para
+shake_fade = 0.4;
 
-// --- SISTEMA DE PAUSA ---
+// ==========================================
+// 2. SISTEMA DE PAUSA E SUB-MENU DE OPÇÕES
+// ==========================================
 is_paused = false;
-pause_opcoes = ["CONTINUAR", "VOLTAR AO MENU INICIAL"];
+pause_state = 0; // 0 = Pause Principal | 1 = Opções e Controles
 pause_index = 0;
+aguardando_tecla = false; // Fica true quando o jogador está escolhendo uma tecla nova
+
+pause_opcoes = ["CONTINUAR", "OPCOES / CONTROLES", "VOLTAR AO MENU INICIAL"];
+
+// Função auxiliar para desenhar nomes bonitos para as teclas
+nome_tecla = function(_k) {
+    var _pt = (global.idioma == "PT");
+    switch (_k) {
+        case vk_space:     return _pt ? "ESPACO" : "SPACE";
+        case vk_up:        return _pt ? "SETA CIMA" : "UP ARROW";
+        case vk_down:      return _pt ? "SETA BAIXO" : "DOWN ARROW";
+        case vk_left:      return _pt ? "SETA ESQ" : "LEFT ARROW";
+        case vk_right:     return _pt ? "SETA DIR" : "RIGHT ARROW";
+        case vk_enter:     return "ENTER";
+        case vk_shift:     return "SHIFT";
+        case vk_control:   return "CTRL";
+        case vk_alt:       return "ALT";
+        case vk_tab:       return "TAB";
+        case vk_backspace: return "BACKSPACE";
+        default:
+            if (_k >= 48 && _k <= 90) return chr(_k); // Letras A-Z e Números 0-9
+            return "KEY " + string(_k);
+    }
+};
