@@ -1,36 +1,32 @@
-// ==========================================
-// 0. SEGURANÇA DE VARIÁVEIS GLOBAIS (FALLBACK)
-// ==========================================
-if (!variable_global_exists("idioma"))        global.idioma      = "PT";
-if (!variable_global_exists("tremer_tela"))   global.tremer_tela = 1;
-if (!variable_global_exists("tela_cheia"))    global.tela_cheia  = window_get_fullscreen();
-if (!variable_global_exists("key_jump"))      global.key_jump    = vk_space;
-if (!variable_global_exists("key_attack"))    global.key_attack  = ord("J");
-if (!variable_global_exists("key_roll"))      global.key_roll    = ord("K");
-if (!variable_global_exists("key_heal"))      global.key_heal    = ord("H");
-if (!variable_global_exists("key_throw"))     global.key_throw   = ord("F");
-if (!variable_global_exists("key_right"))     global.key_right   = vk_right;
-if (!variable_global_exists("key_left"))      global.key_left    = vk_left;
+if (!variable_global_exists("brilho"))        global.brilho        = 0.5;
+if (!variable_global_exists("idioma"))        global.idioma        = "PT";
+if (!variable_global_exists("tremer_tela"))   global.tremer_tela   = 1;
+if (!variable_global_exists("tela_cheia"))    global.tela_cheia    = window_get_fullscreen();
+if (!variable_global_exists("key_jump"))      global.key_jump      = vk_space;
+if (!variable_global_exists("key_attack"))    global.key_attack    = ord("J");
+if (!variable_global_exists("key_roll"))      global.key_roll      = ord("K");
+if (!variable_global_exists("key_heal"))      global.key_heal      = ord("H");
+if (!variable_global_exists("key_throw"))     global.key_throw     = ord("F");
+if (!variable_global_exists("key_right"))     global.key_right     = vk_right;
+if (!variable_global_exists("key_left"))      global.key_left      = vk_left;
+if (!variable_global_exists("key_up"))        global.key_up        = vk_up;
+if (!variable_global_exists("key_down"))      global.key_down      = vk_down;
+if (!variable_global_exists("key_confirm"))   global.key_confirm   = vk_enter;
 
-// ==========================================
-// 1. ESTADOS E OPÇÕES DO MENU INICIAL
-// ==========================================
 menu_state = 0; // 0 = Menu Principal | 1 = Opções e Controles
 aguardando_tecla = false;
 
 options = ["new_game", "continue_game", "options", "quit"];
 
-// Verifica se o save existe (usa a função se existir, ou checa o arquivo direto)
-if (script_exists(asset_get_index("save_existe"))) {
-    has_save = save_existe(1);
-} else {
-    has_save = file_exists("save_1.ini");
-}
-
-// Se tiver save, o cursor já começa no "Continuar" (1), senão começa em "Novo Jogo" (0)
+has_save = file_exists("save_1.ini");
 menu_index = has_save ? 1 : 0;
 
-// Função auxiliar para desenhar nomes legíveis das teclas
+gpu_set_tex_filter(false);
+
+if (file_exists("config.ini")) {
+    carregar_configuracoes();
+}
+
 nome_tecla = function(_k) {
     var _pt = (global.idioma == "PT");
     switch (_k) {

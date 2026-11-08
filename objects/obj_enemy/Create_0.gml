@@ -1,7 +1,8 @@
 // --- ATRIBUTOS BASE ---
 hp = 3;
 walk_spd = 1;       
-chase_spd = 2.5;    
+chase_spd = 2.4;    
+charge_spd = 5.2; // Velocidade da investida explosiva
 hspd = 0;
 vspd = 0;
 grv = 0.3;
@@ -11,13 +12,18 @@ facing = 1;
 
 enum enemy_state {
     patrol,
-    chase
+    chase,
+    chemical_prep, // Aviso visual: misturando reagentes químicos
+    charge,        // Investida explosiva
+    cooldown       // Janela vulnerável pós-ataque
 }
 state = enemy_state.patrol;
 
-// --- INTELIGÊNCIA ARTIFICIAL ---
-vision_range = 150;        
-lose_interest_range = 250; 
+// --- INTELIGÊNCIA ARTIFICIAL E TIMERS ---
+vision_range = 160;        
+lose_interest_range = 260; 
+state_timer = 0;
+attack_cooldown = 0;
 
 // --- GAME FEEL, BUFF E EFEITOS DE COMBATE ---
 piscar = 0;            // Controla o brilho branco e a imunidade rápida do knockback

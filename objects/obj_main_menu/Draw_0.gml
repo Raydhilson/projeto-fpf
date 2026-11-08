@@ -1,20 +1,19 @@
-draw_set_halign(fa_center);
-draw_set_valign(fa_middle);
-draw_set_font(fnt_menu);
-
 var _gw = display_get_gui_width();
 var _gh = display_get_gui_height();
 var _pt = (!variable_global_exists("idioma") || global.idioma == "PT");
+
+draw_set_halign(fa_center);
+draw_set_valign(fa_middle);
+draw_set_font(fnt_menu);
 
 // ==========================================
 // TELA 0: CAPA DO JOGO (MENU PRINCIPAL)
 // ==========================================
 if (menu_state == 0) {
-    // Título traduzido
     draw_set_color(c_white);
     draw_text(_gw / 2, _gh / 3, _pt ? "TNK GAMES APRESENTA" : "TNK GAMES PRESENTS");
     
-    draw_set_color(make_color_rgb(200, 120, 50)); // Cor de ferrugem/sucata
+    draw_set_color(make_color_rgb(200, 120, 50));
     draw_text(_gw / 2, (_gh / 3) + 30, _pt ? "PROJETO FPF: SOBREVIVENCIA" : "PROJECT FPF: SURVIVAL");
     
     var _spacing = 40;
@@ -49,28 +48,31 @@ if (menu_state == 0) {
 // ==========================================
 else if (menu_state == 1) {
     draw_set_color(c_white);
-    draw_text(_gw / 2, _gh * 0.10, _pt ? "--- OPCOES E CONTROLES ---" : "--- OPTIONS & CONTROLS ---");
+    draw_text(_gw / 2, _gh * 0.08, _pt ? "--- OPCOES E CONTROLES ---" : "--- OPTIONS & CONTROLS ---");
     
-    var txt_sim    = _pt ? "SIM" : "ON";
-    var txt_nao    = _pt ? "NAO" : "OFF";
-    var txt_espera = _pt ? "[ PRESSIONE UMA TECLA... ]" : "[ PRESS ANY KEY... ]";
+    var txt_sim     = _pt ? "SIM" : "ON";
+    var txt_nao     = _pt ? "NAO" : "OFF";
+    var txt_espera  = _pt ? "[ PRESSIONE UMA TECLA... ]" : "[ PRESS ANY KEY... ]";
+    var _brilho_pct = string(round((variable_global_exists("brilho") ? global.brilho : 0.5) * 100)) + "%";
     
     var lista_cfg = [
         (_pt ? "IDIOMA: " : "LANGUAGE: ") + global.idioma,
         (_pt ? "TELA CHEIA: " : "FULLSCREEN: ") + (window_get_fullscreen() ? txt_sim : txt_nao),
         (_pt ? "TREMER TELA: " : "SCREEN SHAKE: ") + (global.tremer_tela ? txt_sim : txt_nao),
-        (_pt ? "PULO: " : "JUMP: ") + ((aguardando_tecla && menu_index == 3) ? txt_espera : nome_tecla(global.key_jump)),
-        (_pt ? "ATAQUE: " : "ATTACK: ") + ((aguardando_tecla && menu_index == 4) ? txt_espera : nome_tecla(global.key_attack)),
-        (_pt ? "ESQUIVA: " : "ROLL: ") + ((aguardando_tecla && menu_index == 5) ? txt_espera : nome_tecla(global.key_roll)),
-        (_pt ? "CURAR: " : "HEAL: ") + ((aguardando_tecla && menu_index == 6) ? txt_espera : nome_tecla(global.key_heal)),
-        (_pt ? "MOLOTOV: " : "THROW: ") + ((aguardando_tecla && menu_index == 7) ? txt_espera : nome_tecla(global.key_throw)),
-        (_pt ? "ANDAR ESQ: " : "MOVE LEFT: ") + ((aguardando_tecla && menu_index == 8) ? txt_espera : nome_tecla(global.key_left)),
-        (_pt ? "ANDAR DIR: " : "MOVE RIGHT: ") + ((aguardando_tecla && menu_index == 9) ? txt_espera : nome_tecla(global.key_right)),
+        (_pt ? "BRILHO: < " : "BRIGHTNESS: < ") + _brilho_pct + " >",
+        (_pt ? "PULO: " : "JUMP: ") + ((aguardando_tecla && menu_index == 4) ? txt_espera : nome_tecla(global.key_jump)),
+        (_pt ? "ATAQUE: " : "ATTACK: ") + ((aguardando_tecla && menu_index == 5) ? txt_espera : nome_tecla(global.key_attack)),
+        (_pt ? "ESQUIVA: " : "ROLL: ") + ((aguardando_tecla && menu_index == 6) ? txt_espera : nome_tecla(global.key_roll)),
+        (_pt ? "CURAR: " : "HEAL: ") + ((aguardando_tecla && menu_index == 7) ? txt_espera : nome_tecla(global.key_heal)),
+        (_pt ? "MOLOTOV: " : "THROW: ") + ((aguardando_tecla && menu_index == 8) ? txt_espera : nome_tecla(global.key_throw)),
+        (_pt ? "ANDAR ESQ: " : "MOVE LEFT: ") + ((aguardando_tecla && menu_index == 9) ? txt_espera : nome_tecla(global.key_left)),
+        (_pt ? "ANDAR DIR: " : "MOVE RIGHT: ") + ((aguardando_tecla && menu_index == 10) ? txt_espera : nome_tecla(global.key_right)),
+        (_pt ? "RESTAURAR PADROES" : "RESET DEFAULTS"),
         (_pt ? "VOLTAR E SALVAR" : "BACK & SAVE")
     ];
     
     for (var j = 0; j < array_length(lista_cfg); j++) {
-        var yy = (_gh * 0.20) + (j * 24);
+        var yy = (_gh * 0.16) + (j * 20);
         if (menu_index == j) {
             draw_set_color(aguardando_tecla ? c_orange : c_yellow);
             draw_text(_gw / 2, yy, ">> " + lista_cfg[j] + " <<");
@@ -81,7 +83,25 @@ else if (menu_state == 1) {
     }
 }
 
-// Reseta a formatação
+// ==========================================
+// EFEITO DE BRILHO NO MENU INICIAL
+// ==========================================
+if (variable_global_exists("brilho")) {
+    if (global.brilho < 0.5) {
+        draw_set_color(c_black);
+        draw_set_alpha((0.5 - global.brilho) * 1.4);
+        draw_rectangle(0, 0, _gw, _gh, false);
+        draw_set_alpha(1.0);
+    } else if (global.brilho > 0.5) {
+        gpu_set_blendmode(bm_add);
+        draw_set_color(c_white);
+        draw_set_alpha((global.brilho - 0.5) * 0.6);
+        draw_rectangle(0, 0, _gw, _gh, false);
+        draw_set_alpha(1.0);
+        gpu_set_blendmode(bm_normal);
+    }
+}
+
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
 draw_set_color(c_white);

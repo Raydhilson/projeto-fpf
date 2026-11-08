@@ -1,6 +1,20 @@
 // ==========================================
-// 0. SEGURANÇA DE VARIÁVEIS GLOBAIS (FALLBACK)
+// 0. DECLARAÇÃO OBRIGATÓRIA DE PAUSE E CÂMERA
 // ==========================================
+is_paused = false;
+pause_state = 0; // 0 = Pause Principal | 1 = Opções e Controles
+pause_index = 0;
+aguardando_tecla = false;
+hitstop_timer = 0;
+shake_magnitude = 0;
+shake_fade = 0.4;
+
+pause_opcoes = ["CONTINUAR", "OPCOES / CONTROLES", "VOLTAR AO MENU INICIAL"];
+
+// ==========================================
+// 1. SEGURANÇA DE VARIÁVEIS GLOBAIS (FALLBACK)
+// ==========================================
+if (!variable_global_exists("brilho"))        global.brilho        = 0.5;
 if (!variable_global_exists("idioma"))        global.idioma        = "PT";
 if (!variable_global_exists("tremer_tela"))   global.tremer_tela   = 1;
 if (!variable_global_exists("tela_cheia"))    global.tela_cheia    = window_get_fullscreen();
@@ -11,25 +25,16 @@ if (!variable_global_exists("key_heal"))      global.key_heal      = ord("H");
 if (!variable_global_exists("key_throw"))     global.key_throw     = ord("F");
 if (!variable_global_exists("key_right"))     global.key_right     = vk_right;
 if (!variable_global_exists("key_left"))      global.key_left      = vk_left;
+if (!variable_global_exists("key_up"))        global.key_up        = vk_up;
+if (!variable_global_exists("key_down"))      global.key_down      = vk_down;
+if (!variable_global_exists("key_confirm"))   global.key_confirm   = vk_enter;
 
-// ==========================================
-// 1. EFEITOS DE CÂMERA E TEMPO
-// ==========================================
-hitstop_timer = 0;
-shake_magnitude = 0;
-shake_fade = 0.4;
+gpu_set_tex_filter(false);
 
-// ==========================================
-// 2. SISTEMA DE PAUSA E SUB-MENU DE OPÇÕES
-// ==========================================
-is_paused = false;
-pause_state = 0; // 0 = Pause Principal | 1 = Opções e Controles
-pause_index = 0;
-aguardando_tecla = false; // Fica true quando o jogador está escolhendo uma tecla nova
+if (file_exists("config.ini")) {
+    carregar_configuracoes();
+}
 
-pause_opcoes = ["CONTINUAR", "OPCOES / CONTROLES", "VOLTAR AO MENU INICIAL"];
-
-// Função auxiliar para desenhar nomes bonitos para as teclas
 nome_tecla = function(_k) {
     var _pt = (global.idioma == "PT");
     switch (_k) {
@@ -45,7 +50,7 @@ nome_tecla = function(_k) {
         case vk_tab:       return "TAB";
         case vk_backspace: return "BACKSPACE";
         default:
-            if (_k >= 48 && _k <= 90) return chr(_k); // Letras A-Z e Números 0-9
+            if (_k >= 48 && _k <= 90) return chr(_k);
             return "KEY " + string(_k);
     }
 };

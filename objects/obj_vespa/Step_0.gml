@@ -8,71 +8,106 @@ if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 
 
 if (piscar > 0) piscar--;
 
-// Máquina de Estados Aérea
 switch (state) {
     
-    // --- FLUTUANDO / PATRULHA ---
+    // 1. PATRULHA SENOIDAL
     case vespa_state.patrulha:
-        // Movimento de flutuação senoidal suave (sobe e desce)
         vspd = sin(current_time / 200) * 1.5;
         hspd = cos(current_time / 300) * 1.0;
         
         if (instance_exists(obj_player)) {
-            var dist = point_distance(x, y, obj_player.x, obj_player.y);
-            if (dist <= vision_range) {
+            if (point_distance(x, y, obj_player.x, obj_player.y) <= vision_range) {
                 state = vespa_state.perseguicao;
             }
         }
         break;
         
-    // --- TRAVANDO A MIRA (PERSEGUIÇÃO FLUTUANTE) ---
+    // 2. PERSEGUIÇÃO MANTENDO ALTURA
     case vespa_state.perseguicao:
         if (instance_exists(obj_player)) {
-            // Voa na direção do player mantendo altura
-            var dir = point_direction(x, y, obj_player.x, obj_player.y - 30);
+            var dir = point_direction(x, y, obj_player.x, obj_player.y - 35);
             hspd = lengthdir_x(vel_voo, dir);
             vspd = lengthdir_y(vel_voo, dir);
             
-            // Se aproximar o suficiente, prepara o Rasante
             var dist = point_distance(x, y, obj_player.x, obj_player.y);
-            if (dist < 100) {
+            if (dist < 110) {
                 alvo_x = obj_player.x;
                 alvo_y = obj_player.y;
-                state = vespa_state.rasante;
-                rasante_timer = 30; // Tempo de impulso rápido
+                state_timer = 25; // 25 frames de aviso antes do bote
+                state = vespa_state.preparando;
+            } else if (dist > vision_range * 1.5) {
+                state = vespa_state.patrulha;
             }
         }
         break;
         
-    // --- O ATAQUE RASANTE ---
-    case vespa_state.rasante:
-        if (rasante_timer > 0) {
-            rasante_timer--;
-            // Dispara em linha reta na velocidade máxima contra o alvo travado
+    // 3. PREPARANDO O BOTE (Telegraph Visual: Treme no ar mirando)
+    case vespa_state.preparando:
+        hspd = irandom_range(-1, 1);
+        vspd = -0.5; // Sobe levemente antes de mergulhar
+        
+        if (instance_exists(obj_player)) {
+            alvo_x = obj_player.x;
+            alvo_y = obj_player.y;
+            if (obj_player.x != x) image_xscale = sign(obj_player.x - x);
+        }
+        
+        state_timer--;
+        if (state_timer <= 0) {
             var dir_rasante = point_direction(x, y, alvo_x, alvo_y);
-            hspd = lengthdir_x(vel_voo * 3.5, dir_rasante);
-            vspd = lengthdir_y(vel_voo * 3.5, dir_rasante);
-        } else {
-            // Terminou o rasante, volta a perseguir
+            hspd = lengthdir_x(vel_voo * 3.8, dir_rasante);
+            vspd = lengthdir_y(vel_voo * 3.8, dir_rasante);
+            state_timer = 25; // Duração do bote
+            state = vespa_state.rasante;
+        }
+        break;
+        
+    // 4. ATAQUE RASANTE
+    case vespa_state.rasante:
+        state_timer--;
+        // Se bater no chão/parede ou acabar o tempo, entra em recuperação
+        if (place_meeting(x + hspd, y + vspd, obj_colisor) || state_timer <= 0) {
+            hspd = 0;
+            vspd = 0;
+            state_timer = 35; // Pequena janela vulnerável após o ataque
+            state = vespa_state.recuperando;
+        }
+        break;
+        
+    // 5. RECUPERANDO O FÔLEGO (Janela para o Player contra-atacar)
+    case vespa_state.recuperando:
+        hspd = lerp(hspd, 0, 0.2);
+        vspd = sin(current_time / 150) * 0.8;
+        state_timer--;
+        if (state_timer <= 0) {
             state = vespa_state.perseguicao;
         }
         break;
 }
 
-// Movimentação com colisão simples
-x += hspd;
-y += vspd;
+// Aplicação de movimento evitando atravessar paredes
+if (!place_meeting(x + hspd, y, obj_colisor)) x += hspd;
+if (!place_meeting(x, y + vspd, obj_colisor)) y += vspd;
 
-// Vira para o lado do movimento
-if (hspd != 0) {
+if (hspd != 0 && state != vespa_state.preparando) {
     image_xscale = sign(hspd);
 }
 
-// Morte da Vespa
+// Morte da Vespa + Drops (Sucata + Chance de Ferrão)
 if (hp <= 0) {
     if (instance_exists(obj_game_controller)) {
         obj_game_controller.hitstop_timer = 5;
         obj_game_controller.shake_magnitude = 3;
     }
+    
+    // Dropa Sucata
+    instance_create_layer(x, y, layer, obj_scrap);
+    
+    // 60% de chance de dropar Ferrão (tipo_item = 2)
+    if (irandom(99) < 60) {
+        var _drop = instance_create_layer(x, y, layer, obj_item_drop);
+        _drop.tipo_item = 2; // Ferrão
+    }
+    
     instance_destroy();
 }

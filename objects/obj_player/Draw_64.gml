@@ -108,10 +108,15 @@ if (state == player_state.menu) {
     var margem_x = 40;
     var margem_y = 60;
     
-    // Pega a letra das teclas atuais para mostrar no menu dinamicamente
-    var str_key_heal   = chr(global.key_heal);
-    var str_key_throw  = chr(global.key_throw);
-    var str_key_attack = chr(global.key_attack);
+ // Converte a tecla com segurança (mesmo se for Espaço ou Shift)
+    var _nome_k = function(_k) {
+        if (_k == vk_space) return "SPACE";
+        if (_k >= 48 && _k <= 90) return chr(_k);
+        return "KEY";
+    };
+    var str_key_heal   = _nome_k(global.key_heal);
+    var str_key_throw  = _nome_k(global.key_throw);
+    var str_key_attack = _nome_k(global.key_attack);
     
     if (aba_atual == 0) {
         // --- ABA 0: INVENTÁRIO ---

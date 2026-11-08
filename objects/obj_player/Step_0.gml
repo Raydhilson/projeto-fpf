@@ -3,7 +3,7 @@
 // =====================================================================
 if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
     image_speed = 0;
-    exit; // Corta a leitura deste script agora!
+    exit;
 } else {
     image_speed = 1;
 }
@@ -32,8 +32,8 @@ var key_throw         = keyboard_check_pressed(global.key_throw)  || gamepad_but
 // Hub do Personagem (Inventário/Maestria) no I ou Select do comando
 var key_menu    = keyboard_check_pressed(global.key_menu) || gamepad_button_check_pressed(0, gp_select);
 var key_heal    = keyboard_check_pressed(global.key_heal) || gamepad_button_check_pressed(0, gp_padl);
-var key_up   = keyboard_check_pressed(global.key_up)   || keyboard_check_pressed(vk_up)   || keyboard_check_pressed(ord("W")) || gamepad_button_check_pressed(0, gp_padu);
-var key_down = keyboard_check_pressed(global.key_down) || keyboard_check_pressed(vk_down) || keyboard_check_pressed(ord("S")) || gamepad_button_check_pressed(0, gp_padd);
+var key_up      = keyboard_check_pressed(global.key_up)   || keyboard_check_pressed(vk_up)   || keyboard_check_pressed(ord("W")) || gamepad_button_check_pressed(0, gp_padu);
+var key_down    = keyboard_check_pressed(global.key_down) || keyboard_check_pressed(vk_down) || keyboard_check_pressed(ord("S")) || gamepad_button_check_pressed(0, gp_padd);
 var key_confirm = keyboard_check_pressed(global.key_confirm) || gamepad_button_check_pressed(0, gp_face1);
 
 // Teclas de Aba (LB / RB ou Q / E dinâmicos)
@@ -162,7 +162,7 @@ switch (state) {
         }
         break;
         
-    // --- NO AR (COM COLISÃO SEGURA PARA A QUEDA) ---
+    // --- NO AR ---
     case player_state.air:
         var touching_wall_right = place_meeting(x + 1, y, obj_colisor);
         var touching_wall_left  = place_meeting(x - 1, y, obj_colisor);
@@ -191,17 +191,15 @@ switch (state) {
         
         if (key_jump_released && vspd < 0) { vspd *= 0.45; }
         
-        // TROCA DE SPRITE: SUBIDA VS QUEDA
         image_blend = c_white;
         if (vspd < 0) {
-            sprite_index = spr_player_jump; // Subindo
+            sprite_index = spr_player_jump;
             image_speed = 1;
         } else {
-            sprite_index = spr_player_air;  // Caindo
+            sprite_index = spr_player_air;
             image_speed = 1;
         }
         
-        // COLISÃO VERTICAL SEGURA (Garante que não afunda no bloco)
         if (place_meeting(x, y + vspd, obj_colisor)) {
             while (!place_meeting(x, y + sign(vspd), obj_colisor)) { 
                 y += sign(vspd); 
@@ -341,9 +339,19 @@ switch (state) {
         sprite_index = spr_player_idle;
         craft_timer++; 
         if (craft_timer >= craft_time_max) {
-            if (craft_selected_item == 0) { curativo_count++; show_debug_message("Curativo feito!"); }
-            else if (craft_selected_item == 1) { molotov_count++; show_debug_message("Molotov feito!"); }
-            craft_timer = 0; state = player_state.idle; 
+            if (craft_selected_item == 0) {
+                curativo_count++;
+                show_debug_message("Curativo feito!");
+            } else if (craft_selected_item == 1) {
+                molotov_count++;
+                show_debug_message("Molotov feito!");
+            } else if (craft_selected_item == 2) {
+                faca_count++;
+                molotov_count++; // Ou equipa no slot de arremesso!
+                show_debug_message("Faca de Arremesso feita!");
+            }
+            craft_timer = 0;
+            state = player_state.idle; 
         }
         break;
 }
@@ -356,7 +364,6 @@ if (is_invulnerable) {
     if (iframe_timer <= 0) is_invulnerable = false;
 }
 
-// Checagem de Dano (Só toma dano se não estiver invulnerável nem rolando)
 if (!is_invulnerable && state != player_state.roll) {
     
     // 1. Dano do Projétil de Ácido da Centopeia
@@ -412,13 +419,15 @@ if (!is_invulnerable && state != player_state.roll) {
                 obj_game_controller.hitstop_timer = 8;
                 obj_game_controller.shake_magnitude = 6;
             }
-            
-            show_debug_message("DANO DO CHEFE! HP Restante: " + string(hp));
         }
     }
     
-    // 4. Dano de Inimigos Comuns (Besouro / Vespa)
+    // 4. Dano de Inimigos Comuns (Besouro e Vespa)
     var inimigo = instance_place(x, y, obj_enemy);
+    if (inimigo == noone) {
+        inimigo = instance_place(x, y, obj_vespa); // Garante que a Vespa também dê dano!
+    }
+    
     if (inimigo != noone && inimigo != boss) {
         hp -= 15;
         is_invulnerable = true;
@@ -438,11 +447,15 @@ if (!is_invulnerable && state != player_state.roll) {
     }
 }
 
-// Controle de Morte do Rato na Simulação
+// Controle de Morte do Rato (Volta para o Save da Fogueira se existir!)
 if (hp <= 0) {
     hp = 0;
-    show_debug_message("VOCE MORREU! Reiniciando batalha...");
-    room_restart();
+    show_debug_message("VOCE MORREU! Retornando ao ultimo checkpoint...");
+    if (file_exists("save_1.ini")) {
+        carregar_jogo(1);
+    } else {
+        room_restart();
+    }
 }
 
 // =====================================================================
