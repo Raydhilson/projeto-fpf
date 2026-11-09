@@ -84,7 +84,7 @@ if (state == player_state.menu) {
     draw_rectangle(0, 0, gw, gh, false);
     draw_set_alpha(1.0); 
     
-    // Cabeçalho das Abas
+    // 2.1 CABEÇALHO DAS ABAS (Topo da tela)
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
     
@@ -101,14 +101,14 @@ if (state == player_state.menu) {
         }
     }
     
-    // Conteúdo da Aba Selecionada
+    // 2.2 CONTEÚDO DA ABA SELECIONADA
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
     
     var margem_x = 40;
     var margem_y = 60;
     
- // Converte a tecla com segurança (mesmo se for Espaço ou Shift)
+    // Converte a tecla com segurança (mesmo se for Espaço ou Shift)
     var _nome_k = function(_k) {
         if (_k == vk_space) return "SPACE";
         if (_k >= 48 && _k <= 90) return chr(_k);
@@ -123,36 +123,60 @@ if (state == player_state.menu) {
         draw_set_color(c_white);
         if (is_pt) {
             draw_text(margem_x, margem_y, "--- INVENTARIO DA MOCHILA ---");
-            draw_text(margem_x, margem_y + 30, "SUCATA COLETADA: " + string(global.scrap));
-            draw_text(margem_x, margem_y + 50, "CURATIVOS (" + str_key_heal + "): " + string(curativo_count));
-            draw_text(margem_x, margem_y + 70, "MOLOTOVS  (" + str_key_throw + "): " + string(molotov_count));
-            draw_text(margem_x, margem_y + 110, "HP DO RATO: " + string(hp) + " / " + string(hp_max));
+            draw_text(margem_x, margem_y + 25, "SUCATA COLETADA: " + string(global.scrap));
+            draw_text(margem_x, margem_y + 45, "CURATIVOS (" + str_key_heal + "): " + string(curativo_count));
+            draw_text(margem_x, margem_y + 65, "MOLOTOVS / FACAS (" + str_key_throw + "): " + string(molotov_count));
+            
+            draw_set_color(c_ltgray);
+            draw_text(margem_x, margem_y + 95, "--- MATERIAIS ORGANICOS ---");
+            draw_text(margem_x, margem_y + 115, "CARNE DE INSETO: " + string(carne_count));
+            draw_text(margem_x, margem_y + 135, "GLANDULA QUIMICA: " + string(glandula_count));
+            draw_text(margem_x, margem_y + 155, "FERRAO DE VESPA: " + string(ferrao_count));
+            
+            draw_set_color(c_white);
+            draw_text(margem_x, margem_y + 185, "HP DO RATO: " + string(hp) + " / " + string(hp_max));
         } else {
             draw_text(margem_x, margem_y, "--- BACKPACK INVENTORY ---");
-            draw_text(margem_x, margem_y + 30, "COLLECTED SCRAP: " + string(global.scrap));
-            draw_text(margem_x, margem_y + 50, "BANDAGES (" + str_key_heal + "): " + string(curativo_count));
-            draw_text(margem_x, margem_y + 70, "MOLOTOVS (" + str_key_throw + "): " + string(molotov_count));
-            draw_text(margem_x, margem_y + 110, "MOUSE HP: " + string(hp) + " / " + string(hp_max));
+            draw_text(margem_x, margem_y + 25, "COLLECTED SCRAP: " + string(global.scrap));
+            draw_text(margem_x, margem_y + 45, "BANDAGES (" + str_key_heal + "): " + string(curativo_count));
+            draw_text(margem_x, margem_y + 65, "MOLOTOVS / KNIVES (" + str_key_throw + "): " + string(molotov_count));
+            
+            draw_set_color(c_ltgray);
+            draw_text(margem_x, margem_y + 95, "--- ORGANIC MATERIALS ---");
+            draw_text(margem_x, margem_y + 115, "INSECT MEAT: " + string(carne_count));
+            draw_text(margem_x, margem_y + 135, "CHEMICAL GLAND: " + string(glandula_count));
+            draw_text(margem_x, margem_y + 155, "WASP STINGER: " + string(ferrao_count));
+            
+            draw_set_color(c_white);
+            draw_text(margem_x, margem_y + 185, "MOUSE HP: " + string(hp) + " / " + string(hp_max));
         }
     }
     else if (aba_atual == 1) {
         // --- ABA 1: CRAFTING ---
         draw_set_color(c_white);
-        var txt_mesa  = is_pt ? "--- MESA DE MONTAGEM ---" : "--- WORKBENCH ---";
-        var txt_suas  = is_pt ? "Suas Sucatas: " : "Your Scrap: ";
+        var txt_mesa = is_pt ? "--- MESA DE MONTAGEM ---" : "--- WORKBENCH ---";
+        var txt_rec  = is_pt 
+            ? "Sucata: " + string(global.scrap) + " | Carne: " + string(carne_count) + " | Glandula: " + string(glandula_count) + " | Ferrao: " + string(ferrao_count)
+            : "Scrap: " + string(global.scrap) + " | Meat: " + string(carne_count) + " | Gland: " + string(glandula_count) + " | Stinger: " + string(ferrao_count);
+        
+        var req_extra = is_pt 
+            ? [" + 1 Carne)", " + 1 Glandula)", " + 1 Ferrao)"] 
+            : [" + 1 Meat)", " + 1 Gland)", " + 1 Stinger)"];
         var txt_custo = is_pt ? " (Custo: " : " (Cost: ";
+        var txt_suc   = is_pt ? " Sucatas" : " Scrap";
         
         draw_text(margem_x, margem_y, txt_mesa);
-        draw_text(margem_x, margem_y + 20, txt_suas + string(global.scrap));
+        draw_text(margem_x, margem_y + 20, txt_rec);
         
         for (var j = 0; j < array_length(craft_recipes); j++) {
-            var yy = margem_y + 60 + (j * 20);
+            var yy = margem_y + 60 + (j * 24);
+            var linha_receita = craft_recipes[j] + txt_custo + string(craft_cost_array[j]) + txt_suc + req_extra[j];
             if (menu_index == j) {
                 draw_set_color(c_yellow);
-                draw_text(margem_x, yy, "-> " + craft_recipes[j] + txt_custo + string(craft_cost_array[j]) + ")");
+                draw_text(margem_x, yy, "-> " + linha_receita);
             } else {
                 draw_set_color(c_white);
-                draw_text(margem_x, yy, craft_recipes[j] + txt_custo + string(craft_cost_array[j]) + ")");
+                draw_text(margem_x, yy, linha_receita);
             }
         }
     }
@@ -192,6 +216,7 @@ if (state == player_state.menu) {
     
     // Reseta o alinhamento e a fonte
     draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
     draw_set_color(c_white);
     draw_set_font(-1); 
 }

@@ -96,7 +96,7 @@ switch (state) {
             scale_x = 0.75; scale_y = 1.35; state = player_state.air; 
         }
         
-        // ATAQUE INICIAL
+        // ATAQUE INICIAL (Com avanço e Squash & Stretch para maior alcance)
         if (key_attack && !stamina_exhausted && stamina_current >= stamina_cost_attack) {
             stamina_current -= stamina_cost_attack;
             stamina_delay_timer = stamina_delay_max;
@@ -106,6 +106,10 @@ switch (state) {
             sprite_index = spr_player_attack;
             image_index = 0;       
             ataque_buffer = false; 
+            
+            hspd = facing * 3.5; // Impulso para frente na estocada
+            scale_x = 1.30;      // Estica horizontalmente para ampliar o alcance visual
+            scale_y = 0.85;
         }
         
         if (key_throw && molotov_count > 0) {
@@ -136,7 +140,7 @@ switch (state) {
             scale_x = 0.75; scale_y = 1.35; state = player_state.air; 
         }
         
-        // ATAQUE INICIAL CORRENDO
+        // ATAQUE INICIAL CORRENDO (Com impulso e esticamento)
         if (key_attack && !stamina_exhausted && stamina_current >= stamina_cost_attack) {
             stamina_current -= stamina_cost_attack;
             stamina_delay_timer = stamina_delay_max;
@@ -146,6 +150,10 @@ switch (state) {
             sprite_index = spr_player_attack;
             image_index = 0;
             ataque_buffer = false;
+            
+            hspd = facing * 4.0; // Mantém o embalo da corrida na estocada
+            scale_x = 1.30;
+            scale_y = 0.85;
         }
 
         if (key_throw && molotov_count > 0) {
@@ -181,6 +189,9 @@ switch (state) {
             sprite_index = spr_player_attack;
             image_index = 0;
             ataque_buffer = false;
+            
+            scale_x = 1.25;
+            scale_y = 0.85;
         }
         
         var taxa_lerp = (move_dir != 0) ? accel : fric;
@@ -211,7 +222,7 @@ switch (state) {
         }
         break;
 
-    // --- ATTACK (Combos e Hitbox) ---
+    // --- ATTACK (Combos e Hitbox Ampliada) ---
     case player_state.attack:
         if (place_meeting(x, y + 1, obj_colisor)) {
             hspd = lerp(hspd, 0, 0.15); 
@@ -232,10 +243,10 @@ switch (state) {
             ataque_buffer = true; 
         }
         
-        // CRIA A HITBOX (Frame 10 da animação)
+        // CRIA A HITBOX (Frame 10 da animação - Alcance aumentado para 24px e escala 1.4x)
         if (action_timer == 10) {
-            var hit = instance_create_layer(x + (facing * 16), y - 10, "Instances", obj_hitbox);
-            hit.image_xscale = facing;
+            var hit = instance_create_layer(x + (facing * 24), y - 10, "Instances", obj_hitbox);
+            hit.image_xscale = facing * 1.4;
             
             if (buff_fogo_timer > 0) {
                 hit.aplica_fogo = true;
@@ -243,7 +254,7 @@ switch (state) {
             
             if (combo_count == 2) {
                 hit.dano = 2; 
-                hit.image_xscale = facing * 1.5; 
+                hit.image_xscale = facing * 1.8; // Golpe 2 ainda mais longo!
             }
         }
 
@@ -256,7 +267,9 @@ switch (state) {
                 sprite_index = spr_player_attack2;
                 image_index = 0;   
                 ataque_buffer = false;
-                hspd = facing * 4; 
+                hspd = facing * 4.5; // Avanço mais forte no segundo golpe do combo
+                scale_x = 1.40;      // Estica mais no segundo golpe
+                scale_y = 0.80;
             } else {
                 if (image_index >= image_number - 1) {
                     combo_count = 0;
@@ -301,7 +314,7 @@ switch (state) {
         }
         break;
 
-    // --- HUB DO PERSONAGEM (MENU EM ABAS) ---
+    // --- HUB DO PERSONAGEM (MENU EM ABAS COM DROPS ORGÂNICOS) ---
     case player_state.menu:
         hspd = 0; vspd = 0; 
         sprite_index = spr_player_idle;
@@ -321,8 +334,19 @@ switch (state) {
             
             if (key_confirm) {
                 var cost = craft_cost_array[menu_index];
-                if (global.scrap >= cost) {
+                var tem_material = false;
+                
+                // Verifica se tem o material orgânico correspondente à receita
+                if (menu_index == 0 && carne_count >= 1)    tem_material = true; // Curativo: Sucata + Carne
+                if (menu_index == 1 && glandula_count >= 1) tem_material = true; // Molotov: Sucata + Glândula
+                if (menu_index == 2 && ferrao_count >= 1)   tem_material = true; // Faca: Sucata + Ferrão
+                
+                if (global.scrap >= cost && tem_material) {
                     global.scrap -= cost;
+                    if (menu_index == 0) carne_count--;
+                    if (menu_index == 1) glandula_count--;
+                    if (menu_index == 2) ferrao_count--;
+                    
                     craft_cost = cost;
                     craft_selected_item = menu_index;
                     craft_timer = 0;
@@ -347,7 +371,7 @@ switch (state) {
                 show_debug_message("Molotov feito!");
             } else if (craft_selected_item == 2) {
                 faca_count++;
-                molotov_count++; // Ou equipa no slot de arremesso!
+                molotov_count++; // Equipa para arremesso imediato
                 show_debug_message("Faca de Arremesso feita!");
             }
             craft_timer = 0;
@@ -425,7 +449,7 @@ if (!is_invulnerable && state != player_state.roll) {
     // 4. Dano de Inimigos Comuns (Besouro e Vespa)
     var inimigo = instance_place(x, y, obj_enemy);
     if (inimigo == noone) {
-        inimigo = instance_place(x, y, obj_vespa); // Garante que a Vespa também dê dano!
+        inimigo = instance_place(x, y, obj_vespa);
     }
     
     if (inimigo != noone && inimigo != boss) {
@@ -482,11 +506,14 @@ if (state != player_state.air) {
 }
 y += vspd;
 
-// Gerar sucata de teste
+// Gerar sucata e drops orgânicos de teste (Tecla U)
 if (keyboard_check_pressed(ord("U"))) { 
     repeat(3) { instance_create_layer(x, y - 10, "Instances", obj_scrap); } 
+    carne_count++;
+    glandula_count++;
+    ferrao_count++;
 }
 
-// Squash & Stretch
+// Squash & Stretch (Retorna suavemente ao tamanho 1.0)
 scale_x = lerp(scale_x, 1.0, 0.15);
 scale_y = lerp(scale_y, 1.0, 0.15);
