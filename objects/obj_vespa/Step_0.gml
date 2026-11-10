@@ -94,20 +94,27 @@ if (hspd != 0 && state != vespa_state.preparando) {
 }
 
 // Morte da Vespa + Drops (Sucata + Chance de Ferrão)
+// Morte da Vespa + Drops (Sucata + Chance de Ferrão + XP da Arma)
 if (hp <= 0) {
     if (instance_exists(obj_game_controller)) {
         obj_game_controller.hitstop_timer = 5;
         obj_game_controller.shake_magnitude = 3;
     }
     
+    // Dá +5 de XP para a Lança do Rato ao derrotar a Vespa
+    if (instance_exists(obj_player)) {
+        obj_player.arma_xp += 5;
+    }
+    
     // Dropa Sucata
     instance_create_layer(x, y, layer, obj_scrap);
     
-    // 60% de chance de dropar Ferrão (tipo_item = 2)
-    if (irandom(99) < 60) {
+    // 60% de chance de dropar Ferrão (tipo_item = 2) com trava de segurança
+    if (irandom(99) < 60 && object_exists(obj_item_drop)) {
         var _drop = instance_create_layer(x, y, layer, obj_item_drop);
         _drop.tipo_item = 2; // Ferrão
     }
     
     instance_destroy();
 }
+    

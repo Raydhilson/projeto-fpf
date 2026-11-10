@@ -6,14 +6,16 @@ vspd = 0;
 grv = 0.3;
 facing = -1;
 
-// --- ESTADOS DA CENTOPEIA ---
+// --- ESTADOS DA CENTOPEIA (COM TELEGRAFIA E EXAUSTÃO) ---
 enum centopeia_state {
-    subterranea,   // Escondida
-    emergindo,     // Saindo do chão
-    patrulha_luta, // Andando e escolhendo ataque
-    investida,     // Bote rápido corpo a corpo
-    cuspindo,      // NOVO: Ataque de projéteis de ácido
-    cavando        // Voltando para a terra
+    subterranea,     // Escondida
+    emergindo,       // Saindo do chão
+    patrulha_luta,   // Andando e escolhendo ataque
+    preparando_bote, // NOVO: Aviso antes da investida (Telegraph)
+    investida,       // Bote rápido corpo a corpo
+    recuperando,     // NOVO: Janela de cansaço após ataques (Abertura para Kite!)
+    cuspindo,        // Ataque de projéteis de ácido
+    cavando          // Voltando para a terra
 }
 state = centopeia_state.subterranea;
 
@@ -23,5 +25,5 @@ aviso_emergir = false;
 alvo_x = x;
 alvo_y = y;
 
-piscar = 0; // Para quando ela tomar dano do rato
+piscar = 0;          // Flash de dano
 queimando_timer = 0; // Suporte para queimadura da lança

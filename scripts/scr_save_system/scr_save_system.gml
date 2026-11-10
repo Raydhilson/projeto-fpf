@@ -55,6 +55,7 @@ function carregar_configuracoes() {
     ini_close();
     window_set_fullscreen(global.tela_cheia);
 }
+
 function restaurar_padroes() {
     global.brilho      = 0.5;
     global.idioma      = "PT";
@@ -77,6 +78,7 @@ function restaurar_padroes() {
     salvar_configuracoes();
     show_debug_message("Configuracoes restauradas para o padrao!");
 }
+
 // =======================================================
 // 2. SALVAR O PROGRESSO (Fogueira e Pause)
 // =======================================================
@@ -102,6 +104,11 @@ function salvar_jogo(_slot) {
         ini_write_real("Player", "Molotovs", obj_player.molotov_count);
         ini_write_real("Player", "ArmaNivel", obj_player.arma_nivel);
         ini_write_real("Player", "ArmaXP", obj_player.arma_xp);
+        
+        // Materiais Orgânicos
+        ini_write_real("Player", "carne", obj_player.carne_count);
+        ini_write_real("Player", "glandula", obj_player.glandula_count);
+        ini_write_real("Player", "ferrao", obj_player.ferrao_count);
     }
     
     ini_close();
@@ -114,7 +121,7 @@ function salvar_jogo(_slot) {
 }
 
 // =======================================================
-// 3. CARREGAR O PROGRESSO (Menu Inicial)
+// 3. CARREGAR O PROGRESSO (Menu Inicial e Morte)
 // =======================================================
 function carregar_jogo(_slot) {
     var _arquivo = "save_" + string(_slot) + ".ini";
@@ -133,6 +140,11 @@ function carregar_jogo(_slot) {
         global.load_molotovs   = ini_read_real("Player", "Molotovs", 0);
         global.load_arma_nivel = ini_read_real("Player", "ArmaNivel", 1);
         global.load_arma_xp    = ini_read_real("Player", "ArmaXP", 0);
+        
+        // Materiais Orgânicos Carregados
+        global.load_carne      = ini_read_real("Player", "carne", 0);
+        global.load_glandula   = ini_read_real("Player", "glandula", 0);
+        global.load_ferrao     = ini_read_real("Player", "ferrao", 0);
         
         ini_close();
         

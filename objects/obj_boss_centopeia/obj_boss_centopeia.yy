@@ -10,8 +10,8 @@
   "name":"obj_boss_centopeia",
   "overriddenProperties":[],
   "parent":{
-    "name":"PLAYER",
-    "path":"folders/SPRITES/PLAYER.yy",
+    "name":"INIMIGOS",
+    "path":"folders/OBJETOS/INIMIGOS.yy",
   },
   "parentObjectId":{
     "name":"obj_enemy",

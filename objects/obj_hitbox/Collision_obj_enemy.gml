@@ -1,3 +1,10 @@
+// Se for o Boss Centopeia escondido debaixo da terra, não aplica dano
+if (other.object_index == obj_boss_centopeia) {
+    if (other.state == centopeia_state.subterranea || other.state == centopeia_state.emergindo) {
+        exit;
+    }
+}
+
 if (other.piscar <= 0) {
     var dano_final = dano;
     var foi_critico = false;
@@ -18,24 +25,26 @@ if (other.piscar <= 0) {
     other.hp -= dano_final;
     other.piscar = 10; 
     
-    if (aplica_fogo) {
+    if (aplica_fogo && variable_instance_exists(other, "queimando_timer")) {
         other.queimando_timer = 180; // Queima o inimigo por 3 segundos (180 frames)
     }
     
-    // 3. KNOCKBACK (Mais forte se for crítico)
-    var kb_forca = foi_critico ? 9 : 6;
-    other.hspd = sign(image_xscale) * kb_forca; 
-    other.vspd = -4;                     
+    // 3. KNOCKBACK (Apenas em inimigos comuns; o Boss Centopeia não toma empurrão da lança)
+    if (other.object_index != obj_boss_centopeia) {
+        var kb_forca = foi_critico ? 9 : 6;
+        other.hspd = sign(image_xscale) * kb_forca; 
+        other.vspd = -4;                     
+    }
     
-    // 4. HITSTOP E SCREEN SHAKE (Pesado no Crítico, Suave e Seco no Normal)
+    // 4. HITSTOP E SCREEN SHAKE
     if (instance_exists(obj_game_controller)) {
         if (foi_critico) {
-            obj_game_controller.hitstop_timer = 10;   // Congelamento pesado de crítico
-            obj_game_controller.shake_magnitude = 5;  // Tremor forte
+            obj_game_controller.hitstop_timer = 10;
+            obj_game_controller.shake_magnitude = 5;
             show_debug_message("CRITICO BRUTAL! Dano: " + string(dano_final) + " | Vida do Inimigo: " + string(other.hp));
         } else {
-            obj_game_controller.hitstop_timer = 4;    // 4 frames (curto e seco)
-            obj_game_controller.shake_magnitude = 1.5; // Tremor sutil de 1.5 pixels
+            obj_game_controller.hitstop_timer = 4;
+            obj_game_controller.shake_magnitude = 1.5;
             show_debug_message("BATEU! Vida do Inimigo: " + string(other.hp));
         }
     }

@@ -17,14 +17,14 @@ if (!variable_global_exists("key_tab_right")) global.key_tab_right = ord("E");
 if (!variable_global_exists("idioma"))        global.idioma        = "PT";
 
 // ==========================================
-// 1. ECONOMIA, CONSUMÍVEIS E MATERIAIS DE DROP (RESERVADO PARA INIMIGOS)
+// 1. ECONOMIA, CONSUMÍVEIS E MATERIAIS DE DROP
 // ==========================================
 if (!variable_global_exists("scrap")) global.scrap = 0;
 curativo_count = 0; 
 molotov_count  = 0;
 faca_count     = 0;
 
-// Materiais orgânicos que virão do Besouro e da Vespa
+// Materiais orgânicos que virão do Besouro e da Vespa (começam em 0)
 carne_count    = 0; // Alimento (Besouro)
 glandula_count = 0; // Glândula Química (Besouro)
 ferrao_count   = 0; // Ferrão (Vespa)
@@ -141,6 +141,11 @@ if (variable_global_exists("carregando_save") && global.carregando_save == true)
     molotov_count  = global.load_molotovs;
     arma_nivel     = global.load_arma_nivel;
     arma_xp        = global.load_arma_xp;
+    
+    // Restaura os materiais orgânicos salvos na fogueira
+    carne_count    = global.load_carne;
+    glandula_count = global.load_glandula;
+    ferrao_count   = global.load_ferrao;
     
     global.carregando_save = false; // Desliga a bandeira para não teleportar toda vez
 }

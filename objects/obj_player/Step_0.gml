@@ -112,10 +112,19 @@ switch (state) {
             scale_y = 0.85;
         }
         
-        if (key_throw && molotov_count > 0) {
-            molotov_count--;
-            var molotov = instance_create_layer(x + (facing * 10), y - 15, "Instances", obj_molotov);
-            molotov.hspd = facing * 6; molotov.vspd = -5;         
+        // ARREMESSO PARADO (Faca ou Molotov)
+        if (key_throw) {
+            if (faca_count > 0 && object_exists(obj_faca_arremesso)) {
+                faca_count--;
+                var faca = instance_create_layer(x + (facing * 12), y - 14, "Instances", obj_faca_arremesso);
+                faca.hspd = facing * 11; // Voa reto e muito rápido!
+                faca.vspd = -1;
+            } else if (molotov_count > 0 && object_exists(obj_molotov)) {
+                molotov_count--;
+                var molotov = instance_create_layer(x + (facing * 10), y - 15, "Instances", obj_molotov);
+                molotov.hspd = facing * 6.5; 
+                molotov.vspd = -4.5;         
+            }
         }
         
         if (key_roll && !stamina_exhausted && stamina_current >= stamina_cost_roll) {
@@ -156,10 +165,19 @@ switch (state) {
             scale_y = 0.85;
         }
 
-        if (key_throw && molotov_count > 0) {
-            molotov_count--;
-            var molotov = instance_create_layer(x + (facing * 10), y - 15, "Instances", obj_molotov);
-            molotov.hspd = facing * 8; molotov.vspd = -4;         
+        // ARREMESSO CORRENDO (Faca ou Molotov com embalo da corrida)
+        if (key_throw) {
+            if (faca_count > 0 && object_exists(obj_faca_arremesso)) {
+                faca_count--;
+                var faca = instance_create_layer(x + (facing * 12), y - 14, "Instances", obj_faca_arremesso);
+                faca.hspd = facing * 12; 
+                faca.vspd = -1;
+            } else if (molotov_count > 0 && object_exists(obj_molotov)) {
+                molotov_count--;
+                var molotov = instance_create_layer(x + (facing * 10), y - 15, "Instances", obj_molotov);
+                molotov.hspd = facing * 8; 
+                molotov.vspd = -4;         
+            }
         }
         
         if (key_roll && !stamina_exhausted && stamina_current >= stamina_cost_roll) {
@@ -371,7 +389,6 @@ switch (state) {
                 show_debug_message("Molotov feito!");
             } else if (craft_selected_item == 2) {
                 faca_count++;
-                molotov_count++; // Equipa para arremesso imediato
                 show_debug_message("Faca de Arremesso feita!");
             }
             craft_timer = 0;
@@ -391,29 +408,31 @@ if (is_invulnerable) {
 if (!is_invulnerable && state != player_state.roll) {
     
     // 1. Dano do Projétil de Ácido da Centopeia
-    var gota_acido = instance_place(x, y, obj_acido_centopeia);
-    if (gota_acido != noone) {
-        hp -= gota_acido.dano;
-        is_invulnerable = true;
-        iframe_timer = 45;
-        
-        var dir_acido = sign(gota_acido.hspd);
-        if (dir_acido == 0) dir_acido = -facing;
-        
-        hspd = dir_acido * 4;
-        vspd = -3;
-        state = player_state.air;
-        
-        if (instance_exists(obj_game_controller)) {
-            obj_game_controller.hitstop_timer = 4;
-            obj_game_controller.shake_magnitude = 3;
+    if (object_exists(obj_acido_centopeia)) {
+        var gota_acido = instance_place(x, y, obj_acido_centopeia);
+        if (gota_acido != noone) {
+            hp -= gota_acido.dano;
+            is_invulnerable = true;
+            iframe_timer = 45;
+            
+            var dir_acido = sign(gota_acido.hspd);
+            if (dir_acido == 0) dir_acido = -facing;
+            
+            hspd = dir_acido * 4;
+            vspd = -3;
+            state = player_state.air;
+            
+            if (instance_exists(obj_game_controller)) {
+                obj_game_controller.hitstop_timer = 4;
+                obj_game_controller.shake_magnitude = 3;
+            }
+            
+            instance_destroy(gota_acido);
         }
-        
-        instance_destroy(gota_acido);
     }
     
     // 2. Dano de Espinhos
-    if (place_meeting(x, y, obj_espinho)) {
+    if (object_exists(obj_espinho) && place_meeting(x, y, obj_espinho)) {
         hp -= 20; 
         is_invulnerable = true; 
         iframe_timer = 60; 
@@ -423,7 +442,7 @@ if (!is_invulnerable && state != player_state.roll) {
     }
     
     // 3. Dano do Chefe: Centopeia Alfa
-    var boss = instance_place(x, y, obj_boss_centopeia);
+    var boss = object_exists(obj_boss_centopeia) ? instance_place(x, y, obj_boss_centopeia) : noone;
     if (boss != noone) {
         if (boss.state != centopeia_state.subterranea && boss.state != centopeia_state.emergindo) {
             var dano_boss = (boss.state == centopeia_state.investida) ? 35 : 20;
@@ -448,7 +467,7 @@ if (!is_invulnerable && state != player_state.roll) {
     
     // 4. Dano de Inimigos Comuns (Besouro e Vespa)
     var inimigo = instance_place(x, y, obj_enemy);
-    if (inimigo == noone) {
+    if (inimigo == noone && object_exists(obj_vespa)) {
         inimigo = instance_place(x, y, obj_vespa);
     }
     
