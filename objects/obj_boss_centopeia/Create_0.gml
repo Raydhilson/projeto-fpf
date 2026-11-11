@@ -27,3 +27,4 @@ alvo_y = y;
 
 piscar = 0;          // Flash de dano
 queimando_timer = 0; // Suporte para queimadura da lança
+image_yscale = 0.6; // Reduz a altura física da Centopeia para o Rato conseguir pular por cima!

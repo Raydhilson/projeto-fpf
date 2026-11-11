@@ -37,51 +37,25 @@ var key_pause = keyboard_check_pressed(vk_escape) || gamepad_button_check_presse
 
 if (key_pause) {
     if (!is_paused) {
+        // Abre o menu de pausa
         is_paused = true;
         pause_state = 0;
         pause_index = 0;
+        aguardando_tecla = false;
         instance_deactivate_all(true);
-    }// --- TELA 1: SUB-MENU DE OPÇÕES E REBIND ---
-    else if (pause_state == 1) {
-        var total_opcoes_cfg = 13; // 0 a 12
-        if (key_up)   { pause_index--; if (pause_index < 0) pause_index = total_opcoes_cfg - 1; }
-        if (key_down) { pause_index++; if (pause_index >= total_opcoes_cfg) pause_index = 0; }
-        
-        var key_toggle = key_confirm || key_left || key_right;
-        
-        if (key_toggle && pause_index <= 2) {
-            switch (pause_index) {
-                case 0: global.idioma = (global.idioma == "PT") ? "EN" : "PT"; break;
-                case 1:
-                    global.tela_cheia = !window_get_fullscreen();
-                    window_set_fullscreen(global.tela_cheia);
-                    break;
-                case 2: global.tremer_tela = !global.tremer_tela; break;
-            }
+    } else {
+        // Se estiver nas Opções (Tela 1), o ESC volta para a Tela 0 e salva!
+        if (pause_state == 1) {
             salvar_configuracoes();
-        }
-        else if (pause_index == 3 && (key_left || key_right || key_confirm)) {
-            if (key_left) global.brilho = clamp(global.brilho - 0.1, 0.1, 1.0);
-            if (key_right || key_confirm) {
-                global.brilho += 0.1;
-                if (global.brilho > 1.0) global.brilho = 0.1;
-            }
-            salvar_configuracoes();
-        }
-        else if (key_confirm && pause_index >= 4) {
-            if (pause_index >= 4 && pause_index <= 10) {
-                aguardando_tecla = true;
-                keyboard_clear(vk_anykey);
-            } else if (pause_index == 11) {
-                restaurar_padroes();
-            } else if (pause_index == 12) {
-                salvar_configuracoes();
-                pause_state = 0;
-                pause_index = 1;
-            }
+            pause_state = 0;
+            pause_index = 1; // Devolve o cursor em "OPCOES E CONTROLES"
+        } else {
+            // Se estiver na Tela 0, o ESC despausa o jogo!
+            is_paused = false;
+            instance_activate_all();
         }
     }
-    
+    exit; // Impede que o clique do ESC conflite com a navegação no mesmo frame
 }
 
 // ==========================================
@@ -117,9 +91,9 @@ if (is_paused) {
             }
         }
     }
-    // --- TELA 1: SUB-MENU DE OPÇÕES E REBIND ---
+    // --- TELA 1: SUB-MENU DE OPÇÕES E REBIND (13 Opções: 0 a 12) ---
     else if (pause_state == 1) {
-        var total_opcoes_cfg = 12; // 0 a 11
+        var total_opcoes_cfg = 13; // 0 a 12 (Corrigido para bater com os 13 itens do Draw GUI!)
         if (key_up)   { pause_index--; if (pause_index < 0) pause_index = total_opcoes_cfg - 1; }
         if (key_down) { pause_index++; if (pause_index >= total_opcoes_cfg) pause_index = 0; }
         
@@ -149,6 +123,8 @@ if (is_paused) {
                 aguardando_tecla = true;
                 keyboard_clear(vk_anykey);
             } else if (pause_index == 11) {
+                restaurar_padroes();
+            } else if (pause_index == 12) {
                 salvar_configuracoes();
                 pause_state = 0;
                 pause_index = 1;

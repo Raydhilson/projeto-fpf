@@ -37,10 +37,18 @@ switch (state) {
         image_blend = c_dkgray; 
         
         if (instance_exists(obj_player)) {
-            var dist = point_distance(x, y, obj_player.x, obj_player.y);
+            var dist = point_distance(x, y, obj_player.x, obj_player.y); // <-- Linha que faltava!
             if (dist < 220) {
                 alvo_x = obj_player.x;
                 alvo_y = obj_player.y;
+                
+                // Desce o alvo_y até encontrar o chão real (nunca mais flutua no ar!)
+                var _chao = 0;
+                while (!place_meeting(alvo_x, alvo_y + 1, obj_colisor) && _chao < 200) {
+                    alvo_y += 2;
+                    _chao++;
+                }
+                
                 state = centopeia_state.emergindo;
                 action_timer = 45; 
                 

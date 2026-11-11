@@ -98,7 +98,7 @@ stamina_regen_rate = 0.8;
 stamina_delay_max = 45;        
 stamina_delay_timer = 0;       
 
-stamina_cost_attack = 20;      
+stamina_cost_attack = 10;      
 stamina_cost_roll = 25;        
 
 stamina_exhausted = false;
