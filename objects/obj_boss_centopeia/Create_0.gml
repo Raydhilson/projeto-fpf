@@ -15,7 +15,8 @@ enum centopeia_state {
     investida,       // Bote rápido corpo a corpo
     recuperando,     // NOVO: Janela de cansaço após ataques (Abertura para Kite!)
     cuspindo,        // Ataque de projéteis de ácido
-    cavando          // Voltando para a terra
+    cavando   ,
+	mordida// Voltando para a terra
 }
 state = centopeia_state.subterranea;
 

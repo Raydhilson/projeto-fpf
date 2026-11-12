@@ -27,6 +27,31 @@ if (state == centopeia_state.emergindo) {
     // B. Desenho da Centopeia (Sprite real ou retângulos procedurais temporários)
     if (sprite_index != -1 && sprite_exists(sprite_index)) {
         draw_self();
+		// --- EFEITO VISUAL DA MORDIDA (Mesmo sendo um bloco!) ---
+if (state == centopeia_state.mordida) {
+    var boca_x = (facing == 1) ? bbox_right : bbox_left;
+    var boca_y = (bbox_top + bbox_bottom) / 2;
+    
+    // 1. Aviso da mandíbula abrindo (Frames 35 a 16)
+    if (action_timer > 15) {
+        draw_set_color(c_yellow);
+        // Presa superior e inferior abertas preparando o bote
+        draw_triangle(boca_x, boca_y - 14, boca_x, boca_y - 4, boca_x + (facing * 20), boca_y - 10, false);
+        draw_triangle(boca_x, boca_y + 14, boca_x, boca_y + 4, boca_x + (facing * 20), boca_y + 10, false);
+    }
+    // 2. O Impacto da Dentada! (Frames 15 a 8)
+    else if (mordida_hitbox_ativa) {
+        draw_set_color(c_white);
+        // Desenha o clarão das presas se fechando 38px à frente!
+        draw_triangle(boca_x, boca_y - 16, boca_x + (facing * 38), boca_y - 2, boca_x + (facing * 14), boca_y + 4, false);
+        draw_triangle(boca_x, boca_y + 16, boca_x + (facing * 38), boca_y + 2, boca_x + (facing * 14), boca_y - 4, false);
+        
+        draw_set_color(c_red);
+        draw_line_width(boca_x, boca_y - 12, boca_x + (facing * 36), boca_y, 2);
+        draw_line_width(boca_x, boca_y + 12, boca_x + (facing * 36), boca_y, 2);
+    }
+    draw_set_color(c_white);
+}
     } else {
         // Corpo alongado
         draw_set_color(image_blend);

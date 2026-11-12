@@ -96,7 +96,7 @@ switch (state) {
             scale_x = 0.75; scale_y = 1.35; state = player_state.air; 
         }
         
-       if (key_attack && !stamina_exhausted && stamina_current >= stamina_cost_attack) {
+        if (key_attack && !stamina_exhausted && stamina_current >= stamina_cost_attack) {
             if (move_dir != 0) facing = move_dir;
             stamina_current -= stamina_cost_attack;
             stamina_delay_timer = stamina_delay_max;
@@ -122,13 +122,13 @@ switch (state) {
             }
         }
         
-       if (key_roll && !stamina_exhausted && stamina_current >= stamina_cost_roll) {
+        if (key_roll && !stamina_exhausted && stamina_current >= stamina_cost_roll) {
             stamina_current -= stamina_cost_roll; 
             stamina_delay_timer = stamina_delay_max;
             state = player_state.roll; 
             action_timer = 18; 
-            is_invulnerable = true; // Mantém a i-frame da rolagem
-            iframe_timer = max(iframe_timer, 28); // Renova se precisar
+            is_invulnerable = true; 
+            iframe_timer = max(iframe_timer, 28); 
             sprite_index = spr_player_roll; 
             image_index = 0;
         }
@@ -178,7 +178,7 @@ switch (state) {
         
         if (key_roll && !stamina_exhausted && stamina_current >= stamina_cost_roll) {
             stamina_current -= stamina_cost_roll; stamina_delay_timer = stamina_delay_max;
-            state = player_state.roll; action_timer = 18; is_invulnerable = true; iframe_timer = 28;
+            state = player_state.roll; action_timer = 18; is_invulnerable = true; iframe_timer = max(iframe_timer, 28);
             sprite_index = spr_player_roll; image_index = 0;
         }
         break;
@@ -188,7 +188,6 @@ switch (state) {
         var touching_wall_right = place_meeting(x + 1, y, obj_colisor);
         var touching_wall_left  = place_meeting(x - 1, y, obj_colisor);
         
-        // Só entra em wall_slide se estiver caindo E não estiver batendo a cabeça no teto
         if (vspd > 0 && !place_meeting(x, y - 2, obj_colisor) && ((touching_wall_right && move_dir > 0) || (touching_wall_left && move_dir < 0))) {
             state = player_state.wall_slide;
         }
@@ -216,7 +215,6 @@ switch (state) {
         image_blend = c_white;
         sprite_index = (vspd < 0) ? spr_player_jump : spr_player_air;
         
-        // Se pousou no chão, volta para idle/run
         if (on_ground && vspd >= 0) {
             scale_x = 1.25; scale_y = 0.80;
             state = (move_dir != 0) ? player_state.run : player_state.idle;
@@ -226,7 +224,7 @@ switch (state) {
     // --- ATTACK (RESPOSTA RÁPIDA PARA KITE E DASH CANCEL!) ---
     case player_state.attack:
         if (on_ground) {
-            hspd = lerp(hspd, move_dir * (walk_sp * 0.5), 0.2); // Permite micro-movimento durante o kite!
+            hspd = lerp(hspd, move_dir * (walk_sp * 0.5), 0.2); 
             vspd = 0;
         } else {
             vspd += grv;
@@ -240,11 +238,10 @@ switch (state) {
             ataque_buffer = true; 
         }
         
-        // HITBOX INSTANTÂNEA: Nasce no frame 12 (apenas 2 frames após apertar o botão!)
         if (action_timer == 12) {
             var hit = instance_create_layer(x + (facing * 26), y - 12, "Instances", obj_hitbox);
             hit.image_xscale = facing * 1.5;
-            hit.duracao = 5; // Fica ativa por 5 frames para garantir o acerto no kite!
+            hit.duracao = 5; 
             
             if (buff_fogo_timer > 0) hit.aplica_fogo = true;
             if (combo_count == 2) {
@@ -253,7 +250,6 @@ switch (state) {
             }
         }
 
-        // DASH CANCEL: Pode cancelar o final do ataque com Roll (K) imediatamente após a hitbox!
         if (action_timer <= 9 && key_roll && !stamina_exhausted && stamina_current >= stamina_cost_roll) {
             if (move_dir != 0) facing = move_dir;
             stamina_current -= stamina_cost_roll;
@@ -261,7 +257,7 @@ switch (state) {
             state = player_state.roll;
             action_timer = 18;
             is_invulnerable = true;
-            iframe_timer = 28;
+            iframe_timer = max(iframe_timer, 28);
             sprite_index = spr_player_roll;
             image_index = 0;
             break;
@@ -269,7 +265,6 @@ switch (state) {
 
         action_timer--;
         
-        // Libera o jogador assim que o action_timer zera (sem travar esperando a sprite!)
         if (action_timer <= 0) {
             if (ataque_buffer && combo_count == 1 && arma_nivel >= 2) {
                 if (move_dir != 0) facing = move_dir;
@@ -312,7 +307,7 @@ switch (state) {
             vspd = wall_jump_vspd;
             hspd = -wall_dir * wall_jump_hspd;
             facing = -wall_dir;
-            x += -wall_dir * 2; // Descola 2px da parede para nunca prender na quina!
+            x += -wall_dir * 2; 
             scale_x = 0.80; scale_y = 1.25;
             state = player_state.air;
             break;
@@ -389,7 +384,7 @@ if (!is_invulnerable && state != player_state.roll) {
         if (gota_acido != noone) {
             hp -= gota_acido.dano;
             is_invulnerable = true;
-            iframe_timer = 60; // 1 segundo inteiro de invencibilidade
+            iframe_timer = 60; 
             
             var dir_acido = (gota_acido.hspd != 0) ? sign(gota_acido.hspd) : -facing;
             hspd = dir_acido * 5;
@@ -409,15 +404,14 @@ if (!is_invulnerable && state != player_state.roll) {
         state = player_state.air; 
     }
     
-    // 3. Dano do Chefe: Centopeia Alfa
+    // 3. Dano do Chefe: Centopeia Alfa (Causa dano na INVESTIDA ou quando EMERGE do chão!)
     var boss = object_exists(obj_boss_centopeia) ? instance_place(x, y, obj_boss_centopeia) : noone;
     if (boss != noone) {
-        if (boss.state != centopeia_state.subterranea && boss.state != centopeia_state.emergindo) {
-            var dano_boss = (boss.state == centopeia_state.investida) ? 25 : 15; // Dano balanceado
+        if (boss.state == centopeia_state.investida || boss.state == centopeia_state.emergindo) {
+            var dano_boss = (boss.state == centopeia_state.investida) ? 25 : 20;
             hp -= dano_boss;
-            
             is_invulnerable = true;
-            iframe_timer = 75; // 1.25s de invencibilidade contra o Boss para sair do canto!
+            iframe_timer = 75; 
             
             var dir_empurrao = sign(x - boss.x);
             if (dir_empurrao == 0) dir_empurrao = -facing;
@@ -433,26 +427,24 @@ if (!is_invulnerable && state != player_state.roll) {
         }
     }
     
-    // 4. Dano de Inimigos Comuns (Empurra o Player E Empurra o Inimigo para trás!)
+    // 4. Dano de Inimigos Comuns (Ignora o Boss para você poder colar nele!)
     var inimigo = instance_place(x, y, obj_enemy);
     if (inimigo == noone && object_exists(obj_vespa)) {
         inimigo = instance_place(x, y, obj_vespa);
     }
     
-    if (inimigo != noone && inimigo != boss) {
+    if (inimigo != noone && inimigo != boss && inimigo.object_index != obj_boss_centopeia) {
         hp -= 15;
         is_invulnerable = true;
-        iframe_timer = 65; // Mais tempo de respiro!
+        iframe_timer = 65; 
         
         var dir_hit = sign(x - inimigo.x);
         if (dir_hit == 0) dir_hit = -facing;
         
-        // Joga o Rato para longe
         hspd = dir_hit * 6.5;
         vspd = -4.5;
         state = player_state.air;
         
-        // EMPURRA O INIMIGO PARA TRÁS TAMBÉM (Acaba com a perseguição colada!)
         inimigo.hspd = -dir_hit * 5;
         inimigo.vspd = -2.5;
         
@@ -476,8 +468,6 @@ if (hp <= 0) {
 // =====================================================================
 // 5. APLICAÇÃO FÍSICA UNIFICADA (SEM PRENDER NO TETO/PAREDE!)
 // =====================================================================
-
-// Destrava de segurança caso algum sprite tenha entrado 1px na parede
 if (place_meeting(x, y, obj_colisor)) {
     for (var d = 1; d <= 16; d++) {
         if (!place_meeting(x + d, y, obj_colisor)) { x += d; break; }
@@ -496,7 +486,7 @@ if (place_meeting(x + hspd, y, obj_colisor)) {
 }
 x += hspd;
 
-// Colisão Vertical Unificada (Funciona em TODOS os estados, inclusive no ar!)
+// Colisão Vertical Unificada
 if (place_meeting(x, y + vspd, obj_colisor)) {
     while (!place_meeting(x, y + sign(vspd), obj_colisor)) { 
         y += sign(vspd); 
@@ -513,6 +503,6 @@ if (keyboard_check_pressed(ord("U"))) {
     ferrao_count++;
 }
 
-// Squash & Stretch (Limitado para não achatar demais no teto)
+// Squash & Stretch
 scale_x = lerp(scale_x, 1.0, 0.2);
 scale_y = lerp(scale_y, 1.0, 0.2);

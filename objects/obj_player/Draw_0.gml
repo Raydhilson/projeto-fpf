@@ -1,17 +1,22 @@
-// 1. Barra de progresso do Crafting (Em cima da cabeça)
+// 1. Barra de progresso do Crafting estilizada (Em cima da cabeça)
 if (state == player_state.craft) {
-    var bar_w = 24;  
-    var bar_h = 4;   
+    var bar_w = 34;  
+    var bar_h = 6;   
     var bar_x = x - (bar_w / 2);
-    var bar_y = y - 24; 
+    var bar_y = y - 28; 
+    var pct   = clamp(craft_timer / craft_time_max, 0, 1);
     
-    draw_set_color(c_black);
-    draw_rectangle(bar_x, bar_y, bar_x + bar_w, bar_y + bar_h, false);
+    // Fundo escuro e borda
+    draw_set_color(make_color_rgb(18, 20, 26));
+    draw_rectangle(bar_x - 1, bar_y - 1, bar_x + bar_w + 1, bar_y + bar_h + 1, false);
     
-    var pct = craft_timer / craft_time_max;
-    draw_set_color(c_white);
+    // Preenchimento dourado
+    draw_set_color(make_color_rgb(235, 185, 60));
     draw_rectangle(bar_x, bar_y, bar_x + (bar_w * pct), bar_y + bar_h, false);
+    
+    // Moldura externa
     draw_set_color(c_white);
+    draw_rectangle(bar_x - 1, bar_y - 1, bar_x + bar_w + 1, bar_y + bar_h + 1, true);
 }
 
 // 2. Controle do "piscar": SÓ PISCA SE TOMOU DANO, NUNCA NO ROLAMENTO

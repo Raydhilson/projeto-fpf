@@ -1,6 +1,9 @@
 // ==========================================
-// 0. SISTEMA DE HITSTOP (PAUSA O CHEFE)
+// 0. SISTEMA DE HITSTOP E INICIALIZAÇÃO SEGURA DA MORDIDA
 // ==========================================
+if (!variable_instance_exists(id, "usando_mordida"))       usando_mordida = false;
+if (!variable_instance_exists(id, "mordida_hitbox_ativa")) mordida_hitbox_ativa = false;
+
 if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
     image_speed = 0;
     exit;
@@ -34,10 +37,12 @@ switch (state) {
     case centopeia_state.subterranea:
         hspd = 0;
         vspd = 0;
+        usando_mordida = false;
+        mordida_hitbox_ativa = false;
         image_blend = c_dkgray; 
         
         if (instance_exists(obj_player)) {
-            var dist = point_distance(x, y, obj_player.x, obj_player.y); // <-- Linha que faltava!
+            var dist = point_distance(x, y, obj_player.x, obj_player.y);
             if (dist < 220) {
                 alvo_x = obj_player.x;
                 alvo_y = obj_player.y;
@@ -83,7 +88,7 @@ switch (state) {
             
             vspd = -6; 
             state = centopeia_state.patrulha_luta;
-            action_timer = 80; // Tempo até o primeiro ataque após emergir
+            action_timer = 55; // Tempo até o primeiro ataque após emergir
             
             if (instance_exists(obj_game_controller)) {
                 obj_game_controller.hitstop_timer = 10;
@@ -95,65 +100,155 @@ switch (state) {
     // --- ESTADO 3: PATRULHA E ESCOLHA INTELIGENTE POR DISTÂNCIA ---
     case centopeia_state.patrulha_luta:
         image_blend = c_red; 
+        usando_mordida = false;
+        mordida_hitbox_ativa = false;
         vspd += grv;
         
         if (instance_exists(obj_player)) {
             var dir = sign(obj_player.x - x);
             if (dir != 0) facing = dir;
             
-            hspd = facing * 1.8; // Levemente mais cadenciada na caminhada
+            var dist_p = abs(obj_player.x - x);
+            
+            // Se o rato colar nela para bater, ela reduz a velocidade e engatilha o ataque mais rápido!
+            if (dist_p < 75) {
+                hspd = facing * 0.8;
+                if (action_timer > 18) action_timer = 18;
+            } else {
+                hspd = facing * 1.8;
+            }
             
             action_timer--;
             if (action_timer <= 0) {
-                var dist_p = abs(obj_player.x - x);
-                var proximo_ataque;
+                if (dir != 0) facing = dir; // Trava a direção para onde o player está agora
                 
-                // IA por Distância: Perto prioriza bote; Longe prioriza ácido ou cavar
-                if (dist_p < 120) {
-                    proximo_ataque = choose(
-                        centopeia_state.preparando_bote,
-                        centopeia_state.preparando_bote,
-                        centopeia_state.cavando
-                    );
-                } else {
-                    proximo_ataque = choose(
-                        centopeia_state.cuspindo,
-                        centopeia_state.cuspindo,
-                        centopeia_state.preparando_bote,
-                        centopeia_state.cavando
-                    );
+                // CURTA DISTÂNCIA (< 95px): Prioriza a MORDIDA FRONTAL!
+                if (dist_p < 95) {
+                    var _escolha_curta = choose("mordida", "mordida", "mordida", "investida");
+                    if (_escolha_curta == "mordida") {
+                        usando_mordida = true;
+                        state = centopeia_state.preparando_bote;
+                        action_timer = 36; // 20 frames abrindo a boca + 8 mordendo + 8 fechando
+                    } else {
+                        usando_mordida = false;
+                        state = centopeia_state.preparando_bote;
+                        action_timer = 22;
+                    }
                 }
-                
-                // Trava a direção para onde o player está AGORA (permite rolar para as costas!)
-                if (dir != 0) facing = dir;
-                state = proximo_ataque;
-                
-                if (proximo_ataque == centopeia_state.preparando_bote) {
-                    action_timer = 22; // 22 frames de aviso antes de correr!
-                } else if (proximo_ataque == centopeia_state.cuspindo) {
-                    action_timer = 60;
-                } else {
-                    action_timer = 30;
+                // MÉDIA DISTÂNCIA (95px a 160px): Investida ou Mordida com avanço
+                else if (dist_p < 160) {
+                    var _escolha_media = choose("investida", "investida", "mordida", "cavando");
+                    if (_escolha_media == "mordida") {
+                        usando_mordida = true;
+                        state = centopeia_state.preparando_bote;
+                        action_timer = 36;
+                    } else if (_escolha_media == "investida") {
+                        usando_mordida = false;
+                        state = centopeia_state.preparando_bote;
+                        action_timer = 22;
+                    } else {
+                        state = centopeia_state.cavando;
+                        action_timer = 30;
+                    }
+                }
+                // LONGA DISTÂNCIA (> 160px): Cuspe de Ácido, Investida ou Cavar
+                else {
+                    var proximo_ataque = choose(
+                        centopeia_state.cuspindo,
+                        centopeia_state.cuspindo,
+                        centopeia_state.preparando_bote,
+                        centopeia_state.cavando
+                    );
+                    usando_mordida = false;
+                    state = proximo_ataque;
+                    
+                    if (proximo_ataque == centopeia_state.preparando_bote) {
+                        action_timer = 22;
+                    } else if (proximo_ataque == centopeia_state.cuspindo) {
+                        action_timer = 60;
+                    } else {
+                        action_timer = 30;
+                    }
                 }
             }
         }
         break;
         
-    // --- ESTADO 3.5: PREPARANDO BOTE (AVISO / TELEGRAPH) ---
+    // --- ESTADO 3.5: PREPARANDO BOTE OU EXECUTANDO MORDIDA FRONTAL ---
     case centopeia_state.preparando_bote:
-        // Dá uma leve recuada para trás preparando o bote ("wind-up")
-        hspd = -facing * 0.8;
         vspd += grv;
         
-        // Pisca entre amarelo e laranja para avisar o jogador
-        image_blend = ((action_timer div 3) mod 2 == 0) ? c_yellow : c_orange;
-        
-        action_timer--;
-        if (action_timer <= 0) {
-            state = centopeia_state.investida;
-            action_timer = 28; // Duração do bote feroz
-            if (instance_exists(obj_game_controller)) {
-                obj_game_controller.shake_magnitude = 3;
+        // MODO A: ATAQUE DE MORDIDA DE CURTO ALCANCE!
+        if (usando_mordida) {
+            mordida_hitbox_ativa = false;
+            
+            // Fase 1 (Frames 36 até 17): Telegrafia — Recua levemente abrindo as presas
+            if (action_timer > 16) {
+                hspd = -facing * 0.5;
+                image_blend = ((action_timer div 3) mod 2 == 0) ? c_yellow : c_orange;
+            }
+            // Frame 16: O BOTE DA MORDIDA! (Avança rápido e curto para frente)
+            else if (action_timer == 16) {
+                hspd = facing * 6.5;
+                image_blend = c_white;
+                if (instance_exists(obj_game_controller)) {
+                    obj_game_controller.shake_magnitude = 3;
+                }
+            }
+            // Fase 2 (Frames 16 até 9): Janela ativa da dentada (42px na frente da boca!)
+            else if (action_timer >= 9 && action_timer < 16) {
+                mordida_hitbox_ativa = true;
+                hspd = lerp(hspd, 0, 0.25);
+                image_blend = c_fuchsia;
+                
+                var alcance_mordida = 42;
+                var x1 = (facing == 1) ? bbox_right : (bbox_left - alcance_mordida);
+                var x2 = (facing == 1) ? (bbox_right + alcance_mordida) : bbox_left;
+                var y1 = bbox_top - 6;
+                var y2 = bbox_bottom;
+                
+                var hit_p = collision_rectangle(x1, y1, x2, y2, obj_player, false, true);
+                if (hit_p != noone && !hit_p.is_invulnerable && hit_p.state != player_state.roll) {
+                    hit_p.hp -= 20; // Dano da mordida
+                    hit_p.is_invulnerable = true;
+                    hit_p.iframe_timer = 60;
+                    hit_p.hspd = facing * 6.5;
+                    hit_p.vspd = -4.5;
+                    hit_p.state = player_state.air;
+                    
+                    if (instance_exists(obj_game_controller)) {
+                        obj_game_controller.hitstop_timer = 5;
+                        obj_game_controller.shake_magnitude = 4;
+                    }
+                }
+            }
+            // Fase 3 (Frames 8 até 0): Fecha a mandíbula e termina o golpe
+            else {
+                mordida_hitbox_ativa = false;
+                hspd = lerp(hspd, 0, 0.3);
+                image_blend = c_red;
+            }
+            
+            action_timer--;
+            if (action_timer <= 0) {
+                usando_mordida = false;
+                mordida_hitbox_ativa = false;
+                state = centopeia_state.recuperando;
+                action_timer = 35; // Pequena janela de cansaço após morder
+            }
+        }
+        // MODO B: AVISO DA INVESTIDA LONGA NORMAL
+        else {
+            hspd = -facing * 0.8;
+            image_blend = ((action_timer div 3) mod 2 == 0) ? c_yellow : c_orange;
+            
+            action_timer--;
+            if (action_timer <= 0) {
+                state = centopeia_state.investida;
+                action_timer = 28; // Duração do bote feroz
+                if (instance_exists(obj_game_controller)) {
+                    obj_game_controller.shake_magnitude = 3;
+                }
             }
         }
         break;
@@ -162,7 +257,7 @@ switch (state) {
     case centopeia_state.investida:
         hspd = facing * 5.8; 
         vspd += grv;
-        image_blend = c_fuchsia; // Destaque visual de ataque letal
+        image_blend = c_fuchsia; 
         
         // Se bater de cara na parede durante a investida, interrompe e fica tonta!
         if (place_meeting(x + hspd, y, obj_colisor)) {
@@ -172,27 +267,29 @@ switch (state) {
             hspd = -facing * 2;
             vspd = -3;
             state = centopeia_state.recuperando;
-            action_timer = 55; // Janela extra por ter batido na parede!
+            action_timer = 55; 
             break;
         }
         
         action_timer--;
         if (action_timer <= 0) {
             state = centopeia_state.recuperando;
-            action_timer = 45; // 45 frames recuperando o fôlego (Hora de bater!)
+            action_timer = 45; 
         }
         break;
 
     // --- ESTADO 4.5: RECUPERANDO O FÔLEGO (JANELA DE KITE!) ---
     case centopeia_state.recuperando:
-        hspd = lerp(hspd, 0, 0.15); // Freia derrapando no chão
+        hspd = lerp(hspd, 0, 0.15); 
         vspd += grv;
-        image_blend = c_gray; // Cor mais apagada indicando vulnerabilidade/cansaço
+        image_blend = c_gray; 
+        usando_mordida = false;
+        mordida_hitbox_ativa = false;
         
         action_timer--;
         if (action_timer <= 0) {
             state = centopeia_state.patrulha_luta;
-            action_timer = 75;
+            action_timer = 55;
         }
         break;
 
@@ -202,8 +299,6 @@ switch (state) {
         vspd += grv;
         image_blend = c_lime;
         
-        // NOTA: Não atualizamos o "facing" aqui dentro! Se o rato rolar para trás dela,
-        // ela continua cuspindo para o lado antigo e fica aberta a ataques pelas costas!
         action_timer--;
         
         if ((action_timer == 42 || action_timer == 26 || action_timer == 10) && object_exists(obj_acido_centopeia)) {
@@ -220,7 +315,6 @@ switch (state) {
         }
         
         if (action_timer <= 0) {
-            // Pequeno respiro de 25 frames após terminar a rajada de ácido
             state = centopeia_state.recuperando;
             action_timer = 25;
         }
@@ -265,6 +359,7 @@ if (state != centopeia_state.cavando && state != centopeia_state.subterranea && 
 } else if (state == centopeia_state.cavando) {
     y += vspd;
 }
+
 // ==========================================
 // 3. MORTE DO CHEFE (VITÓRIA DA DEMO!)
 // ==========================================
@@ -290,4 +385,4 @@ if (hp <= 0) {
     }
     
     instance_destroy();
-} // <-- Fechamento do if (hp <= 0)
+}
