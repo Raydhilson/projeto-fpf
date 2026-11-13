@@ -1,5 +1,5 @@
 // =====================================================================
-// 0. SISTEMA DE HITSTOP (PAUSA O RATO)
+// 0. SISTEMA DE HITSTOP E DROP-IN DO PLAYER 2 (F2 ou START no Controle 2)
 // =====================================================================
 if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
     image_speed = 0;
@@ -8,15 +8,76 @@ if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 
     image_speed = 1;
 }
 
-// =====================================================================
-// 1. LEITURA DE CONTROLES E DIREÇÃO (100% DINÂMICO)
-// =====================================================================
-var move_dir = keyboard_check(global.key_right) - keyboard_check(global.key_left);
+// Se só existe o Player 1 na sala, apertar F2 ou Start no Controle 1 cria o Player 2!
+if (player_id == 0 && instance_number(obj_player) < 2) {
+    if (keyboard_check_pressed(vk_f2) || gamepad_button_check_pressed(1, gp_start)) {
+        instance_create_layer(x - (facing * 24), y, layer, obj_player, {
+            player_id : 1
+        });
+    }
+}
 
-if (move_dir == 0) {
-    var deadzone = 0.2;
-    var axis_h = gamepad_axis_value(0, gp_axislh);
-    if (abs(axis_h) > deadzone) { move_dir = sign(axis_h); }
+// =====================================================================
+// 1. LEITURA DE CONTROLES SEPARADA POR JOGADOR (P1 vs P2)
+// =====================================================================
+var move_dir          = 0;
+var key_jump          = false;
+var key_jump_released = false;
+var key_attack        = false;
+var key_roll          = false;
+var key_throw         = false;
+var key_menu          = false;
+var key_heal          = false;
+var key_up            = false;
+var key_down          = false;
+var key_confirm       = false;
+var key_tab_left      = false;
+var key_tab_right     = false;
+
+var deadzone = 0.2;
+
+if (player_id == 0) {
+    // --- CONTROLES DO PLAYER 1 (Teclado Principal + Gamepad 0) ---
+    move_dir = keyboard_check(global.key_right) - keyboard_check(global.key_left);
+    if (move_dir == 0) {
+        var axis_h = gamepad_axis_value(0, gp_axislh);
+        if (abs(axis_h) > deadzone) move_dir = sign(axis_h);
+    }
+
+    key_jump          = keyboard_check_pressed(global.key_jump)    || gamepad_button_check_pressed(0, gp_face1);
+    key_jump_released = keyboard_check_released(global.key_jump)   || gamepad_button_check_released(0, gp_face1);
+    key_attack        = keyboard_check_pressed(global.key_attack)  || gamepad_button_check_pressed(0, gp_face3);
+    key_roll          = keyboard_check_pressed(global.key_roll)    || gamepad_button_check_pressed(0, gp_face2);
+    key_throw         = keyboard_check_pressed(global.key_throw)   || gamepad_button_check_pressed(0, gp_shoulderr);
+    key_menu          = keyboard_check_pressed(global.key_menu)    || gamepad_button_check_pressed(0, gp_start);
+    key_heal          = keyboard_check_pressed(global.key_heal)    || gamepad_button_check_pressed(0, gp_padl);
+    key_up            = keyboard_check_pressed(global.key_up)      || keyboard_check_pressed(ord("W")) || gamepad_button_check_pressed(0, gp_padu);
+    key_down          = keyboard_check_pressed(global.key_down)    || keyboard_check_pressed(ord("S")) || gamepad_button_check_pressed(0, gp_padd);
+    key_confirm       = keyboard_check_pressed(global.key_confirm) || gamepad_button_check_pressed(0, gp_face1);
+    key_tab_left      = keyboard_check_pressed(global.key_tab_left)  || gamepad_button_check_pressed(0, gp_shoulderl);
+    key_tab_right     = keyboard_check_pressed(global.key_tab_right) || gamepad_button_check_pressed(0, gp_shoulderr);
+} else {
+    // --- CONTROLES DO PLAYER 2 (Gamepad 1 + Setas/Numpad para Teste no Teclado) ---
+    move_dir = keyboard_check(vk_right) - keyboard_check(vk_left);
+    if (move_dir == 0) {
+        var axis_h = gamepad_axis_value(1, gp_axislh);
+        if (abs(axis_h) > deadzone) move_dir = sign(axis_h);
+        if (gamepad_button_check(1, gp_padr)) move_dir = 1;
+        if (gamepad_button_check(1, gp_padl)) move_dir = -1;
+    }
+
+    key_jump          = keyboard_check_pressed(vk_numpad0)   || keyboard_check_pressed(vk_rshift)   || gamepad_button_check_pressed(1, gp_face1);
+    key_jump_released = keyboard_check_released(vk_numpad0)  || keyboard_check_released(vk_rshift)  || gamepad_button_check_released(1, gp_face1);
+    key_attack        = keyboard_check_pressed(vk_numpad1)   || keyboard_check_pressed(vk_rcontrol) || gamepad_button_check_pressed(1, gp_face3);
+    key_roll          = keyboard_check_pressed(vk_numpad2)   || keyboard_check_pressed(vk_ralt)     || gamepad_button_check_pressed(1, gp_face2);
+    key_throw         = keyboard_check_pressed(vk_numpad3)   || gamepad_button_check_pressed(1, gp_shoulderr);
+    key_menu          = keyboard_check_pressed(vk_numpad9)   || gamepad_button_check_pressed(1, gp_start);
+    key_heal          = keyboard_check_pressed(vk_numpad4)   || gamepad_button_check_pressed(1, gp_padl);
+    key_up            = keyboard_check_pressed(vk_up)        || gamepad_button_check_pressed(1, gp_padu);
+    key_down          = keyboard_check_pressed(vk_down)      || gamepad_button_check_pressed(1, gp_padd);
+    key_confirm       = keyboard_check_pressed(vk_numpad5)   || gamepad_button_check_pressed(1, gp_face1);
+    key_tab_left      = keyboard_check_pressed(vk_numpad7)   || gamepad_button_check_pressed(1, gp_shoulderl);
+    key_tab_right     = keyboard_check_pressed(vk_numpad8)   || gamepad_button_check_pressed(1, gp_shoulderr);
 }
 
 // Permite virar de lado livremente (inclusive no início do ataque para Kite!)
@@ -25,21 +86,6 @@ if (move_dir != 0 && state != player_state.menu && state != player_state.craft &
         facing = move_dir; 
     }
 }
-
-var key_jump          = keyboard_check_pressed(global.key_jump) || gamepad_button_check_pressed(0, gp_face1);
-var key_jump_released = keyboard_check_released(global.key_jump) || gamepad_button_check_released(0, gp_face1); 
-var key_attack        = keyboard_check_pressed(global.key_attack)  || gamepad_button_check_pressed(0, gp_face3); 
-var key_roll          = keyboard_check_pressed(global.key_roll)  || gamepad_button_check_pressed(0, gp_face2); 
-var key_throw         = keyboard_check_pressed(global.key_throw)  || gamepad_button_check_pressed(0, gp_shoulderr);
-
-var key_menu    = keyboard_check_pressed(global.key_menu) || gamepad_button_check_pressed(0, gp_start);
-var key_heal    = keyboard_check_pressed(global.key_heal) || gamepad_button_check_pressed(0, gp_padl);
-var key_up      = keyboard_check_pressed(global.key_up)   || keyboard_check_pressed(vk_up)   || keyboard_check_pressed(ord("W")) || gamepad_button_check_pressed(0, gp_padu);
-var key_down    = keyboard_check_pressed(global.key_down) || keyboard_check_pressed(vk_down) || keyboard_check_pressed(ord("S")) || gamepad_button_check_pressed(0, gp_padd);
-var key_confirm = keyboard_check_pressed(global.key_confirm) || gamepad_button_check_pressed(0, gp_face1);
-
-var key_tab_left  = keyboard_check_pressed(global.key_tab_left) || gamepad_button_check_pressed(0, gp_shoulderl);
-var key_tab_right = keyboard_check_pressed(global.key_tab_right) || gamepad_button_check_pressed(0, gp_shoulderr);
 
 // =====================================================================
 // 2. USO DE ITENS (CURATIVO), BUFFS E TIMERS FÍSICOS
@@ -85,7 +131,7 @@ switch (state) {
         hspd = lerp(hspd, 0, fric); 
         if (abs(hspd) < 0.1) hspd = 0;
         
-        image_blend = c_white;
+        image_blend = base_blend;
         sprite_index = spr_player_idle;
         
         if (move_dir != 0) state = player_state.run;
@@ -137,7 +183,7 @@ switch (state) {
     // --- CORRENDO ---
     case player_state.run:
         hspd = lerp(hspd, move_dir * walk_sp, accel); 
-        image_blend = c_white;
+        image_blend = base_blend;
         sprite_index = spr_player_walk;
         
         if (move_dir == 0) state = player_state.idle;
@@ -212,7 +258,7 @@ switch (state) {
         if (vspd > max_vspd) vspd = max_vspd;
         if (key_jump_released && vspd < 0) { vspd *= 0.45; }
         
-        image_blend = c_white;
+        image_blend = base_blend;
         sprite_index = (vspd < 0) ? spr_player_jump : spr_player_air;
         
         if (on_ground && vspd >= 0) {
@@ -221,7 +267,7 @@ switch (state) {
         }
         break;
 
-    // --- ATTACK (RESPOSTA RÁPIDA PARA KITE E DASH CANCEL!) ---
+    // --- ATTACK ---
     case player_state.attack:
         if (on_ground) {
             hspd = lerp(hspd, move_dir * (walk_sp * 0.5), 0.2); 
@@ -232,7 +278,7 @@ switch (state) {
         }
         
         sprite_index = (combo_count == 1) ? spr_player_attack : spr_player_attack2;
-        image_blend = c_white;
+        image_blend = base_blend;
         
         if (key_attack && arma_nivel >= 2) {
             ataque_buffer = true; 
@@ -286,7 +332,7 @@ switch (state) {
     case player_state.roll:
         hspd = facing * roll_sp; 
         vspd = 0; 
-        image_blend = c_white;
+        image_blend = base_blend;
         sprite_index = spr_player_roll;
         
         action_timer--;
@@ -299,7 +345,7 @@ switch (state) {
     case player_state.wall_slide:
         vspd = 2; 
         hspd = 0;
-        image_blend = c_white;
+        image_blend = base_blend;
         sprite_index = spr_player_jump;
         var wall_dir = place_meeting(x + 1, y, obj_colisor) ? 1 : -1;
         
@@ -355,7 +401,7 @@ switch (state) {
     // --- FABRICANDO ITEM ---
     case player_state.craft:
         hspd = 0; vspd = 0; 
-        image_blend = c_white; 
+        image_blend = base_blend; 
         sprite_index = spr_player_idle;
         craft_timer++; 
         if (craft_timer >= craft_time_max) {
@@ -369,7 +415,7 @@ switch (state) {
 }
 
 // =====================================================================
-// 4. SISTEMAS DE DANO DE COMBATE E I-FRAMES (COM RESPIRO GARANTIDO!)
+// 4. SISTEMAS DE DANO DE COMBATE E I-FRAMES
 // =====================================================================
 if (is_invulnerable) {
     iframe_timer--;
@@ -404,7 +450,7 @@ if (!is_invulnerable && state != player_state.roll) {
         state = player_state.air; 
     }
     
-    // 3. Dano do Chefe: Centopeia Alfa (Causa dano na INVESTIDA ou quando EMERGE do chão!)
+    // 3. Dano do Chefe: Centopeia Alfa
     var boss = object_exists(obj_boss_centopeia) ? instance_place(x, y, obj_boss_centopeia) : noone;
     if (boss != noone) {
         if (boss.state == centopeia_state.investida || boss.state == centopeia_state.emergindo) {
@@ -427,7 +473,7 @@ if (!is_invulnerable && state != player_state.roll) {
         }
     }
     
-    // 4. Dano de Inimigos Comuns (Ignora o Boss para você poder colar nele!)
+    // 4. Dano de Inimigos Comuns
     var inimigo = instance_place(x, y, obj_enemy);
     if (inimigo == noone && object_exists(obj_vespa)) {
         inimigo = instance_place(x, y, obj_vespa);
@@ -455,18 +501,23 @@ if (!is_invulnerable && state != player_state.roll) {
     }
 }
 
-// Controle de Morte
+// Controle de Morte (No Co-op, se tiver outro jogador vivo, apenas destrói quem morreu; se todos morrerem, reinicia!)
 if (hp <= 0) {
     hp = 0;
-    if (file_exists("save_1.ini")) {
-        carregar_jogo(1);
+    if (instance_number(obj_player) > 1) {
+        instance_destroy();
+        exit;
     } else {
-        room_restart();
+        if (file_exists("save_1.ini")) {
+            carregar_jogo(1);
+        } else {
+            room_restart();
+        }
     }
 }
 
 // =====================================================================
-// 5. APLICAÇÃO FÍSICA UNIFICADA (SEM PRENDER NO TETO/PAREDE!)
+// 5. APLICAÇÃO FÍSICA UNIFICADA
 // =====================================================================
 if (place_meeting(x, y, obj_colisor)) {
     for (var d = 1; d <= 16; d++) {
@@ -477,7 +528,6 @@ if (place_meeting(x, y, obj_colisor)) {
     }
 }
 
-// Colisão Horizontal
 if (place_meeting(x + hspd, y, obj_colisor)) {
     while (!place_meeting(x + sign(hspd), y, obj_colisor)) { 
         x += sign(hspd); 
@@ -486,7 +536,6 @@ if (place_meeting(x + hspd, y, obj_colisor)) {
 }
 x += hspd;
 
-// Colisão Vertical Unificada
 if (place_meeting(x, y + vspd, obj_colisor)) {
     while (!place_meeting(x, y + sign(vspd), obj_colisor)) { 
         y += sign(vspd); 

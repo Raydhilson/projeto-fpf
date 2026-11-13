@@ -55,6 +55,7 @@
     {"id":{"name":"rm_forest_1","path":"rooms/rm_forest_1/rm_forest_1.yy",},},
     {"id":{"name":"rm_main_menu","path":"rooms/rm_main_menu/rm_main_menu.yy",},},
     {"id":{"name":"rm_options","path":"rooms/rm_options/rm_options.yy",},},
+    {"id":{"name":"apply_resolution","path":"scripts/apply_resolution/apply_resolution.yy",},},
     {"id":{"name":"scr_save_system","path":"scripts/scr_save_system/scr_save_system.yy",},},
     {"id":{"name":"spr_Background","path":"sprites/spr_Background/spr_Background.yy",},},
     {"id":{"name":"spr_boss_centopeia","path":"sprites/spr_boss_centopeia/spr_boss_centopeia.yy",},},

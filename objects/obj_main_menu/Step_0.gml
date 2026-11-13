@@ -1,7 +1,7 @@
 // Alternar Tela Cheia no F11
 if (keyboard_check_pressed(vk_f11)) {
     global.tela_cheia = !window_get_fullscreen();
-    window_set_fullscreen(global.tela_cheia);
+    aplicar_resolucao();
     salvar_configuracoes();
 }
 
@@ -14,13 +14,13 @@ if (menu_state == 1 && aguardando_tecla) {
         
         if (nova_tecla != vk_escape && nova_tecla != vk_f11) {
             switch (menu_index) {
-                case 4:  global.key_jump   = nova_tecla; break;
-                case 5:  global.key_attack = nova_tecla; break;
-                case 6:  global.key_roll   = nova_tecla; break;
-                case 7:  global.key_heal   = nova_tecla; break;
-                case 8:  global.key_throw  = nova_tecla; break;
-                case 9:  global.key_left   = nova_tecla; break;
-                case 10: global.key_right  = nova_tecla; break;
+                case 5:  global.key_jump   = nova_tecla; break;
+                case 6:  global.key_attack = nova_tecla; break;
+                case 7:  global.key_roll   = nova_tecla; break;
+                case 8:  global.key_heal   = nova_tecla; break;
+                case 9:  global.key_throw  = nova_tecla; break;
+                case 10: global.key_left   = nova_tecla; break;
+                case 11: global.key_right  = nova_tecla; break;
             }
             salvar_configuracoes();
         }
@@ -63,9 +63,9 @@ if (menu_state == 0) {
         }
     }
 }
-// --- ESTADO 1: SUB-MENU DE OPÇÕES E CONTROLES ---
+// --- ESTADO 1: SUB-MENU DE OPÇÕES E CONTROLES (14 Opções: 0 a 13) ---
 else if (menu_state == 1) {
-    var total_cfg = 13; // 13 opções (0 a 12)
+    var total_cfg = 14; // 0 a 13
     if (key_up)   { menu_index--; if (menu_index < 0) menu_index = total_cfg - 1; }
     if (key_down) { menu_index++; if (menu_index >= total_cfg) menu_index = 0; }
     
@@ -77,20 +77,33 @@ else if (menu_state == 1) {
     
     var key_toggle = key_enter || key_left || key_right;
     
-    // Opções 0, 1 e 2 (Idioma, Tela Cheia, Shake)
-    if (key_toggle && menu_index <= 2) {
+    // Opções 0, 1 e 3 (Idioma, Tela Cheia, Tremor de Tela)
+    if (key_toggle && (menu_index == 0 || menu_index == 1 || menu_index == 3)) {
         switch (menu_index) {
             case 0: global.idioma = (global.idioma == "PT") ? "EN" : "PT"; break;
             case 1:
                 global.tela_cheia = !window_get_fullscreen();
-                window_set_fullscreen(global.tela_cheia);
+                aplicar_resolucao();
                 break;
-            case 2: global.tremer_tela = !global.tremer_tela; break;
+            case 3: global.tremer_tela = !global.tremer_tela; break;
         }
         salvar_configuracoes();
     }
-    // Opção 3: Brilho (A/D, Setas Esq/Dir ou Enter)
-    else if (menu_index == 3 && (key_left || key_right || key_enter)) {
+    // Opção 2: Resolução da Tela
+    else if (menu_index == 2 && key_toggle) {
+        var _total_res = array_length(global.resolucoes);
+        if (key_left) {
+            global.res_index--;
+            if (global.res_index < 0) global.res_index = _total_res - 1;
+        } else if (key_right || key_enter) {
+            global.res_index++;
+            if (global.res_index >= _total_res) global.res_index = 0;
+        }
+        aplicar_resolucao();
+        salvar_configuracoes();
+    }
+    // Opção 4: Nível de Brilho
+    else if (menu_index == 4 && key_toggle) {
         if (key_left) global.brilho = clamp(global.brilho - 0.1, 0.1, 1.0);
         if (key_right || key_enter) {
             global.brilho += 0.1;
@@ -98,14 +111,15 @@ else if (menu_state == 1) {
         }
         salvar_configuracoes();
     }
-    // Opções 4 a 12: Rebind de Teclas, Restaurar Padrões e Voltar
-    else if (key_enter && menu_index >= 4) {
-        if (menu_index >= 4 && menu_index <= 10) {
+    // Opções 5 a 13: Rebind de Teclas, Restaurar Padrões e Voltar
+    else if (key_enter && menu_index >= 5) {
+        if (menu_index >= 5 && menu_index <= 11) {
             aguardando_tecla = true;
             keyboard_clear(vk_anykey);
-        } else if (menu_index == 11) {
-            restaurar_padroes();
         } else if (menu_index == 12) {
+            restaurar_padroes();
+            aplicar_resolucao();
+        } else if (menu_index == 13) {
             salvar_configuracoes();
             menu_state = 0;
             menu_index = 2;

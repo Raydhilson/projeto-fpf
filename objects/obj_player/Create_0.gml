@@ -1,10 +1,21 @@
 // ==========================================
-// 0. SEGURANÇA DE CONTROLES (FALLBACK PADRONIZADO)
+// 0. IDENTIFICAÇÃO DO JOGADOR (CO-OP LOCAL)
 // ==========================================
-if (!variable_global_exists("key_right"))     global.key_right     = vk_right;
-if (!variable_global_exists("key_left"))      global.key_left      = vk_left;
-if (!variable_global_exists("key_up"))        global.key_up        = vk_up;
-if (!variable_global_exists("key_down"))      global.key_down      = vk_down;
+if (!variable_instance_exists(id, "player_id")) {
+    player_id = 0; // 0 = Player 1 | 1 = Player 2
+}
+
+// Cor base de cada jogador (Evita que o Step resete o P2 para branco)
+base_blend = (player_id == 0) ? c_white : make_color_rgb(150, 220, 255);
+image_blend = base_blend;
+
+// ==========================================
+// 0.5 SEGURANÇA DE CONTROLES (FALLBACK PADRONIZADO)
+// ==========================================
+if (!variable_global_exists("key_right"))     global.key_right     = ord("D");
+if (!variable_global_exists("key_left"))      global.key_left      = ord("A");
+if (!variable_global_exists("key_up"))        global.key_up        = ord("W");
+if (!variable_global_exists("key_down"))      global.key_down      = ord("S");
 if (!variable_global_exists("key_jump"))      global.key_jump      = vk_space;
 if (!variable_global_exists("key_attack"))    global.key_attack    = ord("J");
 if (!variable_global_exists("key_roll"))      global.key_roll      = ord("K");
@@ -24,18 +35,16 @@ curativo_count = 0;
 molotov_count  = 0;
 faca_count     = 0;
 
-// Materiais orgânicos que virão do Besouro e da Vespa (começam em 0)
-carne_count    = 0; // Alimento (Besouro)
-glandula_count = 0; // Glândula Química (Besouro)
-ferrao_count   = 0; // Ferrão (Vespa)
+carne_count    = 0;
+glandula_count = 0;
+ferrao_count   = 0;
 
-// DEFININDO OS STATUS DE COMBATE
-global.ataque_base        = 10;  // Dano normal da Lança de Prego
-global.chance_critico     = 15;  // 15% de chance do golpe ser crítico
-global.multiplicador_crit = 2.0; // Dano é multiplicado por 2 quando for crítico
+global.ataque_base        = 10;
+global.chance_critico     = 15;
+global.multiplicador_crit = 2.0;
 
 // ==========================================
-// 2. SISTEMA DE CRAFTING
+// 2. SISTEMA DE CRAFTING E ABAS
 // ==========================================
 craft_timer = 0;
 craft_time_max = 90; 
@@ -46,10 +55,7 @@ craft_selected_item = -1;
 menu_open = false;
 menu_index = 0; 
 
-// ==========================================
-// 2.5 SISTEMA DE ABAS (HUB DO PERSONAGEM)
-// ==========================================
-aba_atual = 0; // 0 = Inventário, 1 = Crafting, 2 = Maestria
+aba_atual = 0;
 nome_abas = ["INVENTARIO", "CRAFTING", "MAESTRIA"];
 
 // ==========================================
@@ -108,11 +114,11 @@ stamina_recovery_threshold = 25;
 // 6. SISTEMA DE MAESTRIA E BUFFS (XP E COMBOS)
 // ==========================================
 arma_xp = 0;
-arma_xp_max = 10;      // XP para Nível 2
-arma_nivel = 1;        // Começa no Nível 1
-combo_count = 0;       // Qual golpe estamos dando (1 ou 2)
-ataque_buffer = false; // Guarda o clique do combo na memória
-buff_fogo_timer = 0;   // Tempo ativo do Buff Instintivo do Besouro Bombardeiro
+arma_xp_max = 10;
+arma_nivel = 1;
+combo_count = 0;
+ataque_buffer = false;
+buff_fogo_timer = 0;
 
 // ==========================================
 // 7. MÁQUINA DE ESTADOS (FSM)
@@ -131,9 +137,9 @@ enum player_state {
 state = player_state.idle;
 
 // ==========================================
-// 8. RESTAURA DADOS SE VEIO DO "CARREGAR JOGO"
+// 8. RESTAURA DADOS SE VEIO DO "CARREGAR JOGO" (Apenas P1)
 // ==========================================
-if (variable_global_exists("carregando_save") && global.carregando_save == true) {
+if (player_id == 0 && variable_global_exists("carregando_save") && global.carregando_save == true) {
     x              = global.load_x;
     y              = global.load_y;
     hp             = global.load_hp;
@@ -142,10 +148,9 @@ if (variable_global_exists("carregando_save") && global.carregando_save == true)
     arma_nivel     = global.load_arma_nivel;
     arma_xp        = global.load_arma_xp;
     
-    // Restaura os materiais orgânicos salvos na fogueira
     carne_count    = global.load_carne;
     glandula_count = global.load_glandula;
     ferrao_count   = global.load_ferrao;
     
-    global.carregando_save = false; // Desliga a bandeira para não teleportar toda vez
+    global.carregando_save = false;
 }

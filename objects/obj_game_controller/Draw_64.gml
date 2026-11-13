@@ -90,11 +90,9 @@ if (is_paused) {
             var bx2 = px + pw - 24;
             
             if (pause_index == i) {
-                // Fundo de botão selecionado
                 draw_set_color(col_highlight);
                 draw_rectangle(bx1, yy - 16, bx2, yy + 16, false);
                 
-                // Marcador lateral dourado
                 draw_set_color(col_gold);
                 draw_rectangle(bx1, yy - 16, bx1 + 5, yy + 16, false);
                 draw_rectangle(bx1, yy - 16, bx2, yy + 16, true);
@@ -130,9 +128,8 @@ if (is_paused) {
         draw_set_color(col_gold);
         draw_rectangle(px + 3, py + 3, px + pw - 3, py + ph - 3, true);
         
-        // Descobre automaticamente em qual aba o cursor está:
-        // Índices 0 a 3 = Aba 0 (Geral & Vídeo) | Índices 4 a 10 = Aba 1 (Controles)
-        var aba_ativa = (pause_index >= 4 && pause_index <= 10) ? 1 : 0;
+        // Índices 0 a 4 = Aba 0 (Geral & Vídeo) | Índices 5 a 11 = Aba 1 (Controles)
+        var aba_ativa = (pause_index >= 5 && pause_index <= 11) ? 1 : 0;
         
         // --- CABEÇALHO DE ABAS ---
         var tab_w = (pw - 6) / 2;
@@ -155,7 +152,7 @@ if (is_paused) {
                 draw_set_color(col_highlight);
                 draw_rectangle(tx1, ty1, tx2, ty2, false);
                 draw_set_color(col_gold);
-                draw_rectangle(tx1, ty2 - 3, tx2, ty2, false); // Sublinhado dourado da aba ativa
+                draw_rectangle(tx1, ty2 - 3, tx2, ty2, false);
                 draw_text((tx1 + tx2) / 2, (ty1 + ty2) / 2, nomes_abas[t]);
             } else {
                 draw_set_color(col_header);
@@ -165,16 +162,17 @@ if (is_paused) {
             }
         }
         
-        // Dados das opções separados em Rótulo (Esquerda) e Valor (Direita)
         var txt_sim     = is_pt ? "LIGADO" : "ON";
         var txt_nao     = is_pt ? "DESLIGADO" : "OFF";
         var txt_espera  = is_pt ? "PRESSIONE TECLA..." : "PRESS ANY KEY...";
         var val_brilho  = clamp(variable_global_exists("brilho") ? global.brilho : 0.5, 0.1, 1.0);
         var _brilho_pct = string(round(val_brilho * 100)) + "%";
+        var _res_atual  = global.resolucoes[global.res_index].label;
         
         var labels = [
             is_pt ? "Idioma do Jogo" : "Game Language",
             is_pt ? "Modo Tela Cheia" : "Fullscreen Mode",
+            is_pt ? "Resolucao da Tela" : "Screen Resolution",
             is_pt ? "Tremor de Tela (Shake)" : "Screen Shake",
             is_pt ? "Nivel de Brilho" : "Brightness Level",
             is_pt ? "Pular" : "Jump",
@@ -189,22 +187,23 @@ if (is_paused) {
         var values = [
             "< " + global.idioma + " >",
             "< " + (window_get_fullscreen() ? txt_sim : txt_nao) + " >",
+            "< " + _res_atual + " >",
             "< " + (global.tremer_tela ? txt_sim : txt_nao) + " >",
             "< " + _brilho_pct + " >",
-            (aguardando_tecla && pause_index == 4)  ? txt_espera : "[ " + nome_tecla(global.key_jump) + " ]",
-            (aguardando_tecla && pause_index == 5)  ? txt_espera : "[ " + nome_tecla(global.key_attack) + " ]",
-            (aguardando_tecla && pause_index == 6)  ? txt_espera : "[ " + nome_tecla(global.key_roll) + " ]",
-            (aguardando_tecla && pause_index == 7)  ? txt_espera : "[ " + nome_tecla(global.key_heal) + " ]",
-            (aguardando_tecla && pause_index == 8)  ? txt_espera : "[ " + nome_tecla(global.key_throw) + " ]",
-            (aguardando_tecla && pause_index == 9)  ? txt_espera : "[ " + nome_tecla(global.key_left) + " ]",
-            (aguardando_tecla && pause_index == 10) ? txt_espera : "[ " + nome_tecla(global.key_right) + " ]"
+            (aguardando_tecla && pause_index == 5)  ? txt_espera : "[ " + nome_tecla(global.key_jump) + " ]",
+            (aguardando_tecla && pause_index == 6)  ? txt_espera : "[ " + nome_tecla(global.key_attack) + " ]",
+            (aguardando_tecla && pause_index == 7)  ? txt_espera : "[ " + nome_tecla(global.key_roll) + " ]",
+            (aguardando_tecla && pause_index == 8)  ? txt_espera : "[ " + nome_tecla(global.key_heal) + " ]",
+            (aguardando_tecla && pause_index == 9)  ? txt_espera : "[ " + nome_tecla(global.key_throw) + " ]",
+            (aguardando_tecla && pause_index == 10) ? txt_espera : "[ " + nome_tecla(global.key_left) + " ]",
+            (aguardando_tecla && pause_index == 11) ? txt_espera : "[ " + nome_tecla(global.key_right) + " ]"
         ];
         
         // Define quais índices desenhar na aba atual
-        var idx_ini = (aba_ativa == 0) ? 0 : 4;
-        var idx_fim = (aba_ativa == 0) ? 3 : 10;
-        var row_h   = (aba_ativa == 0) ? 38 : 26;
-        var list_y  = py + 66;
+        var idx_ini = (aba_ativa == 0) ? 0 : 5;
+        var idx_fim = (aba_ativa == 0) ? 4 : 11;
+        var row_h   = (aba_ativa == 0) ? 32 : 26;
+        var list_y  = py + 64;
         
         for (var idx = idx_ini; idx <= idx_fim; idx++) {
             var line_num = idx - idx_ini;
@@ -229,8 +228,7 @@ if (is_paused) {
             draw_set_halign(fa_right);
             draw_set_color(is_sel ? (aguardando_tecla ? c_orange : col_gold) : c_ltgray);
             
-            if (idx == 3) {
-                // Desenha uma barra visual de Brilho ao lado da porcentagem!
+            if (idx == 4) {
                 var bar_w = 80;
                 var bar_h = 8;
                 var bar_x1 = rx2 - 75 - bar_w;
@@ -245,7 +243,7 @@ if (is_paused) {
             }
         }
         
-        // --- LINHA DIVISÓRIA E BOTÕES DE AÇÃO NA BASE (11 e 12) ---
+        // --- LINHA DIVISÓRIA E BOTÕES DE AÇÃO NA BASE (12 e 13) ---
         var div_y = py + ph - 52;
         draw_set_color(col_border_out);
         draw_line(px + 16, div_y, px + pw - 16, div_y);
@@ -256,9 +254,9 @@ if (is_paused) {
         
         draw_set_halign(fa_center);
         
-        // Botão 11: Restaurar Padrões
+        // Botão 12: Restaurar Padrões
         var txt_reset = is_pt ? "RESTAURAR PADROES" : "RESET DEFAULTS";
-        if (pause_index == 11) {
+        if (pause_index == 12) {
             draw_set_color(col_highlight);
             draw_rectangle(b1_x - 110, btn_y - 14, b1_x + 110, btn_y + 14, false);
             draw_set_color(col_gold);
@@ -269,9 +267,9 @@ if (is_paused) {
             draw_text(b1_x, btn_y, txt_reset);
         }
         
-        // Botão 12: Voltar e Salvar
+        // Botão 13: Voltar e Salvar
         var txt_back = is_pt ? "VOLTAR E SALVAR" : "BACK & SAVE";
-        if (pause_index == 12) {
+        if (pause_index == 13) {
             draw_set_color(col_highlight);
             draw_rectangle(b2_x - 100, btn_y - 14, b2_x + 100, btn_y + 14, false);
             draw_set_color(col_gold);

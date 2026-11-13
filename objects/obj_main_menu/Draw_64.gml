@@ -12,7 +12,7 @@ var col_gold       = make_color_rgb(235, 185, 60);
 var col_highlight  = make_color_rgb(45, 50, 65);
 var col_text_off   = make_color_rgb(150, 155, 165);
 
-// Fundo escuro elegante
+// Fundo escuro ocupando 100% da GUI
 draw_set_color(make_color_rgb(10, 12, 16));
 draw_rectangle(0, 0, _gw, _gh, false);
 
@@ -23,7 +23,6 @@ if (menu_state == 0) {
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
     
-    // Placa Superior do Título (Banner)
     var bw = min(460, _gw * 0.85);
     var bh = 86;
     var bx = (_gw - bw) / 2;
@@ -42,7 +41,6 @@ if (menu_state == 0) {
     draw_set_color(col_gold);
     draw_text(_gw / 2, by + 56, _pt ? "PROJETO FPF: SOBREVIVENCIA" : "PROJECT FPF: SURVIVAL");
     
-    // Caixa Central de Botões do Menu Inicial
     var mw = min(320, _gw * 0.75);
     var mh = (array_length(options) * 44) + 28;
     var mx = (_gw - mw) / 2;
@@ -102,7 +100,7 @@ else if (menu_state == 1) {
     draw_set_color(col_gold);
     draw_rectangle(px + 3, py + 3, px + pw - 3, py + ph - 3, true);
     
-    var aba_ativa = (menu_index >= 4 && menu_index <= 10) ? 1 : 0;
+    var aba_ativa = (menu_index >= 5 && menu_index <= 11) ? 1 : 0;
     var tab_w = (pw - 6) / 2;
     var tab_h = 38;
     var nomes_abas = [
@@ -138,10 +136,12 @@ else if (menu_state == 1) {
     var txt_espera  = _pt ? "PRESSIONE TECLA..." : "PRESS ANY KEY...";
     var val_brilho  = clamp(variable_global_exists("brilho") ? global.brilho : 0.5, 0.1, 1.0);
     var _brilho_pct = string(round(val_brilho * 100)) + "%";
+    var _res_atual  = global.resolucoes[global.res_index].label;
     
     var labels = [
         _pt ? "Idioma do Jogo" : "Game Language",
         _pt ? "Modo Tela Cheia" : "Fullscreen Mode",
+        _pt ? "Resolucao da Tela" : "Screen Resolution",
         _pt ? "Tremor de Tela (Shake)" : "Screen Shake",
         _pt ? "Nivel de Brilho" : "Brightness Level",
         _pt ? "Pular" : "Jump",
@@ -156,21 +156,22 @@ else if (menu_state == 1) {
     var values = [
         "< " + global.idioma + " >",
         "< " + (window_get_fullscreen() ? txt_sim : txt_nao) + " >",
+        "< " + _res_atual + " >",
         "< " + (global.tremer_tela ? txt_sim : txt_nao) + " >",
         "< " + _brilho_pct + " >",
-        (aguardando_tecla && menu_index == 4)  ? txt_espera : "[ " + nome_tecla(global.key_jump) + " ]",
-        (aguardando_tecla && menu_index == 5)  ? txt_espera : "[ " + nome_tecla(global.key_attack) + " ]",
-        (aguardando_tecla && menu_index == 6)  ? txt_espera : "[ " + nome_tecla(global.key_roll) + " ]",
-        (aguardando_tecla && menu_index == 7)  ? txt_espera : "[ " + nome_tecla(global.key_heal) + " ]",
-        (aguardando_tecla && menu_index == 8)  ? txt_espera : "[ " + nome_tecla(global.key_throw) + " ]",
-        (aguardando_tecla && menu_index == 9)  ? txt_espera : "[ " + nome_tecla(global.key_left) + " ]",
-        (aguardando_tecla && menu_index == 10) ? txt_espera : "[ " + nome_tecla(global.key_right) + " ]"
+        (aguardando_tecla && menu_index == 5)  ? txt_espera : "[ " + nome_tecla(global.key_jump) + " ]",
+        (aguardando_tecla && menu_index == 6)  ? txt_espera : "[ " + nome_tecla(global.key_attack) + " ]",
+        (aguardando_tecla && menu_index == 7)  ? txt_espera : "[ " + nome_tecla(global.key_roll) + " ]",
+        (aguardando_tecla && menu_index == 8)  ? txt_espera : "[ " + nome_tecla(global.key_heal) + " ]",
+        (aguardando_tecla && menu_index == 9)  ? txt_espera : "[ " + nome_tecla(global.key_throw) + " ]",
+        (aguardando_tecla && menu_index == 10) ? txt_espera : "[ " + nome_tecla(global.key_left) + " ]",
+        (aguardando_tecla && menu_index == 11) ? txt_espera : "[ " + nome_tecla(global.key_right) + " ]"
     ];
     
-    var idx_ini = (aba_ativa == 0) ? 0 : 4;
-    var idx_fim = (aba_ativa == 0) ? 3 : 10;
-    var row_h   = (aba_ativa == 0) ? 38 : 26;
-    var list_y  = py + 66;
+    var idx_ini = (aba_ativa == 0) ? 0 : 5;
+    var idx_fim = (aba_ativa == 0) ? 4 : 11;
+    var row_h   = (aba_ativa == 0) ? 32 : 26;
+    var list_y  = py + 64;
     
     for (var idx = idx_ini; idx <= idx_fim; idx++) {
         var line_num = idx - idx_ini;
@@ -193,7 +194,7 @@ else if (menu_state == 1) {
         draw_set_halign(fa_right);
         draw_set_color(is_sel ? (aguardando_tecla ? c_orange : col_gold) : c_ltgray);
         
-        if (idx == 3) {
+        if (idx == 4) {
             var bar_w = 80;
             var bar_h = 8;
             var bar_x1 = rx2 - 75 - bar_w;
@@ -219,7 +220,7 @@ else if (menu_state == 1) {
     draw_set_halign(fa_center);
     
     var txt_reset = _pt ? "RESTAURAR PADROES" : "RESET DEFAULTS";
-    if (menu_index == 11) {
+    if (menu_index == 12) {
         draw_set_color(col_highlight);
         draw_rectangle(b1_x - 110, btn_y - 14, b1_x + 110, btn_y + 14, false);
         draw_set_color(col_gold);
@@ -231,7 +232,7 @@ else if (menu_state == 1) {
     }
     
     var txt_back = _pt ? "VOLTAR E SALVAR" : "BACK & SAVE";
-    if (menu_index == 12) {
+    if (menu_index == 13) {
         draw_set_color(col_highlight);
         draw_rectangle(b2_x - 100, btn_y - 14, b2_x + 100, btn_y + 14, false);
         draw_set_color(col_gold);
@@ -248,8 +249,8 @@ draw_set_halign(fa_center);
 draw_set_valign(fa_middle);
 draw_set_color(col_text_off);
 var dica_menu = _pt 
-    ? "[W/S] Navegar    [ENTER / A] Confirmar    [ESC / B] Voltar" 
-    : "[W/S] Navigate    [ENTER / A] Confirm    [ESC / B] Back";
+    ? "[W/S] Navegar    [ENTER / A] Confirmar    [A/D] Ajustar    [ESC / B] Voltar" 
+    : "[W/S] Navigate    [ENTER / A] Confirm    [A/D] Adjust    [ESC / B] Back";
 draw_text(_gw / 2, _gh - 18, dica_menu);
 
 // ==========================================

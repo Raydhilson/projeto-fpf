@@ -36,12 +36,12 @@ var str_tab_l      = _nome_k(global.key_tab_left);
 var str_tab_r      = _nome_k(global.key_tab_right);
 
 // =======================================================
-// --- 1. HUD DE SOBREVIVÊNCIA (Canto Superior Esquerdo) ---
+// --- 1. HUD DE SOBREVIVÊNCIA (P1 na Esquerda | P2 na Direita) ---
 // =======================================================
-var gui_x = 20;
-var gui_y = 20;
 var hud_w = 200;
 var hud_h = (buff_fogo_timer > 0) ? 98 : 76;
+var gui_x = (player_id == 0) ? 20 : (display_get_gui_width() - hud_w - 20);
+var gui_y = 20;
 
 // Painel de Fundo da HUD (Resolve o texto encavalando no fundo!)
 draw_set_color(c_black);
