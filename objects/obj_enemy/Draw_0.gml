@@ -19,3 +19,15 @@ if (sprite_index != -1) {
 if (piscar > 0) {
     gpu_set_fog(false, c_white, 0, 0); 
 }
+// Efeito visual do Jato Químico Defensivo (No Draw Event do obj_enemy)
+if (state == enemy_state.chemical_defense && state_timer <= 14) {
+    draw_set_color(choose(c_orange, c_yellow, c_red));
+    draw_set_alpha(0.75);
+    for (var i = 1; i <= 3; i++) {
+        var _px = x + (facing * (i * 15)) + irandom_range(-3, 3);
+        var _py = y - 8 + irandom_range(-6, 4);
+        draw_circle(_px, _py, 4 + i, false);
+    }
+    draw_set_alpha(1.0);
+    draw_set_color(c_white);
+}

@@ -87,13 +87,18 @@ roll_sp = 7;
 action_timer = 0;   
 slash_frame = 0;
 
+queimando_player_timer = 0;
+
 // ==========================================
-// 4. SOBREVIVÊNCIA (HP E I-FRAMES)
+// 4. SOBREVIVÊNCIA (HP, I-FRAMES E REVIVE CO-OP)
 // ==========================================
 hp_max = 100;
 hp = hp_max;
 is_invulnerable = false;
 iframe_timer = 0;
+
+revive_timer = 0;     // Progresso ao ser levantado pelo parceiro
+revive_time_max = 90; // 1.5s segurando o botão de cura para reviver sem gastar item
 
 // ==========================================
 // 5. ESTAMINA E CANSAÇO
@@ -131,7 +136,8 @@ enum player_state {
     roll,
     wall_slide,
     craft,
-    menu
+    menu,
+    downed // NOVO: Nocauteado esperando resgate no Co-op!
 }
 
 state = player_state.idle;
@@ -145,6 +151,7 @@ if (player_id == 0 && variable_global_exists("carregando_save") && global.carreg
     hp             = global.load_hp;
     curativo_count = global.load_curativos;
     molotov_count  = global.load_molotovs;
+	faca_count = global.load_facas;
     arma_nivel     = global.load_arma_nivel;
     arma_xp        = global.load_arma_xp;
     

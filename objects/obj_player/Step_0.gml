@@ -28,6 +28,7 @@ var key_roll          = false;
 var key_throw         = false;
 var key_menu          = false;
 var key_heal          = false;
+var key_heal_hold     = false; // Usado para segurar e reviver o parceiro!
 var key_up            = false;
 var key_down          = false;
 var key_confirm       = false;
@@ -51,6 +52,7 @@ if (player_id == 0) {
     key_throw         = keyboard_check_pressed(global.key_throw)   || gamepad_button_check_pressed(0, gp_shoulderr);
     key_menu          = keyboard_check_pressed(global.key_menu)    || gamepad_button_check_pressed(0, gp_start);
     key_heal          = keyboard_check_pressed(global.key_heal)    || gamepad_button_check_pressed(0, gp_padl);
+    key_heal_hold     = keyboard_check(global.key_heal)            || gamepad_button_check(0, gp_padl);
     key_up            = keyboard_check_pressed(global.key_up)      || keyboard_check_pressed(ord("W")) || gamepad_button_check_pressed(0, gp_padu);
     key_down          = keyboard_check_pressed(global.key_down)    || keyboard_check_pressed(ord("S")) || gamepad_button_check_pressed(0, gp_padd);
     key_confirm       = keyboard_check_pressed(global.key_confirm) || gamepad_button_check_pressed(0, gp_face1);
@@ -73,6 +75,7 @@ if (player_id == 0) {
     key_throw         = keyboard_check_pressed(vk_numpad3)   || gamepad_button_check_pressed(1, gp_shoulderr);
     key_menu          = keyboard_check_pressed(vk_numpad9)   || gamepad_button_check_pressed(1, gp_start);
     key_heal          = keyboard_check_pressed(vk_numpad4)   || gamepad_button_check_pressed(1, gp_padl);
+    key_heal_hold     = keyboard_check(vk_numpad4)           || gamepad_button_check(1, gp_padl);
     key_up            = keyboard_check_pressed(vk_up)        || gamepad_button_check_pressed(1, gp_padu);
     key_down          = keyboard_check_pressed(vk_down)      || gamepad_button_check_pressed(1, gp_padd);
     key_confirm       = keyboard_check_pressed(vk_numpad5)   || gamepad_button_check_pressed(1, gp_face1);
@@ -80,24 +83,75 @@ if (player_id == 0) {
     key_tab_right     = keyboard_check_pressed(vk_numpad8)   || gamepad_button_check_pressed(1, gp_shoulderr);
 }
 
-// Permite virar de lado livremente (inclusive no início do ataque para Kite!)
-if (move_dir != 0 && state != player_state.menu && state != player_state.craft && state != player_state.roll) { 
+// Permite virar de lado livremente (exceto em menu, craft, roll ou downed)
+if (move_dir != 0 && state != player_state.menu && state != player_state.craft && state != player_state.roll && state != player_state.downed) { 
     if (state != player_state.attack || action_timer >= 12) {
         facing = move_dir; 
     }
 }
 
 // =====================================================================
-// 2. USO DE ITENS (CURATIVO), BUFFS E TIMERS FÍSICOS
+// 2. RESGATE CO-OP (REVIVER PARCEIRO), CURATIVO, BUFFS E QUEIMADURA
 // =====================================================================
-if (state != player_state.menu && key_heal && curativo_count > 0 && hp < hp_max) {
-    curativo_count--;
-    hp = min(hp + 30, hp_max);
+// Verifica se existe um parceiro nocauteado (downed) bem perto (<= 36px)
+var parceiro_caido = noone;
+if (state != player_state.downed && state != player_state.menu) {
+    with (obj_player) {
+        if (id != other.id && state == player_state.downed && point_distance(x, y, other.x, other.y) <= 36) {
+            parceiro_caido = id;
+        }
+    }
 }
 
+if (parceiro_caido != noone) {
+    // Opção A: Se apertar Cura e tiver Curativo na bolsa, gasta 1 Curativo e levanta NA HORA com 50% de HP!
+    if (key_heal && curativo_count > 0) {
+        curativo_count--;
+        parceiro_caido.hp = round(parceiro_caido.hp_max * 0.5);
+        parceiro_caido.state = player_state.idle;
+        parceiro_caido.is_invulnerable = true;
+        parceiro_caido.iframe_timer = 90;
+        parceiro_caido.revive_timer = 0;
+        parceiro_caido.scale_x = 0.8;
+        parceiro_caido.scale_y = 1.3;
+    }
+    // Opção B: Segurar o botão de Cura sem gastar item levanta o parceiro em 1.5s com 30% de HP!
+    else if (key_heal_hold) {
+        hspd = lerp(hspd, 0, 0.3); // Freia enquanto socorre o amigo
+        parceiro_caido.revive_timer += 2; // Sobe 1 e compensa 1 do decaimento
+        if (parceiro_caido.revive_timer >= parceiro_caido.revive_time_max) {
+            parceiro_caido.hp = round(parceiro_caido.hp_max * 0.3);
+            parceiro_caido.state = player_state.idle;
+            parceiro_caido.is_invulnerable = true;
+            parceiro_caido.iframe_timer = 90;
+            parceiro_caido.revive_timer = 0;
+            parceiro_caido.scale_x = 0.8;
+            parceiro_caido.scale_y = 1.3;
+        }
+    }
+} else {
+    // Uso normal de Curativo em si mesmo
+    if (state != player_state.menu && state != player_state.downed && key_heal && curativo_count > 0 && hp < hp_max) {
+        curativo_count--;
+        hp = min(hp + 30, hp_max);
+    }
+}
+
+// Timer do Buff de Fogo da Lança
 if (buff_fogo_timer > 0 && state != player_state.menu) {
     buff_fogo_timer--;
 }
+
+// Timer de Queimadura Química (ataque defensivo do Besouro Bombardeiro)
+if (queimando_player_timer > 0 && state != player_state.menu && state != player_state.downed) {
+    queimando_player_timer--;
+    if (queimando_player_timer mod 60 == 0) {
+        hp = max(1, hp - 3); // Queima 3 de vida por segundo (deixa no mínimo com 1 de HP)
+    }
+}
+
+// Cor dinâmica: se estiver queimando pelo jato químico do besouro, pulsa em laranja!
+var cor_atual = (queimando_player_timer > 0 && ((queimando_player_timer div 6) mod 2 == 0)) ? c_orange : base_blend;
 
 var on_ground = place_meeting(x, y + 1, obj_colisor);
 if (on_ground) { coyote_timer = coyote_time_max; } else { coyote_timer = max(0, coyote_timer - 1); }
@@ -107,7 +161,7 @@ if (key_jump)  { jump_buffer_timer = jump_buffer_max; } else { jump_buffer_timer
 if (stamina_delay_timer > 0) {
     stamina_delay_timer--;
 } else {
-    if (stamina_current < stamina_max && state != player_state.roll) {
+    if (stamina_current < stamina_max && state != player_state.roll && state != player_state.downed) {
         stamina_current += stamina_regen_rate;
         if (stamina_current > stamina_max) stamina_current = stamina_max;
     }
@@ -116,7 +170,7 @@ if (stamina_current <= 0) { stamina_current = 0; stamina_exhausted = true; }
 if (stamina_exhausted && stamina_current >= stamina_recovery_threshold) { stamina_exhausted = false; }
 
 // Menu
-if (key_menu && on_ground && state != player_state.attack && state != player_state.roll) {
+if (key_menu && on_ground && state != player_state.attack && state != player_state.roll && state != player_state.downed) {
     if (state != player_state.menu) { state = player_state.menu; hspd = 0; menu_index = 0; } 
     else { state = player_state.idle; }
 }
@@ -131,7 +185,7 @@ switch (state) {
         hspd = lerp(hspd, 0, fric); 
         if (abs(hspd) < 0.1) hspd = 0;
         
-        image_blend = base_blend;
+        image_blend = cor_atual;
         sprite_index = spr_player_idle;
         
         if (move_dir != 0) state = player_state.run;
@@ -183,7 +237,7 @@ switch (state) {
     // --- CORRENDO ---
     case player_state.run:
         hspd = lerp(hspd, move_dir * walk_sp, accel); 
-        image_blend = base_blend;
+        image_blend = cor_atual;
         sprite_index = spr_player_walk;
         
         if (move_dir == 0) state = player_state.idle;
@@ -258,7 +312,7 @@ switch (state) {
         if (vspd > max_vspd) vspd = max_vspd;
         if (key_jump_released && vspd < 0) { vspd *= 0.45; }
         
-        image_blend = base_blend;
+        image_blend = cor_atual;
         sprite_index = (vspd < 0) ? spr_player_jump : spr_player_air;
         
         if (on_ground && vspd >= 0) {
@@ -278,7 +332,7 @@ switch (state) {
         }
         
         sprite_index = (combo_count == 1) ? spr_player_attack : spr_player_attack2;
-        image_blend = base_blend;
+        image_blend = cor_atual;
         
         if (key_attack && arma_nivel >= 2) {
             ataque_buffer = true; 
@@ -332,7 +386,7 @@ switch (state) {
     case player_state.roll:
         hspd = facing * roll_sp; 
         vspd = 0; 
-        image_blend = base_blend;
+        image_blend = cor_atual;
         sprite_index = spr_player_roll;
         
         action_timer--;
@@ -345,7 +399,7 @@ switch (state) {
     case player_state.wall_slide:
         vspd = 2; 
         hspd = 0;
-        image_blend = base_blend;
+        image_blend = cor_atual;
         sprite_index = spr_player_jump;
         var wall_dir = place_meeting(x + 1, y, obj_colisor) ? 1 : -1;
         
@@ -401,7 +455,7 @@ switch (state) {
     // --- FABRICANDO ITEM ---
     case player_state.craft:
         hspd = 0; vspd = 0; 
-        image_blend = base_blend; 
+        image_blend = cor_atual; 
         sprite_index = spr_player_idle;
         craft_timer++; 
         if (craft_timer >= craft_time_max) {
@@ -412,17 +466,30 @@ switch (state) {
             state = player_state.idle; 
         }
         break;
+
+    // --- NOVO: NOCAUTEADO NO CO-OP (ESPERANDO RESGATE!) ---
+    case player_state.downed:
+        hspd = lerp(hspd, 0, 0.2);
+        vspd += grv;
+        sprite_index = spr_player_idle;
+        image_blend = c_dkgray;
+        scale_x = 1.25;
+        scale_y = 0.55; // Fica achatado/caído no chão
+        
+        // Se o parceiro parar de segurar o botão, a barra desce devagar
+        if (revive_timer > 0) revive_timer = max(0, revive_timer - 1);
+        break;
 }
 
 // =====================================================================
-// 4. SISTEMAS DE DANO DE COMBATE E I-FRAMES
+// 4. SISTEMAS DE DANO DE COMBATE E I-FRAMES (IGNORA QUEM ESTÁ DOWNED)
 // =====================================================================
 if (is_invulnerable) {
     iframe_timer--;
     if (iframe_timer <= 0) is_invulnerable = false;
 }
 
-if (!is_invulnerable && state != player_state.roll) {
+if (!is_invulnerable && state != player_state.roll && state != player_state.downed) {
     
     // 1. Dano do Projétil de Ácido
     if (object_exists(obj_acido_centopeia)) {
@@ -501,13 +568,38 @@ if (!is_invulnerable && state != player_state.roll) {
     }
 }
 
-// Controle de Morte (No Co-op, se tiver outro jogador vivo, apenas destrói quem morreu; se todos morrerem, reinicia!)
+// =====================================================================
+// 4.5 CONTROLE DE MORTE E NOCAUTE CO-OP (REVIVE SYSTEM)
+// =====================================================================
 if (hp <= 0) {
     hp = 0;
+    queimando_player_timer = 0;
+    
     if (instance_number(obj_player) > 1) {
-        instance_destroy();
-        exit;
+        // No Co-op, entra em estado Nocauteado (downed)
+        if (state != player_state.downed) {
+            state = player_state.downed;
+            revive_timer = 0;
+        }
+        
+        // Verifica se ainda resta algum jogador de pé na sala
+        var alguem_de_pe = false;
+        with (obj_player) {
+            if (state != player_state.downed && hp > 0) {
+                alguem_de_pe = true;
+            }
+        }
+        
+        // Se os dois caíram ao mesmo tempo, aí sim dá Game Over!
+        if (!alguem_de_pe) {
+            if (file_exists("save_1.ini")) {
+                carregar_jogo(1);
+            } else {
+                room_restart();
+            }
+        }
     } else {
+        // Modo Solo: reinicia direto
         if (file_exists("save_1.ini")) {
             carregar_jogo(1);
         } else {
@@ -517,7 +609,7 @@ if (hp <= 0) {
 }
 
 // =====================================================================
-// 5. APLICAÇÃO FÍSICA UNIFICADA
+// 5. APLICAÇÃO FÍSICA UNIFICADA E TRAVA DE CÂMERA CO-OP
 // =====================================================================
 if (place_meeting(x, y, obj_colisor)) {
     for (var d = 1; d <= 16; d++) {
@@ -544,6 +636,18 @@ if (place_meeting(x, y + vspd, obj_colisor)) {
 }
 y += vspd;
 
+// Trava de Borda de Tela no Co-op (Impede que P1 e P2 saiam da visão da câmera)
+if (instance_number(obj_player) > 1 && instance_exists(obj_camera)) {
+    var _cam_x = camera_get_view_x(obj_camera.camera);
+    var _cam_w = obj_camera.cam_width;
+    var _margem = 14;
+    
+    var _novo_x = clamp(x, _cam_x + _margem, _cam_x + _cam_w - _margem);
+    if (!place_meeting(_novo_x, y, obj_colisor)) {
+        x = _novo_x;
+    }
+}
+
 // Gerar sucata e drops orgânicos de teste (Tecla U)
 if (keyboard_check_pressed(ord("U"))) { 
     repeat(3) { instance_create_layer(x, y - 10, "Instances", obj_scrap); } 
@@ -552,6 +656,8 @@ if (keyboard_check_pressed(ord("U"))) {
     ferrao_count++;
 }
 
-// Squash & Stretch
-scale_x = lerp(scale_x, 1.0, 0.2);
-scale_y = lerp(scale_y, 1.0, 0.2);
+// Squash & Stretch (Só volta ao normal se não estiver caído no chão)
+if (state != player_state.downed) {
+    scale_x = lerp(scale_x, 1.0, 0.2);
+    scale_y = lerp(scale_y, 1.0, 0.2);
+}

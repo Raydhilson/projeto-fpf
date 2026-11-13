@@ -32,6 +32,7 @@
   "resources":[
     {"id":{"name":"fnt_menu","path":"fonts/fnt_menu/fnt_menu.yy",},},
     {"id":{"name":"obj_acido_centopeia","path":"objects/obj_acido_centopeia/obj_acido_centopeia.yy",},},
+    {"id":{"name":"obj_arena_trigger","path":"objects/obj_arena_trigger/obj_arena_trigger.yy",},},
     {"id":{"name":"obj_ataque","path":"objects/obj_ataque/obj_ataque.yy",},},
     {"id":{"name":"obj_boss_centopeia","path":"objects/obj_boss_centopeia/obj_boss_centopeia.yy",},},
     {"id":{"name":"obj_camera","path":"objects/obj_camera/obj_camera.yy",},},
