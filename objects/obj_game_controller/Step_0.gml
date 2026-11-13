@@ -33,7 +33,7 @@ if (is_paused && pause_state == 1 && aguardando_tecla) {
 // ==========================================
 // 2. GATILHO DO PAUSE (Botão ESC ou Start)
 // ==========================================
-var key_pause = keyboard_check_pressed(vk_escape) || gamepad_button_check_pressed(0, gp_start);
+var key_pause = keyboard_check_pressed(vk_escape) || gamepad_button_check_pressed(0, gp_select);
 
 if (key_pause) {
     if (!is_paused) {

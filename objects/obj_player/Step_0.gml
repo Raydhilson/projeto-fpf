@@ -32,7 +32,7 @@ var key_attack        = keyboard_check_pressed(global.key_attack)  || gamepad_bu
 var key_roll          = keyboard_check_pressed(global.key_roll)  || gamepad_button_check_pressed(0, gp_face2); 
 var key_throw         = keyboard_check_pressed(global.key_throw)  || gamepad_button_check_pressed(0, gp_shoulderr);
 
-var key_menu    = keyboard_check_pressed(global.key_menu) || gamepad_button_check_pressed(0, gp_select);
+var key_menu    = keyboard_check_pressed(global.key_menu) || gamepad_button_check_pressed(0, gp_start);
 var key_heal    = keyboard_check_pressed(global.key_heal) || gamepad_button_check_pressed(0, gp_padl);
 var key_up      = keyboard_check_pressed(global.key_up)   || keyboard_check_pressed(vk_up)   || keyboard_check_pressed(ord("W")) || gamepad_button_check_pressed(0, gp_padu);
 var key_down    = keyboard_check_pressed(global.key_down) || keyboard_check_pressed(vk_down) || keyboard_check_pressed(ord("S")) || gamepad_button_check_pressed(0, gp_padd);
