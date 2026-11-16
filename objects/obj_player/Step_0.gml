@@ -11,7 +11,7 @@ if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 
 }
 
 // =====================================================================
-// 1. LEITURA DE CONTROLES E DIREÇÃO (100% DINÂMICO)
+// 1. LEITURA DE CONTROLES E DIREÇÃO
 // =====================================================================
 var move_dir = keyboard_check(global.key_right) - keyboard_check(global.key_left);
 
@@ -21,7 +21,6 @@ if (move_dir == 0) {
     if (abs(axis_h) > deadzone) { move_dir = sign(axis_h); }
 }
 
-// Permite virar de lado livremente (inclusive nos primeiros frames de preparação do ataque para Kite!)
 if (move_dir != 0 && state != player_state.menu && state != player_state.craft && state != player_state.roll) { 
     if (state != player_state.attack || action_timer >= 18) {
         facing = move_dir; 
@@ -36,7 +35,7 @@ var key_throw         = keyboard_check_pressed(global.key_throw)  || gamepad_but
 
 var key_menu    = keyboard_check_pressed(global.key_menu) || gamepad_button_check_pressed(0, gp_start);
 var key_heal    = keyboard_check_pressed(global.key_heal) || gamepad_button_check_pressed(0, gp_padl);
-var key_up      = keyboard_check_pressed(global.key_up)   || keyboard_check_pressed(vk_up)   || keyboard_check_pressed(ord("W")) || gamepad_button_check_pressed(0, gp_padu);
+var key_up      = keyboard_check_pressed(global.key_up)    || keyboard_check_pressed(vk_up)    || keyboard_check_pressed(ord("W")) || gamepad_button_check_pressed(0, gp_padu);
 var key_down    = keyboard_check_pressed(global.key_down) || keyboard_check_pressed(vk_down) || keyboard_check_pressed(ord("S")) || gamepad_button_check_pressed(0, gp_padd);
 var key_confirm = keyboard_check_pressed(global.key_confirm) || gamepad_button_check_pressed(0, gp_face1);
 
@@ -44,7 +43,7 @@ var key_tab_left  = keyboard_check_pressed(global.key_tab_left) || gamepad_butto
 var key_tab_right = keyboard_check_pressed(global.key_tab_right) || gamepad_button_check_pressed(0, gp_shoulderr);
 
 // =====================================================================
-// 2. USO DE ITENS (CURATIVO), BUFFS E TIMERS FÍSICOS
+// 2. USO DE ITENS (CURATIVO) E BUFFS
 // =====================================================================
 if (state != player_state.menu && key_heal && curativo_count > 0 && hp < hp_max) {
     curativo_count--;
@@ -59,22 +58,19 @@ var on_ground = place_meeting(x, y + 1, obj_colisor);
 if (on_ground) { coyote_timer = coyote_time_max; } else { coyote_timer = max(0, coyote_timer - 1); }
 if (key_jump)  { jump_buffer_timer = jump_buffer_max; } else { jump_buffer_timer = max(0, jump_buffer_timer - 1); }
 
-// Estamina
-if (stamina_delay_timer > 0) {
-    stamina_delay_timer--;
-} else {
-    if (stamina_current < stamina_max && state != player_state.roll) {
-        stamina_current += stamina_regen_rate;
-        if (stamina_current > stamina_max) stamina_current = stamina_max;
+// ==========================================
+// GATILHO DIRETO DO MENU DO PLAYER (TECLA I)
+// ==========================================
+if (key_menu) {
+    if (state != player_state.menu && state != player_state.craft) {
+        state = player_state.menu;
+        hspd = 0;
+        vspd = 0;
+        menu_index = 0;
+        aba_atual = 1; // Abre direto na aba de Crafting
+    } else {
+        state = player_state.idle;
     }
-}
-if (stamina_current <= 0) { stamina_current = 0; stamina_exhausted = true; }
-if (stamina_exhausted && stamina_current >= stamina_recovery_threshold) { stamina_exhausted = false; }
-
-// Menu
-if (key_menu && on_ground && state != player_state.attack && state != player_state.roll) {
-    if (state != player_state.menu) { state = player_state.menu; hspd = 0; menu_index = 0; } 
-    else { state = player_state.idle; }
 }
 
 // =====================================================================
@@ -99,15 +95,13 @@ switch (state) {
             state = player_state.air; 
         }
         
-        if (key_attack && !stamina_exhausted && stamina_current >= stamina_cost_attack) {
+        if (key_attack) {
             if (move_dir != 0) facing = move_dir;
-            stamina_current -= stamina_cost_attack;
-            stamina_delay_timer = stamina_delay_max;
             state = player_state.attack;
             action_timer = 24; 
-            combo_count = 1;       
-            sprite_index = spr_player_attack; // 1º golpe usa spr_player_attack de forma consistente
-            image_index = 0;       
+            combo_count = 1;        
+            sprite_index = spr_player_attack; 
+            image_index = 0;        
             ataque_buffer = false; 
             hspd = facing * 3.0; 
             scale_x = escala_base * 1.25; scale_y = escala_base * 0.85;
@@ -125,13 +119,11 @@ switch (state) {
             }
         }
         
-        if (key_roll && !stamina_exhausted && stamina_current >= stamina_cost_roll) {
-            stamina_current -= stamina_cost_roll; 
-            stamina_delay_timer = stamina_delay_max;
+        if (key_roll) {
             state = player_state.roll; 
-            action_timer = 18; 
+            action_timer = 12; 
             is_invulnerable = true; 
-            iframe_timer = max(iframe_timer, 28); 
+            iframe_timer = max(iframe_timer, 20); 
             sprite_index = spr_player_roll; 
             image_index = 0;
         }
@@ -152,14 +144,12 @@ switch (state) {
             state = player_state.air; 
         }
         
-        if (key_attack && !stamina_exhausted && stamina_current >= stamina_cost_attack) {
+        if (key_attack) {
             if (move_dir != 0) facing = move_dir;
-            stamina_current -= stamina_cost_attack;
-            stamina_delay_timer = stamina_delay_max;
             state = player_state.attack;
             action_timer = 24; 
-            combo_count = 1;       
-            sprite_index = spr_player_attack; // 1º golpe usa spr_player_attack de forma consistente
+            combo_count = 1;        
+            sprite_index = spr_player_attack; 
             image_index = 0;
             ataque_buffer = false;
             
@@ -180,10 +170,13 @@ switch (state) {
             }
         }
         
-        if (key_roll && !stamina_exhausted && stamina_current >= stamina_cost_roll) {
-            stamina_current -= stamina_cost_roll; stamina_delay_timer = stamina_delay_max;
-            state = player_state.roll; action_timer = 18; is_invulnerable = true; iframe_timer = max(iframe_timer, 28);
-            sprite_index = spr_player_roll; image_index = 0;
+        if (key_roll) {
+            state = player_state.roll; 
+            action_timer = 12; 
+            is_invulnerable = true; 
+            iframe_timer = max(iframe_timer, 20);
+            sprite_index = spr_player_roll; 
+            image_index = 0;
         }
         break;
         
@@ -196,11 +189,8 @@ switch (state) {
             state = player_state.wall_slide;
         }
         
-        // ATAQUE NO AR DEDICADO (spr_player_attack_jump)
-        if (key_attack && !stamina_exhausted && stamina_current >= stamina_cost_attack) {
+        if (key_attack) {
             if (move_dir != 0) facing = move_dir;
-            stamina_current -= stamina_cost_attack;
-            stamina_delay_timer = stamina_delay_max;
             state = player_state.attack;
             action_timer = 24; 
             combo_count = 1;
@@ -227,7 +217,7 @@ switch (state) {
         }
         break;
 
-    // --- ATTACK (CHÃO E AR COM KITE E DASH CANCEL!) ---
+    // --- ATTACK ---
     case player_state.attack:
         if (on_ground) {
             hspd = lerp(hspd, move_dir * (walk_sp * 0.5), 0.2); 
@@ -238,7 +228,6 @@ switch (state) {
             hspd = lerp(hspd, move_dir * walk_sp, 0.08); 
         }
         
-        // Se estiver no ar (ou começou o golpe no ar), usa spr_player_attack_jump; no chão, usa attack (1º) / attack2 (2º)
         var _target_spr;
         if (!on_ground || sprite_index == spr_player_attack_jump) {
             _target_spr = spr_player_attack_jump;
@@ -251,13 +240,12 @@ switch (state) {
             image_index = 0;
         }
         image_blend = c_white;
-        image_speed = 1.35; // Deixa os frames ágeis (~20 FPS) para caber no timer
+        image_speed = 1.35; 
         
         if (key_attack && arma_nivel >= 2) {
             ataque_buffer = true; 
         }
         
-        // Cria a hitbox EXATAMENTE quando a animação atinge o frame do impacto (Frame 3 ou 4)
         if (action_timer == 14) {
             var hit = instance_create_layer(x + (facing * 30), y - 12, "Instances", obj_hitbox);
             hit.image_xscale = facing * 1.5;
@@ -270,15 +258,12 @@ switch (state) {
             }
         }
 
-        // Permite cancelar o finalzinho do ataque com o Roll (esquiva)
-        if (action_timer <= 10 && key_roll && !stamina_exhausted && stamina_current >= stamina_cost_roll) {
+        if (action_timer <= 10 && key_roll) {
             if (move_dir != 0) facing = move_dir;
-            stamina_current -= stamina_cost_roll;
-            stamina_delay_timer = stamina_delay_max;
             state = player_state.roll;
-            action_timer = 18;
+            action_timer = 12;
             is_invulnerable = true;
-            iframe_timer = max(iframe_timer, 28);
+            iframe_timer = max(iframe_timer, 20);
             sprite_index = spr_player_roll;
             image_index = 0;
             image_speed = 1;
@@ -288,7 +273,6 @@ switch (state) {
         action_timer--;
         
         if (action_timer <= 0) {
-            // Se encadeou o 2º golpe do combo: usa spr_player_attack2 no chão ou spr_player_attack_jump no ar
             if (ataque_buffer && combo_count == 1 && arma_nivel >= 2) {
                 if (move_dir != 0) facing = move_dir;
                 combo_count = 2;
@@ -300,7 +284,7 @@ switch (state) {
                 scale_x = escala_base * 1.35; scale_y = escala_base * 0.80;
             } else {
                 combo_count = 0;
-                image_speed = 1; // Restaura a velocidade normal de animação ao sair do ataque
+                image_speed = 1; 
                 state = on_ground ? ((move_dir != 0) ? player_state.run : player_state.idle) : player_state.air;
             }
         }
@@ -308,18 +292,23 @@ switch (state) {
 
     // --- ROLANDO ---
     case player_state.roll:
+        if (sprite_index != spr_player_roll) {
+            sprite_index = spr_player_roll;
+            image_index = 0;
+        }
+        image_speed = 1.0; 
         hspd = facing * roll_sp; 
-        vspd = 0; 
+        vspd += grv; 
         image_blend = c_white;
-        sprite_index = spr_player_roll;
         
         action_timer--;
+        
         if (action_timer <= 0) { 
             state = on_ground ? ((move_dir != 0) ? player_state.run : player_state.idle) : player_state.air; 
         }
         break;
 
-    // --- ESCORREGANDO NA PAREDE ---
+    // --- WALL SLIDE ---
     case player_state.wall_slide:
         vspd = 2; 
         hspd = 0;
@@ -342,13 +331,18 @@ switch (state) {
         }
         break;
 
-    // --- HUB DO PERSONAGEM ---
+    // --- HUB DO PERSONAGEM (TELA DE CRAFTING / INVENTÁRIO) ---
     case player_state.menu:
         hspd = 0; vspd = 0; 
         sprite_index = spr_player_idle;
         
-        if (key_tab_right) { aba_atual++; if (aba_atual > 2) aba_atual = 0; }
-        if (key_tab_left)  { aba_atual--; if (aba_atual < 0) aba_atual = 2; }
+        if (key_tab_right || keyboard_check_pressed(vk_right)) { aba_atual++; if (aba_atual > 2) aba_atual = 0; menu_index = 0; }
+        if (key_tab_left || keyboard_check_pressed(vk_left))   { aba_atual--; if (aba_atual < 0) aba_atual = 2; menu_index = 0; }
+        
+        if (keyboard_check_pressed(vk_escape)) {
+            state = player_state.idle;
+            break;
+        }
         
         if (aba_atual == 1) {
             if (key_down) { menu_index++; if (menu_index >= array_length(craft_recipes)) menu_index = 0; }
@@ -387,13 +381,13 @@ switch (state) {
             else if (craft_selected_item == 1) molotov_count++;
             else if (craft_selected_item == 2) faca_count++;
             craft_timer = 0;
-            state = player_state.idle; 
+            state = player_state.menu; 
         }
         break;
 }
 
 // =====================================================================
-// 4. SISTEMAS DE DANO DE COMBATE E I-FRAMES (COM RESPIRO GARANTIDO!)
+// 4. DANO E I-FRAMES
 // =====================================================================
 if (is_invulnerable) {
     iframe_timer--;
@@ -401,15 +395,12 @@ if (is_invulnerable) {
 }
 
 if (!is_invulnerable && state != player_state.roll) {
-    
-    // 1. Dano do Projétil de Ácido
     if (object_exists(obj_acido_centopeia)) {
         var gota_acido = instance_place(x, y, obj_acido_centopeia);
         if (gota_acido != noone) {
             hp -= gota_acido.dano;
             is_invulnerable = true;
             iframe_timer = 60; 
-            
             var dir_acido = (gota_acido.hspd != 0) ? sign(gota_acido.hspd) : -facing;
             hspd = dir_acido * 5;
             vspd = -4;
@@ -418,7 +409,6 @@ if (!is_invulnerable && state != player_state.roll) {
         }
     }
     
-    // 2. Dano de Espinhos
     if (object_exists(obj_espinho) && place_meeting(x, y, obj_espinho)) {
         hp -= 20; 
         is_invulnerable = true; 
@@ -428,7 +418,6 @@ if (!is_invulnerable && state != player_state.roll) {
         state = player_state.air; 
     }
     
-    // 3. Dano do Chefe: Centopeia Alfa (Causa dano na INVESTIDA ou quando EMERGE do chão!)
     var boss = object_exists(obj_boss_centopeia) ? instance_place(x, y, obj_boss_centopeia) : noone;
     if (boss != noone) {
         if (boss.state == centopeia_state.investida || boss.state == centopeia_state.emergindo) {
@@ -436,14 +425,11 @@ if (!is_invulnerable && state != player_state.roll) {
             hp -= dano_boss;
             is_invulnerable = true;
             iframe_timer = 75; 
-            
             var dir_empurrao = sign(x - boss.x);
             if (dir_empurrao == 0) dir_empurrao = -facing;
-            
             hspd = dir_empurrao * 7.5;
             vspd = -5.5;
             state = player_state.air;
-            
             if (instance_exists(obj_game_controller)) {
                 obj_game_controller.hitstop_timer = 6;
                 obj_game_controller.shake_magnitude = 5;
@@ -451,7 +437,6 @@ if (!is_invulnerable && state != player_state.roll) {
         }
     }
     
-    // 4. Dano de Inimigos Comuns (Ignora o Boss para você poder colar nele!)
     var inimigo = instance_place(x, y, obj_enemy);
     if (inimigo == noone && object_exists(obj_vespa)) {
         inimigo = instance_place(x, y, obj_vespa);
@@ -461,17 +446,13 @@ if (!is_invulnerable && state != player_state.roll) {
         hp -= 15;
         is_invulnerable = true;
         iframe_timer = 65; 
-        
         var dir_hit = sign(x - inimigo.x);
         if (dir_hit == 0) dir_hit = -facing;
-        
         hspd = dir_hit * 6.5;
         vspd = -4.5;
         state = player_state.air;
-        
         inimigo.hspd = -dir_hit * 5;
         inimigo.vspd = -2.5;
-        
         if (instance_exists(obj_game_controller)) {
             obj_game_controller.hitstop_timer = 5;
             obj_game_controller.shake_magnitude = 3;
@@ -479,7 +460,6 @@ if (!is_invulnerable && state != player_state.roll) {
     }
 }
 
-// Controle de Morte
 if (hp <= 0) {
     hp = 0;
     if (file_exists("save_1.ini")) {
@@ -490,7 +470,7 @@ if (hp <= 0) {
 }
 
 // =====================================================================
-// 5. APLICAÇÃO FÍSICA UNIFICADA (SEM PRENDER NO TETO/PAREDE!)
+// 5. APLICAÇÃO FÍSICA
 // =====================================================================
 if (place_meeting(x, y, obj_colisor)) {
     for (var d = 1; d <= 16; d++) {
@@ -501,25 +481,18 @@ if (place_meeting(x, y, obj_colisor)) {
     }
 }
 
-// Colisão Horizontal
 if (place_meeting(x + hspd, y, obj_colisor)) {
-    while (!place_meeting(x + sign(hspd), y, obj_colisor)) { 
-        x += sign(hspd); 
-    }
+    while (!place_meeting(x + sign(hspd), y, obj_colisor)) { x += sign(hspd); }
     hspd = 0;
 }
 x += hspd;
 
-// Colisão Vertical Unificada
 if (place_meeting(x, y + vspd, obj_colisor)) {
-    while (!place_meeting(x, y + sign(vspd), obj_colisor)) { 
-        y += sign(vspd); 
-    }
+    while (!place_meeting(x, y + sign(vspd), obj_colisor)) { y += sign(vspd); }
     vspd = 0;
 }
 y += vspd;
 
-// Gerar sucata e drops orgânicos de teste (Tecla U)
 if (keyboard_check_pressed(ord("U"))) { 
     repeat(3) { instance_create_layer(x, y - 10, "Instances", obj_scrap); } 
     carne_count++;
@@ -527,7 +500,6 @@ if (keyboard_check_pressed(ord("U"))) {
     ferrao_count++;
 }
 
-// Squash & Stretch voltando para a escala_base (1.15) e aplicando na instância
 scale_x = lerp(scale_x, escala_base, 0.2);
 scale_y = lerp(scale_y, escala_base, 0.2);
 image_xscale = facing * scale_x;

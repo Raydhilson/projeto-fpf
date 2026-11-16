@@ -1,5 +1,5 @@
 // ==========================================
-// 0. DECLARAÇÃO OBRIGATÓRIA DE PAUSE E CÂMERA
+// DECLARAÇÃO OBRIGATÓRIA DE PAUSE E CÂMERA
 // ==========================================
 is_paused = false;
 pause_state = 0; // 0 = Pause Principal | 1 = Opções e Controles
@@ -12,7 +12,7 @@ shake_fade = 0.4;
 pause_opcoes = ["CONTINUAR", "OPCOES / CONTROLES", "VOLTAR AO MENU INICIAL"];
 
 // ==========================================
-// 1. SEGURANÇA DE VARIÁVEIS GLOBAIS (FALLBACK)
+// SEGURANÇA DE VARIÁVEIS GLOBAIS (FALLBACK)
 // ==========================================
 if (!variable_global_exists("brilho"))        global.brilho        = 0.5;
 if (!variable_global_exists("idioma"))        global.idioma        = "PT";

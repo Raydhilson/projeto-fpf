@@ -1,4 +1,7 @@
-if (coletavel_timer > 0) coletavel_timer--;
+// Decrementa o timer de segurança com segurança
+if (coletavel_timer > 0) {
+    coletavel_timer--;
+}
 
 // Física simples de queda
 vspd += grv;

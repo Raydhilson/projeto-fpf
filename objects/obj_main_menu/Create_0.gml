@@ -14,6 +14,7 @@ if (!variable_global_exists("key_down"))      global.key_down      = vk_down;
 if (!variable_global_exists("key_confirm"))   global.key_confirm   = vk_enter;
 
 menu_state = 0; // 0 = Menu Principal | 1 = Opções e Controles
+opcao_aba  = 0; // 0 = Geral & Vídeo | 1 = Controles
 aguardando_tecla = false;
 
 options = ["new_game", "continue_game", "options", "quit"];

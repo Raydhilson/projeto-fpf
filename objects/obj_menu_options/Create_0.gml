@@ -1,6 +1,4 @@
-menu_index = 0;
-
-// Lista de opções disponíveis no menu
+// Lista de opções disponíveis no menu de configurações
 opcoes = [
     "volume_master",
     "tela_cheia",
@@ -8,3 +6,5 @@ opcoes = [
     "idioma",
     "voltar"
 ];
+
+menu_index = 0;
