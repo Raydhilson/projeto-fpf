@@ -35,8 +35,8 @@
   "resourceVersion":"2.0",
   "solid":false,
   "spriteId":{
-    "name":"spr_boss_centopeia",
-    "path":"sprites/spr_boss_centopeia/spr_boss_centopeia.yy",
+    "name":"spr_boss_centopeia_idle",
+    "path":"sprites/spr_boss_centopeia_idle/spr_boss_centopeia_idle.yy",
   },
   "spriteMaskId":null,
   "visible":true,

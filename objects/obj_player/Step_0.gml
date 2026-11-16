@@ -1,3 +1,5 @@
+if (!variable_instance_exists(id, "escala_base")) escala_base = 1.15;
+
 // =====================================================================
 // 0. SISTEMA DE HITSTOP (PAUSA O RATO)
 // =====================================================================
@@ -19,9 +21,9 @@ if (move_dir == 0) {
     if (abs(axis_h) > deadzone) { move_dir = sign(axis_h); }
 }
 
-// Permite virar de lado livremente (inclusive no início do ataque para Kite!)
+// Permite virar de lado livremente (inclusive nos primeiros frames de preparação do ataque para Kite!)
 if (move_dir != 0 && state != player_state.menu && state != player_state.craft && state != player_state.roll) { 
-    if (state != player_state.attack || action_timer >= 12) {
+    if (state != player_state.attack || action_timer >= 18) {
         facing = move_dir; 
     }
 }
@@ -93,7 +95,8 @@ switch (state) {
         
         if (jump_buffer_timer > 0 && coyote_timer > 0) { 
             vspd = jump_spd; jump_buffer_timer = 0; coyote_timer = 0;
-            scale_x = 0.75; scale_y = 1.35; state = player_state.air; 
+            scale_x = escala_base * 0.75; scale_y = escala_base * 1.35; 
+            state = player_state.air; 
         }
         
         if (key_attack && !stamina_exhausted && stamina_current >= stamina_cost_attack) {
@@ -101,13 +104,13 @@ switch (state) {
             stamina_current -= stamina_cost_attack;
             stamina_delay_timer = stamina_delay_max;
             state = player_state.attack;
-            action_timer = 14; 
+            action_timer = 24; 
             combo_count = 1;       
-            sprite_index = spr_player_attack;
+            sprite_index = spr_player_attack; // 1º golpe usa spr_player_attack de forma consistente
             image_index = 0;       
             ataque_buffer = false; 
             hspd = facing * 3.0; 
-            scale_x = 1.25; scale_y = 0.85;
+            scale_x = escala_base * 1.25; scale_y = escala_base * 0.85;
         }
         
         if (key_throw) {
@@ -145,7 +148,8 @@ switch (state) {
         
         if (jump_buffer_timer > 0 && coyote_timer > 0) { 
             vspd = jump_spd; jump_buffer_timer = 0; coyote_timer = 0;
-            scale_x = 0.75; scale_y = 1.35; state = player_state.air; 
+            scale_x = escala_base * 0.75; scale_y = escala_base * 1.35; 
+            state = player_state.air; 
         }
         
         if (key_attack && !stamina_exhausted && stamina_current >= stamina_cost_attack) {
@@ -153,15 +157,15 @@ switch (state) {
             stamina_current -= stamina_cost_attack;
             stamina_delay_timer = stamina_delay_max;
             state = player_state.attack;
-            action_timer = 14;
+            action_timer = 24; 
             combo_count = 1;       
-            sprite_index = spr_player_attack;
+            sprite_index = spr_player_attack; // 1º golpe usa spr_player_attack de forma consistente
             image_index = 0;
             ataque_buffer = false;
             
             hspd = facing * 3.5;
-            scale_x = 1.25;
-            scale_y = 0.85;
+            scale_x = escala_base * 1.25;
+            scale_y = escala_base * 0.85;
         }
 
         if (key_throw) {
@@ -192,17 +196,19 @@ switch (state) {
             state = player_state.wall_slide;
         }
         
+        // ATAQUE NO AR DEDICADO (spr_player_attack_jump)
         if (key_attack && !stamina_exhausted && stamina_current >= stamina_cost_attack) {
             if (move_dir != 0) facing = move_dir;
             stamina_current -= stamina_cost_attack;
             stamina_delay_timer = stamina_delay_max;
             state = player_state.attack;
-            action_timer = 14;
+            action_timer = 24; 
             combo_count = 1;
-            sprite_index = spr_player_attack;
+            sprite_index = spr_player_attack_jump;
             image_index = 0;
             ataque_buffer = false;
-            scale_x = 1.25; scale_y = 0.85;
+            scale_x = escala_base * 1.25; scale_y = escala_base * 0.85;
+            break;
         }
         
         var taxa_lerp = (move_dir != 0) ? accel : fric;
@@ -216,30 +222,44 @@ switch (state) {
         sprite_index = (vspd < 0) ? spr_player_jump : spr_player_air;
         
         if (on_ground && vspd >= 0) {
-            scale_x = 1.25; scale_y = 0.80;
+            scale_x = escala_base * 1.25; scale_y = escala_base * 0.80;
             state = (move_dir != 0) ? player_state.run : player_state.idle;
         }
         break;
 
-    // --- ATTACK (RESPOSTA RÁPIDA PARA KITE E DASH CANCEL!) ---
+    // --- ATTACK (CHÃO E AR COM KITE E DASH CANCEL!) ---
     case player_state.attack:
         if (on_ground) {
             hspd = lerp(hspd, move_dir * (walk_sp * 0.5), 0.2); 
             vspd = 0;
         } else {
             vspd += grv;
+            if (vspd > max_vspd) vspd = max_vspd;
             hspd = lerp(hspd, move_dir * walk_sp, 0.08); 
         }
         
-        sprite_index = (combo_count == 1) ? spr_player_attack : spr_player_attack2;
+        // Se estiver no ar (ou começou o golpe no ar), usa spr_player_attack_jump; no chão, usa attack (1º) / attack2 (2º)
+        var _target_spr;
+        if (!on_ground || sprite_index == spr_player_attack_jump) {
+            _target_spr = spr_player_attack_jump;
+        } else {
+            _target_spr = (combo_count == 1) ? spr_player_attack : spr_player_attack2;
+        }
+        
+        if (sprite_index != _target_spr) {
+            sprite_index = _target_spr;
+            image_index = 0;
+        }
         image_blend = c_white;
+        image_speed = 1.35; // Deixa os frames ágeis (~20 FPS) para caber no timer
         
         if (key_attack && arma_nivel >= 2) {
             ataque_buffer = true; 
         }
         
-        if (action_timer == 12) {
-            var hit = instance_create_layer(x + (facing * 26), y - 12, "Instances", obj_hitbox);
+        // Cria a hitbox EXATAMENTE quando a animação atinge o frame do impacto (Frame 3 ou 4)
+        if (action_timer == 14) {
+            var hit = instance_create_layer(x + (facing * 30), y - 12, "Instances", obj_hitbox);
             hit.image_xscale = facing * 1.5;
             hit.duracao = 5; 
             
@@ -250,7 +270,8 @@ switch (state) {
             }
         }
 
-        if (action_timer <= 9 && key_roll && !stamina_exhausted && stamina_current >= stamina_cost_roll) {
+        // Permite cancelar o finalzinho do ataque com o Roll (esquiva)
+        if (action_timer <= 10 && key_roll && !stamina_exhausted && stamina_current >= stamina_cost_roll) {
             if (move_dir != 0) facing = move_dir;
             stamina_current -= stamina_cost_roll;
             stamina_delay_timer = stamina_delay_max;
@@ -260,23 +281,26 @@ switch (state) {
             iframe_timer = max(iframe_timer, 28);
             sprite_index = spr_player_roll;
             image_index = 0;
+            image_speed = 1;
             break;
         }
 
         action_timer--;
         
         if (action_timer <= 0) {
+            // Se encadeou o 2º golpe do combo: usa spr_player_attack2 no chão ou spr_player_attack_jump no ar
             if (ataque_buffer && combo_count == 1 && arma_nivel >= 2) {
                 if (move_dir != 0) facing = move_dir;
                 combo_count = 2;
-                action_timer = 14; 
-                sprite_index = spr_player_attack2;
+                action_timer = 26;
+                sprite_index = on_ground ? spr_player_attack2 : spr_player_attack_jump;
                 image_index = 0;   
                 ataque_buffer = false;
-                hspd = facing * 4.0;
-                scale_x = 1.35; scale_y = 0.80;
+                if (on_ground) hspd = facing * 4.0;
+                scale_x = escala_base * 1.35; scale_y = escala_base * 0.80;
             } else {
                 combo_count = 0;
+                image_speed = 1; // Restaura a velocidade normal de animação ao sair do ataque
                 state = on_ground ? ((move_dir != 0) ? player_state.run : player_state.idle) : player_state.air;
             }
         }
@@ -308,7 +332,7 @@ switch (state) {
             hspd = -wall_dir * wall_jump_hspd;
             facing = -wall_dir;
             x += -wall_dir * 2; 
-            scale_x = 0.80; scale_y = 1.25;
+            scale_x = escala_base * 0.80; scale_y = escala_base * 1.25;
             state = player_state.air;
             break;
         }
@@ -503,6 +527,8 @@ if (keyboard_check_pressed(ord("U"))) {
     ferrao_count++;
 }
 
-// Squash & Stretch
-scale_x = lerp(scale_x, 1.0, 0.2);
-scale_y = lerp(scale_y, 1.0, 0.2);
+// Squash & Stretch voltando para a escala_base (1.15) e aplicando na instância
+scale_x = lerp(scale_x, escala_base, 0.2);
+scale_y = lerp(scale_y, escala_base, 0.2);
+image_xscale = facing * scale_x;
+image_yscale = scale_y;

@@ -1,11 +1,19 @@
 // ==========================================
+// CONFIGURAÇÃO AUTOMÁTICA DAS SPRITES DO BESOURO
+// ==========================================
+var spr_walk = (asset_get_index("spr_enemy_walk") != -1) ? asset_get_index("spr_enemy_walk") : ((asset_get_index("spr_besouro_walk") != -1) ? asset_get_index("spr_besouro_walk") : sprite_index);
+var spr_atk_charge  = (asset_get_index("spr_enemy_attack") != -1) ? asset_get_index("spr_enemy_attack") : spr_walk;
+var spr_atk_defense = (asset_get_index("spr_enemy_attack_defense") != -1) ? asset_get_index("spr_enemy_attack_defense") : spr_atk_charge;
+
+if (!variable_instance_exists(id, "tipo_ataque_atual")) tipo_ataque_atual = 0;
+if (!variable_instance_exists(id, "escala_base")) escala_base = 0.75;
+
+// ==========================================
 // 0. SISTEMA DE HITSTOP (PAUSA O INIMIGO)
 // ==========================================
 if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
     image_speed = 0;
     exit;
-} else {
-    image_speed = 1;
 }
 
 // ==========================================
@@ -33,6 +41,12 @@ switch (state) {
     
     // --- ESTADO 1: PATRULHA ---
     case enemy_state.patrol:
+        if (sprite_index != spr_walk) {
+            sprite_index = spr_walk;
+            image_index = 0;
+        }
+        image_speed = 1;
+        
         if (piscar <= 0) {
             hspd = lerp(hspd, walk_spd * facing, 0.1);
         }
@@ -54,7 +68,12 @@ switch (state) {
         
     // --- ESTADO 2: PERSEGUIÇÃO ---
     case enemy_state.chase:
-        image_blend = (queimando_timer > 0) ? c_orange : c_red; 
+        if (sprite_index != spr_walk) {
+            sprite_index = spr_walk;
+            image_index = 0;
+        }
+        image_speed = 1.25;
+        image_blend = (queimando_timer > 0) ? c_orange : c_white; 
         
         if (instance_exists(obj_player)) {
             var dist = point_distance(x, y, obj_player.x, obj_player.y);
@@ -72,11 +91,22 @@ switch (state) {
                 hspd = lerp(hspd, chase_spd * facing, 0.12);
             }
             
-            // GATILHO QUÍMICO: Se chegar perto e o ataque estiver pronto, prepara a explosão!
-            if (dist <= 75 && on_ground && attack_cooldown <= 0) {
+            // GATILHO DE TRANSIÇÃO DE ATAQUE (Decide entre Avanço e Bombardeio Químico)
+            if (dist <= 85 && on_ground && attack_cooldown <= 0) {
                 state = enemy_state.chemical_prep;
-                state_timer = 28; // 0.45s fervendo antes de dar o bote
                 hspd = 0;
+                
+                // Se for Bombardeiro e o player estiver muito perto (<= 55px) ou no sorteio tático, usa o Bombardeio!
+                if (eh_bombardeiro && (dist <= 55 || irandom(1) == 1)) {
+                    tipo_ataque_atual = 1; // Bombardeio (spr_enemy_attack_defense)
+                    sprite_index = spr_atk_defense;
+                    state_timer = 16; // Tempo para tocar os frames 0 a 2 (preparação química)
+                } else {
+                    tipo_ataque_atual = 0; // Avanço físico (spr_enemy_attack)
+                    sprite_index = spr_atk_charge;
+                    state_timer = 14; // Tempo para tocar os frames 0 a 2 (preparação da investida)
+                }
+                image_index = 0;
             }
             
             if (dist > lose_interest_range) {
@@ -87,11 +117,18 @@ switch (state) {
         }
         break;
         
-    // --- ESTADO 3: PREPARANDO REAÇÃO QUÍMICA (Aviso Visual!) ---
+    // --- ESTADO 3: PREPARAÇÃO DO ATAQUE (Frames iniciais de Windup: 0 a 2) ---
     case enemy_state.chemical_prep:
         hspd = lerp(hspd, 0, 0.3);
-        // Pisca entre amarelo e laranja fervendo os reagentes
-        image_blend = ((state_timer div 4) mod 2 == 0) ? c_yellow : c_orange;
+        sprite_index = (tipo_ataque_atual == 1) ? spr_atk_defense : spr_atk_charge;
+        image_speed = 0.8; 
+        image_blend = c_white;
+        
+        // Trava nos frames de preparação (0 a 2) antes de soltar o golpe
+        if (image_index >= 3) {
+            image_index = 2.9;
+            image_speed = 0;
+        }
         
         if (instance_exists(obj_player) && obj_player.x != x) {
             facing = sign(obj_player.x - x);
@@ -100,42 +137,82 @@ switch (state) {
         state_timer--;
         if (state_timer <= 0) {
             state = enemy_state.charge;
-            state_timer = 22; // Duração da arrancada explosiva
+            image_index = 3; // Salta exatamente para o Frame 3 (início do impacto/jato!)
+            image_speed = 1.1;
+            
+            if (tipo_ataque_atual == 1) {
+                state_timer = 26; // Duração do espirro químico (spr_enemy_attack_defense)
+            } else {
+                state_timer = 22; // Duração da arrancada física (spr_enemy_attack)
+            }
+            
             if (instance_exists(obj_game_controller)) {
-                obj_game_controller.shake_magnitude = 2; // Tremor do disparo químico
+                obj_game_controller.shake_magnitude = (tipo_ataque_atual == 1) ? 3 : 2;
             }
         }
         break;
         
-    // --- ESTADO 4: INVESTIDA EXPLOSIVA ---
+    // --- ESTADO 4: EXECUÇÃO DO ATAQUE (Avanço ou Bombardeio Químico: Frames 3 até o fim) ---
     case enemy_state.charge:
-        image_blend = c_orange;
-        hspd = facing * charge_spd;
+        sprite_index = (tipo_ataque_atual == 1) ? spr_atk_defense : spr_atk_charge;
+        image_blend = c_white;
         state_timer--;
         
-        // Se bater na parede ou acabar o impulso, entra em resfriamento
-        if (place_meeting(x + facing, y, obj_colisor) || state_timer <= 0) {
+        if (tipo_ataque_atual == 1) {
+            // MODO 1: BOMBARDEIO QUÍMICO (spr_enemy_attack_defense)
+            hspd = lerp(hspd, 0, 0.25);
+            
+            // Cria poça de fogo no chão se o objeto existir no projeto
+            if (state_timer == 18 || state_timer == 12) {
+                var obj_fogo = asset_get_index("obj_fogo_chao");
+                if (obj_fogo == -1) obj_fogo = asset_get_index("obj_poca_fogo");
+                if (obj_fogo != -1) {
+                    var dist_fogo = (state_timer == 18) ? 28 : 48;
+                    instance_create_layer(x + (facing * dist_fogo), y, "Instances", obj_fogo);
+                }
+            }
+        } else {
+            // MODO 0: AVANÇO / INVESTIDA (spr_enemy_attack)
+            hspd = facing * charge_spd;
+        }
+        
+        // Mantém no último frame se a animação terminar antes dos últimos steps
+        if (image_index >= image_number - 1) {
+            image_index = image_number - 1;
+            image_speed = 0;
+        }
+        
+        // Finaliza o ataque se bater na parede (no avanço) ou quando acabar o state_timer
+        var bateu_parede = (tipo_ataque_atual == 0 && place_meeting(x + facing, y, obj_colisor));
+        if (bateu_parede || state_timer <= 0) {
             hspd = 0;
             state = enemy_state.cooldown;
-            state_timer = 40;     // 40 frames vulnerável para o player bater
-            attack_cooldown = 90; // Só pode usar reação química de novo após 1.5s
+            state_timer = 38;     // Janela vulnerável pós-ataque
+            attack_cooldown = 90; // 1.5s de recarga
         }
         break;
         
     // --- ESTADO 5: RESFRIANDO (Janela vulnerável pós-ataque) ---
     case enemy_state.cooldown:
+        sprite_index = spr_walk;
+        image_index = 0;
+        image_speed = 0; // Fica parado recuperando o fôlego
         hspd = lerp(hspd, 0, 0.2);
-        image_blend = c_gray; // Fica acinzentado/fumegando enquanto recupera o fôlego
+        image_blend = c_ltgray; 
         state_timer--;
         if (state_timer <= 0) {
+            image_speed = 1;
+            image_blend = c_white;
             state = enemy_state.chase;
         }
         break;
 }
 
+// Aplica a direção e a escala reduzida do Besouro (0.75)
 if (facing != 0) {
-    image_xscale = facing;
+    image_xscale = facing * escala_base;
 }
+image_yscale = escala_base;
 
 // ==========================================
 // 3. COLISÕES FÍSICAS

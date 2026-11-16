@@ -53,7 +53,7 @@ aba_atual = 0; // 0 = Inventário, 1 = Crafting, 2 = Maestria
 nome_abas = ["INVENTARIO", "CRAFTING", "MAESTRIA"];
 
 // ==========================================
-// 3. MOVIMENTO, FÍSICA E GAME FEEL
+// 3. MOVIMENTO, FÍSICA, ESCALA E GAME FEEL
 // ==========================================
 hspd = 0;
 vspd = 0;
@@ -73,8 +73,12 @@ jump_buffer_timer = 0;
 wall_jump_vspd = -8; 
 wall_jump_hspd = 6;  
 
-scale_x = 1.0;       
-scale_y = 1.0;
+// Escala base do Rato (1.15 = 15% maior)
+escala_base = 1.15;
+scale_x = escala_base;       
+scale_y = escala_base;
+image_xscale = escala_base;
+image_yscale = escala_base;
 
 facing = 1;          
 roll_sp = 7;         

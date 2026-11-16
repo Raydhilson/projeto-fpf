@@ -7,14 +7,20 @@ hspd = 0;
 vspd = 0;
 grv = 0.3;
 
+// --- ESCALA DE TAMANHO DO BESOURO (0.75 = 25% menor) ---
+escala_base = 0.75;
+image_xscale = escala_base;
+image_yscale = escala_base;
+
 // --- DIREÇÃO E ESTADOS ---
 facing = 1;         
+tipo_ataque_atual = 0; // 0 = Avanço (spr_enemy_attack) | 1 = Bombardeio (spr_enemy_attack_defense)
 
 enum enemy_state {
     patrol,
     chase,
     chemical_prep, // Aviso visual: misturando reagentes químicos
-    charge,        // Investida explosiva
+    charge,        // Investida explosiva ou disparo químico
     cooldown       // Janela vulnerável pós-ataque
 }
 state = enemy_state.patrol;

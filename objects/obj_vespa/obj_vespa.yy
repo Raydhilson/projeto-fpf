@@ -35,8 +35,8 @@
   "resourceVersion":"2.0",
   "solid":false,
   "spriteId":{
-    "name":"SPR_VESPA",
-    "path":"sprites/SPR_VESPA/SPR_VESPA.yy",
+    "name":"spr_vespa_fly",
+    "path":"sprites/spr_vespa_fly/spr_vespa_fly.yy",
   },
   "spriteMaskId":null,
   "visible":true,
