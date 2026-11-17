@@ -1,0 +1,26 @@
+{
+  "$GMSound":"v2",
+  "%Name":"snd_craft_hammer",
+  "audioGroupId":{
+    "name":"audiogroup_default",
+    "path":"audiogroups/audiogroup_default",
+  },
+  "bitDepth":1,
+  "channelFormat":0,
+  "compression":0,
+  "compressionQuality":4,
+  "conversionMode":0,
+  "duration":0.35,
+  "exportDir":"",
+  "name":"snd_craft_hammer",
+  "parent":{
+    "name":"SFX",
+    "path":"folders/SFX SOUNDS/SFX.yy",
+  },
+  "preload":false,
+  "resourceType":"GMSound",
+  "resourceVersion":"2.0",
+  "sampleRate":44100,
+  "soundFile":"snd_craft_hammer.wav",
+  "volume":1.0,
+}
