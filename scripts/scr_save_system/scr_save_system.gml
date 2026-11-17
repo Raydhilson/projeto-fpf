@@ -1,10 +1,36 @@
 // =======================================================
-// 0. SISTEMA DE ÁUDIO SEGURO (COM VARIAÇÃO DE PITCH)
+// 0. SISTEMA DE ÁUDIO SEGURO (ALINHADO COM OS ASSETS REAIS)
 // =======================================================
-function tocar_sfx(_nome_som, _pitch_min = 0.9, _pitch_max = 1.1) {
-    var _snd = is_string(_nome_som) ? asset_get_index(_nome_som) : _nome_som;
+function resolver_som(_nome) {
+    if (!is_string(_nome)) return _nome;
+    
+    // 1. Se o nome já existir direto no Asset Browser, usa ele!
+    var _id = asset_get_index(_nome);
+    if (_id != -1 && audio_exists(_id)) return _id;
+    
+    // 2. Tradutor automático caso algum script chame pelo apelido antigo
+    var _mapa = "";
+    switch (_nome) {
+        case "snd_spear_swing": _mapa = "snd_spear_thrust"; break;
+        case "snd_roll":        _mapa = "snd_souls_roll";   break;
+        case "snd_hurt":        _mapa = "snd_mouse_hurt";   break;
+        case "snd_save":        _mapa = "snd_save_shrine";  break;
+        case "snd_pickup":      _mapa = "snd_craft_pickup"; break;
+        case "snd_enemy_death": _mapa = "snd_beetle_carapace"; break;
+    }
+    
+    if (_mapa != "") {
+        _id = asset_get_index(_mapa);
+        if (_id != -1 && audio_exists(_id)) return _id;
+    }
+    
+    return -1;
+}
+
+function tocar_sfx(_nome_som, _pitch_min = 0.92, _pitch_max = 1.08) {
+    var _snd = resolver_som(_nome_som);
     if (_snd != -1 && audio_exists(_snd)) {
-        var _vol = variable_global_exists("vol_sfx") ? global.vol_sfx : 0.8;
+        var _vol = variable_global_exists("vol_sfx") ? global.vol_sfx : 0.85;
         var _inst = audio_play_sound(_snd, 10, false);
         audio_sound_pitch(_inst, random_range(_pitch_min, _pitch_max));
         audio_sound_gain(_inst, _vol, 0);
@@ -12,7 +38,7 @@ function tocar_sfx(_nome_som, _pitch_min = 0.9, _pitch_max = 1.1) {
 }
 
 function tocar_musica(_nome_musica) {
-    var _snd = is_string(_nome_musica) ? asset_get_index(_nome_musica) : _nome_musica;
+    var _snd = resolver_som(_nome_musica);
     if (_snd != -1 && audio_exists(_snd)) {
         if (!audio_is_playing(_snd)) {
             audio_stop_all();
@@ -47,7 +73,6 @@ function obter_info_slot(_slot) {
         _info.existe = true;
         var _raw_sala = ini_read_string("Mundo", "Sala", "rm_forest_1");
         
-        // Nome amigável da sala para exibir no card do Slot
         var _pt = (!variable_global_exists("idioma") || global.idioma == "PT");
         switch (_raw_sala) {
             case "rm_forest_1": _info.sala = _pt ? "Floresta - Setor 1" : "Forest - Sector 1"; break;
@@ -154,6 +179,30 @@ function carregar_configuracoes() {
     }
 }
 
+function restaurar_padroes() {
+    global.brilho      = 0.5;
+    global.idioma      = "PT";
+    global.tela_cheia  = 0;
+    global.res_index   = 0;
+    global.tremer_tela = 1;
+    global.vol_master  = 1.0;
+    
+    global.key_right   = vk_right;
+    global.key_left    = vk_left;
+    global.key_up      = vk_up;
+    global.key_down    = vk_down;
+    
+    global.key_jump    = vk_space;
+    global.key_attack  = ord("J");
+    global.key_roll    = ord("K");
+    global.key_heal    = ord("H");
+    global.key_throw   = ord("F");
+    global.key_confirm = vk_enter;
+    
+    aplicar_resolucao();
+    salvar_configuracoes();
+}
+
 // =======================================================
 // 2. SALVAR O PROGRESSO (Fogueira e Pause)
 // =======================================================
@@ -193,7 +242,7 @@ function salvar_jogo(_slot = global.slot_atual) {
         instance_deactivate_object(obj_player);
     }
     
-    tocar_sfx("snd_save", 0.95, 1.05);
+    tocar_sfx("snd_save_shrine", 0.95, 1.05);
 }
 
 // =======================================================

@@ -10,7 +10,6 @@ if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 
     image_speed = 1;
 }
 
-// Se o menu global de Pausa (ESC) estiver aberto, o player não processa nada
 if (instance_exists(obj_game_controller) && obj_game_controller.is_paused) {
     exit;
 }
@@ -53,6 +52,8 @@ var key_tab_right = keyboard_check_pressed(global.key_tab_right) || gamepad_butt
 if (state != player_state.menu && state != player_state.craft && key_heal && curativo_count > 0 && hp < hp_max) {
     curativo_count--;
     hp = min(hp + 30, hp_max);
+    tocar_sfx("snd_craft_success", 1.05, 1.15);
+    tocar_sfx("snd_mouse_squeak", 1.0, 1.15);
 }
 
 if (buff_fogo_timer > 0 && state != player_state.menu && state != player_state.craft) {
@@ -68,17 +69,19 @@ if (key_jump)  { jump_buffer_timer = jump_buffer_max; } else { jump_buffer_timer
 // ==========================================
 if (key_menu) {
     if (state != player_state.menu && state != player_state.craft) {
+        tocar_sfx("snd_ui_confirm", 0.95, 1.05);
         state = player_state.menu;
         hspd = 0;
         vspd = 0;
         menu_index = 0;
-        aba_atual = 1; // Abre direto na aba de Crafting
+        aba_atual = 1;
         
         instance_deactivate_all(true);
         instance_activate_object(obj_game_controller);
         instance_activate_object(obj_camera);
         instance_activate_object(obj_colisor);
     } else {
+        tocar_sfx("snd_ui_back", 0.95, 1.05);
         state = player_state.idle;
         instance_activate_all();
     }
@@ -104,6 +107,7 @@ switch (state) {
         if (jump_buffer_timer > 0 && coyote_timer > 0) { 
             vspd = jump_spd; jump_buffer_timer = 0; coyote_timer = 0;
             scale_x = escala_base * 0.75; scale_y = escala_base * 1.35; 
+            tocar_sfx("snd_jump", 0.95, 1.08);
             state = player_state.air; 
         }
         
@@ -124,10 +128,12 @@ switch (state) {
                 faca_count--;
                 var faca = instance_create_layer(x + (facing * 12), y - 14, "Instances", obj_faca_arremesso);
                 faca.hspd = facing * 11; faca.vspd = -1;
+                tocar_sfx("snd_dash", 1.15, 1.3);
             } else if (molotov_count > 0 && object_exists(obj_molotov)) {
                 molotov_count--;
                 var molotov = instance_create_layer(x + (facing * 10), y - 15, "Instances", obj_molotov);
-                molotov.hspd = facing * 6.5; molotov.vspd = -4.5;         
+                molotov.hspd = facing * 6.5; molotov.vspd = -4.5;
+                tocar_sfx("snd_dash", 0.85, 0.95);
             }
         }
         
@@ -138,6 +144,7 @@ switch (state) {
             iframe_timer = max(iframe_timer, 14); 
             sprite_index = spr_player_roll; 
             image_index = 0;
+            tocar_sfx("snd_souls_roll", 0.95, 1.08);
         }
         break;
         
@@ -153,6 +160,7 @@ switch (state) {
         if (jump_buffer_timer > 0 && coyote_timer > 0) { 
             vspd = jump_spd; jump_buffer_timer = 0; coyote_timer = 0;
             scale_x = escala_base * 0.75; scale_y = escala_base * 1.35; 
+            tocar_sfx("snd_jump", 0.95, 1.08);
             state = player_state.air; 
         }
         
@@ -175,10 +183,12 @@ switch (state) {
                 faca_count--;
                 var faca = instance_create_layer(x + (facing * 12), y - 14, "Instances", obj_faca_arremesso);
                 faca.hspd = facing * 12; faca.vspd = -1;
+                tocar_sfx("snd_dash", 1.15, 1.3);
             } else if (molotov_count > 0 && object_exists(obj_molotov)) {
                 molotov_count--;
                 var molotov = instance_create_layer(x + (facing * 10), y - 15, "Instances", obj_molotov);
-                molotov.hspd = facing * 8; molotov.vspd = -4;         
+                molotov.hspd = facing * 8; molotov.vspd = -4;
+                tocar_sfx("snd_dash", 0.85, 0.95);
             }
         }
         
@@ -189,6 +199,7 @@ switch (state) {
             iframe_timer = max(iframe_timer, 14);
             sprite_index = spr_player_roll; 
             image_index = 0;
+            tocar_sfx("snd_souls_roll", 0.95, 1.08);
         }
         break;
         
@@ -266,6 +277,7 @@ switch (state) {
         
         var _frame_hit = (combo_count == 2) ? 12 : 14;
         if (action_timer == _frame_hit) {
+            tocar_sfx("snd_spear_thrust", (combo_count == 2) ? 1.1 : 0.94, (combo_count == 2) ? 1.2 : 1.04);
             var hit = instance_create_layer(x + (facing * 30), y - 12, "Instances", obj_hitbox);
             hit.image_xscale = facing * 1.5;
             hit.duracao = 5; 
@@ -286,6 +298,7 @@ switch (state) {
             sprite_index = spr_player_roll;
             image_index = 0;
             image_speed = 1;
+            tocar_sfx("snd_souls_roll", 0.95, 1.08);
             break;
         }
 
@@ -352,6 +365,7 @@ switch (state) {
             facing = -wall_dir;
             x += -wall_dir * 2; 
             scale_x = escala_base * 0.80; scale_y = escala_base * 1.25;
+            tocar_sfx("snd_pogo_bounce", 0.95, 1.1);
             state = player_state.air;
             break;
         }
@@ -366,10 +380,11 @@ switch (state) {
         hspd = 0; vspd = 0; 
         sprite_index = spr_player_idle;
         
-        if (key_tab_right || keyboard_check_pressed(vk_right) || keyboard_check_pressed(ord("D"))) { aba_atual++; if (aba_atual > 2) aba_atual = 0; menu_index = 0; }
-        if (key_tab_left  || keyboard_check_pressed(vk_left)  || keyboard_check_pressed(ord("A"))) { aba_atual--; if (aba_atual < 0) aba_atual = 2; menu_index = 0; }
+        if (key_tab_right || keyboard_check_pressed(vk_right) || keyboard_check_pressed(ord("D"))) { aba_atual++; if (aba_atual > 2) aba_atual = 0; menu_index = 0; tocar_sfx("snd_ui_move"); }
+        if (key_tab_left  || keyboard_check_pressed(vk_left)  || keyboard_check_pressed(ord("A"))) { aba_atual--; if (aba_atual < 0) aba_atual = 2; menu_index = 0; tocar_sfx("snd_ui_move"); }
         
         if (keyboard_check_pressed(vk_escape) || gamepad_button_check_pressed(0, gp_face2)) {
+            tocar_sfx("snd_ui_back", 0.95, 1.05);
             state = player_state.idle;
             instance_activate_all();
             keyboard_clear(vk_escape);
@@ -377,8 +392,8 @@ switch (state) {
         }
         
         if (aba_atual == 1) {
-            if (key_down) { menu_index++; if (menu_index >= array_length(craft_recipes)) menu_index = 0; }
-            if (key_up)   { menu_index--; if (menu_index < 0) menu_index = array_length(craft_recipes) - 1; }
+            if (key_down) { menu_index++; if (menu_index >= array_length(craft_recipes)) menu_index = 0; tocar_sfx("snd_ui_move"); }
+            if (key_up)   { menu_index--; if (menu_index < 0) menu_index = array_length(craft_recipes) - 1; tocar_sfx("snd_ui_move"); }
             
             if (key_confirm) {
                 var cost = craft_cost_array[menu_index];
@@ -396,7 +411,10 @@ switch (state) {
                     craft_cost = cost;
                     craft_selected_item = menu_index;
                     craft_timer = 0;
+                    tocar_sfx("snd_craft_hammer", 0.95, 1.05);
                     state = player_state.craft; 
+                } else {
+                    tocar_sfx("snd_craft_fail", 0.95, 1.05);
                 }
             }
         }
@@ -409,18 +427,23 @@ switch (state) {
         sprite_index = spr_player_idle;
         craft_timer += 2;
         
+        if (craft_timer == 44) {
+            tocar_sfx("snd_craft_hammer", 1.05, 1.15); // Segunda martelada no meio da barra!
+        }
+        
         if (craft_timer >= craft_time_max) {
             if (craft_selected_item == 0) curativo_count++;
             else if (craft_selected_item == 1) molotov_count++;
             else if (craft_selected_item == 2) faca_count++;
             craft_timer = 0;
+            tocar_sfx("snd_craft_success", 0.98, 1.05);
             state = player_state.menu; 
         }
         exit;
 }
 
 // =====================================================================
-// 4. DANO E I-FRAMES (BOSS REMOVIDO DAQUI POIS USA OBJ_HITBOX_ENEMY)
+// 4. DANO E I-FRAMES
 // =====================================================================
 if (is_invulnerable) {
     iframe_timer--;
@@ -438,6 +461,7 @@ if (!is_invulnerable && state != player_state.roll) {
             hspd = dir_acido * 5;
             vspd = -4;
             state = player_state.air;
+            tocar_sfx("snd_mouse_hurt", 0.9, 1.05);
             instance_destroy(gota_acido);
         }
     }
@@ -449,9 +473,9 @@ if (!is_invulnerable && state != player_state.roll) {
         vspd = -5; 
         hspd = -facing * 6; 
         state = player_state.air; 
+        tocar_sfx("snd_mouse_hurt", 0.9, 1.05);
     }
     
-    // Inimigos comuns: Besouro só dá dano na investida (charge)
     var inimigo = instance_place(x, y, obj_enemy);
     if (inimigo != noone && inimigo.object_index != obj_boss_centopeia) {
         if (inimigo.state == enemy_state.charge) {
@@ -465,6 +489,7 @@ if (!is_invulnerable && state != player_state.roll) {
             state = player_state.air;
             inimigo.hspd = -dir_hit * 5;
             inimigo.vspd = -2.5;
+            tocar_sfx("snd_mouse_hurt", 0.9, 1.05);
             if (instance_exists(obj_game_controller)) {
                 obj_game_controller.hitstop_timer = 5;
                 obj_game_controller.shake_magnitude = 3;
@@ -472,7 +497,6 @@ if (!is_invulnerable && state != player_state.roll) {
         }
     }
     
-    // Vespa continua dando dano de contato normal
     if (object_exists(obj_vespa)) {
         var vespa = instance_place(x, y, obj_vespa);
         if (vespa != noone) {
@@ -484,6 +508,7 @@ if (!is_invulnerable && state != player_state.roll) {
             hspd = dir_v * 6.5;
             vspd = -4.5;
             state = player_state.air;
+            tocar_sfx("snd_mouse_hurt", 0.9, 1.05);
             if (instance_exists(obj_game_controller)) {
                 obj_game_controller.hitstop_timer = 5;
                 obj_game_controller.shake_magnitude = 3;
@@ -495,8 +520,9 @@ if (!is_invulnerable && state != player_state.roll) {
 if (hp <= 0) {
     hp = 0;
     instance_activate_all();
-    if (file_exists("save_1.ini")) {
-        carregar_jogo(1);
+    var _slot = variable_global_exists("slot_atual") ? global.slot_atual : 1;
+    if (save_existe(_slot)) {
+        carregar_jogo(_slot);
     } else {
         room_restart();
     }
@@ -531,6 +557,7 @@ if (keyboard_check_pressed(ord("U"))) {
     carne_count++;
     glandula_count++;
     ferrao_count++;
+    tocar_sfx("snd_craft_pickup", 1.0, 1.2);
 }
 
 scale_x = lerp(scale_x, escala_base, 0.2);

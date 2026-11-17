@@ -124,11 +124,12 @@ switch (state) {
         
         state_timer--; // Conta os 60 frames (1 segundo)
         
-        if (state_timer <= 0) {
+       if (state_timer <= 0) {
             state = enemy_state.charge; // Libera o avanço!
             image_index = 0;
             image_speed = 1.3;
-            state_timer = 24; // Duração máxima da investida
+            state_timer = 24;
+            tocar_sfx("snd_beetle_charge", 0.95, 1.05);
             
             if (instance_exists(obj_game_controller)) {
                 obj_game_controller.shake_magnitude = 3;
