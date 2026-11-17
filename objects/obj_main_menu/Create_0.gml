@@ -6,6 +6,10 @@ if (!variable_global_exists("brilho"))        global.brilho        = 0.5;
 if (!variable_global_exists("idioma"))        global.idioma        = "PT";
 if (!variable_global_exists("tremer_tela"))   global.tremer_tela   = 1;
 if (!variable_global_exists("tela_cheia"))    global.tela_cheia    = window_get_fullscreen();
+if (!variable_global_exists("vol_master"))    global.vol_master    = 1.0;
+if (!variable_global_exists("vol_sfx"))       global.vol_sfx       = 0.85;
+if (!variable_global_exists("vol_musica"))    global.vol_musica    = 0.5;
+
 if (!variable_global_exists("key_jump"))      global.key_jump      = vk_space;
 if (!variable_global_exists("key_attack"))    global.key_attack    = ord("J");
 if (!variable_global_exists("key_roll"))      global.key_roll      = ord("K");
@@ -19,9 +23,9 @@ if (!variable_global_exists("key_confirm"))   global.key_confirm   = vk_enter;
 if (!variable_global_exists("key_tab_left"))  global.key_tab_left  = ord("Q");
 if (!variable_global_exists("key_tab_right")) global.key_tab_right = ord("E");
 
-menu_state = 0; // 0 = Menu Principal | 1 = Opções | 2 = Seleção de Slots de Save
-modo_slot  = "load"; // "new" = Novo Jogo | "load" = Continuar
-slot_index = 0;      // 0 = Slot 1, 1 = Slot 2, 2 = Slot 3, 3 = Voltar
+menu_state = 0; // 0 = Menu Principal | 1 = Opções | 2 = Slots de Save
+modo_slot  = "load"; 
+slot_index = 0;      
 slots_info = [obter_info_slot(1), obter_info_slot(2), obter_info_slot(3)];
 
 opcao_aba  = 0;
@@ -38,7 +42,15 @@ if (file_exists("config.ini")) {
     carregar_configuracoes();
 }
 
-tocar_musica("snd_bgm_menu");
+// Garante volume ativo e toca a música do menu com segurança
+audio_master_gain(global.vol_master);
+var _musica_id = asset_get_index("snd_bgm_menu");
+if (_musica_id != -1 && audio_exists(_musica_id)) {
+    if (!audio_is_playing(_musica_id)) {
+        var _inst = audio_play_sound(_musica_id, 100, true);
+        audio_sound_gain(_inst, global.vol_musica, 0);
+    }
+}
 
 nome_tecla = function(_k) {
     var _pt = (global.idioma == "PT");

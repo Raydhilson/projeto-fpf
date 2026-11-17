@@ -1,4 +1,3 @@
-// Garante que a GUI rode sempre na escala proporcional 800x450
 if (display_get_gui_width() != 800) {
     display_set_gui_size(800, 450);
 }
@@ -46,7 +45,6 @@ if (is_paused) {
         draw_text(round(_x), round(_y), _str);
     };
     
-    // Fundo escuro cobrindo 100% da tela
     draw_set_color(c_black);
     draw_set_alpha(0.90);
     draw_rectangle(0, 0, gw, gh, false);
@@ -64,9 +62,6 @@ if (is_paused) {
     draw_set_color(col_gold);
     draw_rectangle(px + 2, py + 2, px + pw - 2, py + ph - 2, true);
     
-    // ----------------------------------------------------
-    // TELA 0: PAUSA PRINCIPAL
-    // ----------------------------------------------------
     if (pause_state == 0) {
         draw_set_color(col_header);
         draw_rectangle(px + 3, py + 3, px + pw - 3, py + 44, false);
@@ -108,9 +103,6 @@ if (is_paused) {
             }
         }
     }
-    // ----------------------------------------------------
-    // TELA 1: OPÇÕES E CONTROLES EM ABAS SEPARADAS
-    // ----------------------------------------------------
     else if (pause_state == 1) {
         if (!variable_instance_exists(id, "opcao_aba")) opcao_aba = 0;
         
@@ -150,14 +142,16 @@ if (is_paused) {
         var txt_espera  = is_pt ? "PRESSIONE TECLA..." : "PRESS ANY KEY...";
         var val_brilho  = clamp(variable_global_exists("brilho") ? global.brilho : 0.5, 0.1, 1.0);
         var _brilho_pct = string(round(val_brilho * 100)) + "%";
+        var val_vol     = clamp(variable_global_exists("vol_master") ? global.vol_master : 1.0, 0.0, 1.0);
+        var _vol_pct    = string(round(val_vol * 100)) + "%";
         
-        // --- CONTEÚDO DA ABA 0: GERAL E VÍDEO (COM RESOLUÇÃO) ---
         if (opcao_aba == 0) {
             if (!variable_global_exists("res_index")) global.res_index = 0;
             var _res_nomes = ["1280 x 720 (HD)", "1600 x 900 (HD+)", "1920 x 1080 (FHD)"];
             var _res_atual = _res_nomes[clamp(global.res_index, 0, 2)];
             
             var labels_aba0 = [
+                is_pt ? "Volume Geral (Master)" : "Master Volume",
                 is_pt ? "Idioma do Jogo" : "Game Language",
                 is_pt ? "Modo Tela Cheia" : "Fullscreen Mode",
                 is_pt ? "Resolucao da Janela" : "Window Resolution",
@@ -167,6 +161,7 @@ if (is_paused) {
             ];
             
             var values_aba0 = [
+                "< " + _vol_pct + " >",
                 "< " + global.idioma + " >",
                 "< " + (window_get_fullscreen() ? txt_sim : txt_nao) + " >",
                 "< " + _res_atual + " >",
@@ -175,7 +170,7 @@ if (is_paused) {
                 ""
             ];
             
-            var row_h = (ph - 85) / 6;
+            var row_h = (ph - 90) / 7;
             var list_y = py + 72;
             
             for (var idx = 0; idx < array_length(labels_aba0); idx++) {
@@ -195,7 +190,18 @@ if (is_paused) {
                 _draw_txt(rx1 + 16, yy, labels_aba0[idx], is_sel ? c_white : col_text_off);
                 
                 draw_set_halign(fa_right);
-                if (idx == 4) {
+                if (idx == 0) {
+                    var bar_w = 100;
+                    var bar_h = 10;
+                    var bar_x1 = rx2 - 80 - bar_w;
+                    var bar_y1 = yy - (bar_h / 2);
+                    draw_set_color(c_dkgray);
+                    draw_rectangle(bar_x1, bar_y1, bar_x1 + bar_w, bar_y1 + bar_h, false);
+                    draw_set_color(is_sel ? col_gold : c_gray);
+                    draw_rectangle(bar_x1, bar_y1, bar_x1 + (bar_w * val_vol), bar_y1 + bar_h, false);
+                    _draw_txt(rx2 - 14, yy, values_aba0[idx], is_sel ? col_gold : c_ltgray);
+                }
+                else if (idx == 5) {
                     var bar_w = 100;
                     var bar_h = 10;
                     var bar_x1 = rx2 - 80 - bar_w;
@@ -205,12 +211,11 @@ if (is_paused) {
                     draw_set_color(is_sel ? col_gold : c_gray);
                     draw_rectangle(bar_x1, bar_y1, bar_x1 + (bar_w * val_brilho), bar_y1 + bar_h, false);
                     _draw_txt(rx2 - 14, yy, values_aba0[idx], is_sel ? col_gold : c_ltgray);
-                } else if (idx < 5) {
+                } else if (idx < 6) {
                     _draw_txt(rx2 - 14, yy, values_aba0[idx], is_sel ? col_gold : c_ltgray);
                 }
             }
         }
-        // --- CONTEÚDO DA ABA 1: CONTROLES ---
         else if (opcao_aba == 1) {
             var labels_aba1 = [
                 is_pt ? "Pular" : "Jump",

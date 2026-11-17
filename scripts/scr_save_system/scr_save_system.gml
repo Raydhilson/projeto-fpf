@@ -1,14 +1,16 @@
 // =======================================================
-// 0. SISTEMA DE ÁUDIO SEGURO (ALINHADO COM OS ASSETS REAIS)
+// 0. SISTEMA DE ÁUDIO SEGURO (CORRIGIDO E BLINDADO)
 // =======================================================
 function resolver_som(_nome) {
-    if (!is_string(_nome)) return _nome;
+    if (!is_string(_nome)) {
+        if (audio_exists(_nome)) return _nome;
+        return -1;
+    }
     
-    // 1. Se o nome já existir direto no Asset Browser, usa ele!
     var _id = asset_get_index(_nome);
     if (_id != -1 && audio_exists(_id)) return _id;
     
-    // 2. Tradutor automático caso algum script chame pelo apelido antigo
+    // Mapeamento de fallback para compatibilidade total
     var _mapa = "";
     switch (_nome) {
         case "snd_spear_swing": _mapa = "snd_spear_thrust"; break;
@@ -28,24 +30,18 @@ function resolver_som(_nome) {
 }
 
 function tocar_sfx(_nome_som, _pitch_min = 0.92, _pitch_max = 1.08) {
+    // Evita mudez caso o config.ini salve volume zerado
+    if (!variable_global_exists("vol_master") || global.vol_master <= 0.05) {
+        global.vol_master = 1.0;
+    }
+    audio_master_gain(global.vol_master);
+    
     var _snd = resolver_som(_nome_som);
     if (_snd != -1 && audio_exists(_snd)) {
         var _vol = variable_global_exists("vol_sfx") ? global.vol_sfx : 0.85;
         var _inst = audio_play_sound(_snd, 10, false);
         audio_sound_pitch(_inst, random_range(_pitch_min, _pitch_max));
         audio_sound_gain(_inst, _vol, 0);
-    }
-}
-
-function tocar_musica(_nome_musica) {
-    var _snd = resolver_som(_nome_musica);
-    if (_snd != -1 && audio_exists(_snd)) {
-        if (!audio_is_playing(_snd)) {
-            audio_stop_all();
-            var _vol = variable_global_exists("vol_musica") ? global.vol_musica : 0.5;
-            var _inst = audio_play_sound(_snd, 100, true);
-            audio_sound_gain(_inst, _vol, 0);
-        }
     }
 }
 

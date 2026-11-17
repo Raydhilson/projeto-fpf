@@ -95,7 +95,7 @@ else if (menu_state == 1) {
     if (tab_l) { opcao_aba = 0; menu_index = 0; tocar_sfx("snd_ui_move"); }
     if (tab_r) { opcao_aba = 1; menu_index = 0; tocar_sfx("snd_ui_move"); }
     
-    var total_opcoes_aba = (opcao_aba == 0) ? 6 : 8;
+    var total_opcoes_aba = (opcao_aba == 0) ? 7 : 8; // Aba 0 agora tem 7 itens (incluindo Volume Master)
     
     if (key_up)   { menu_index--; if (menu_index < 0) menu_index = total_opcoes_aba - 1; tocar_sfx("snd_ui_move"); }
     if (key_down) { menu_index++; if (menu_index >= total_opcoes_aba) menu_index = 0; tocar_sfx("snd_ui_move"); }
@@ -111,19 +111,32 @@ else if (menu_state == 1) {
     var key_toggle = key_enter || key_left || key_right;
     
     if (opcao_aba == 0) {
-        if (key_toggle && (menu_index == 0 || menu_index == 1 || menu_index == 3)) {
+        // Item 0: Volume Master
+        if (menu_index == 0 && (key_left || key_right || key_enter)) {
+            if (key_left) global.vol_master = clamp(global.vol_master - 0.1, 0.0, 1.0);
+            if (key_right || key_enter) {
+                global.vol_master += 0.1;
+                if (global.vol_master > 1.0) global.vol_master = 0.0;
+            }
+            audio_master_gain(global.vol_master);
+            salvar_configuracoes();
+            tocar_sfx("snd_ui_move");
+        }
+        // Item 1 (Idioma), Item 2 (Tela Cheia), Item 4 (Tremor de Tela)
+        else if (key_toggle && (menu_index == 1 || menu_index == 2 || menu_index == 4)) {
             switch (menu_index) {
-                case 0: global.idioma = (global.idioma == "PT") ? "EN" : "PT"; break;
-                case 1:
+                case 1: global.idioma = (global.idioma == "PT") ? "EN" : "PT"; break;
+                case 2:
                     global.tela_cheia = !window_get_fullscreen();
                     aplicar_resolucao();
                     break;
-                case 3: global.tremer_tela = !global.tremer_tela; break;
+                case 4: global.tremer_tela = !global.tremer_tela; break;
             }
             salvar_configuracoes();
             tocar_sfx("snd_ui_confirm");
         }
-        else if (menu_index == 2 && (key_left || key_right || key_enter)) {
+        // Item 3: Resolução
+        else if (menu_index == 3 && (key_left || key_right || key_enter)) {
             if (!variable_global_exists("res_index")) global.res_index = 0;
             if (key_left) global.res_index--; else global.res_index++;
             if (global.res_index < 0) global.res_index = 2;
@@ -132,7 +145,8 @@ else if (menu_state == 1) {
             salvar_configuracoes();
             tocar_sfx("snd_ui_confirm");
         }
-        else if (menu_index == 4 && (key_left || key_right || key_enter)) {
+        // Item 5: Brilho
+        else if (menu_index == 5 && (key_left || key_right || key_enter)) {
             if (key_left) global.brilho = clamp(global.brilho - 0.1, 0.1, 1.0);
             if (key_right || key_enter) {
                 global.brilho += 0.1;
@@ -141,7 +155,8 @@ else if (menu_state == 1) {
             salvar_configuracoes();
             tocar_sfx("snd_ui_move");
         }
-        else if (key_enter && menu_index == 5) {
+        // Item 6: Voltar ao Menu
+        else if (key_enter && menu_index == 6) {
             salvar_configuracoes();
             menu_state = 0;
             menu_index = 2;
@@ -182,7 +197,6 @@ else if (menu_state == 2) {
         exit;
     }
     
-    // Apagar Slot selecionado com [DEL] ou [X]
     if (key_delete && slot_index >= 0 && slot_index <= 2) {
         var _num_s = slot_index + 1;
         if (save_existe(_num_s)) {
@@ -208,7 +222,6 @@ else if (menu_state == 2) {
                     tocar_sfx("snd_ui_confirm");
                     carregar_jogo(_slot_escolhido);
                 } else {
-                    // Se o jogador clicou num slot vazio no modo Continuar, inicia um Novo Jogo nele
                     tocar_sfx("snd_ui_confirm");
                     novo_jogo(_slot_escolhido);
                 }

@@ -154,6 +154,8 @@ else if (menu_state == 1) {
     var txt_espera  = _pt ? "PRESSIONE TECLA..." : "PRESS ANY KEY...";
     var val_brilho  = clamp(variable_global_exists("brilho") ? global.brilho : 0.5, 0.1, 1.0);
     var _brilho_pct = string(round(val_brilho * 100)) + "%";
+    var val_vol     = clamp(variable_global_exists("vol_master") ? global.vol_master : 1.0, 0.0, 1.0);
+    var _vol_pct    = string(round(val_vol * 100)) + "%";
     
     if (opcao_aba == 0) {
         if (!variable_global_exists("res_index")) global.res_index = 0;
@@ -161,6 +163,7 @@ else if (menu_state == 1) {
         var _res_atual = _res_nomes[clamp(global.res_index, 0, 2)];
         
         var labels_aba0 = [
+            _pt ? "Volume Geral (Master)" : "Master Volume",
             _pt ? "Idioma do Jogo" : "Game Language",
             _pt ? "Modo Tela Cheia" : "Fullscreen Mode",
             _pt ? "Resolucao da Janela" : "Window Resolution",
@@ -170,6 +173,7 @@ else if (menu_state == 1) {
         ];
         
         var values_aba0 = [
+            "< " + _vol_pct + " >",
             "< " + global.idioma + " >",
             "< " + (window_get_fullscreen() ? txt_sim : txt_nao) + " >",
             "< " + _res_atual + " >",
@@ -178,8 +182,8 @@ else if (menu_state == 1) {
             ""
         ];
         
-        var row_h = (ph - 90) / 6;
-        var list_y = py + 76;
+        var row_h = (ph - 90) / 7;
+        var list_y = py + 72;
         
         for (var idx = 0; idx < array_length(labels_aba0); idx++) {
             var yy = list_y + (idx * row_h);
@@ -189,16 +193,27 @@ else if (menu_state == 1) {
             
             if (is_sel) {
                 draw_set_color(col_highlight);
-                draw_rectangle(rx1, yy - 16, rx2, yy + 16, false);
+                draw_rectangle(rx1, yy - 15, rx2, yy + 15, false);
                 draw_set_color(col_gold);
-                draw_rectangle(rx1, yy - 16, rx1 + 5, yy + 16, false);
+                draw_rectangle(rx1, yy - 15, rx1 + 5, yy + 15, false);
             }
             
             draw_set_halign(fa_left);
             _draw_txt(rx1 + 18, yy, labels_aba0[idx], is_sel ? c_white : col_text_off);
             
             draw_set_halign(fa_right);
-            if (idx == 4) {
+            if (idx == 0) {
+                var bar_w = 110;
+                var bar_h = 10;
+                var bar_x1 = rx2 - 85 - bar_w;
+                var bar_y1 = yy - (bar_h / 2);
+                draw_set_color(c_dkgray);
+                draw_rectangle(bar_x1, bar_y1, bar_x1 + bar_w, bar_y1 + bar_h, false);
+                draw_set_color(is_sel ? col_gold : c_gray);
+                draw_rectangle(bar_x1, bar_y1, bar_x1 + (bar_w * val_vol), bar_y1 + bar_h, false);
+                _draw_txt(rx2 - 14, yy, values_aba0[idx], is_sel ? col_gold : c_ltgray);
+            }
+            else if (idx == 5) {
                 var bar_w = 110;
                 var bar_h = 10;
                 var bar_x1 = rx2 - 85 - bar_w;
@@ -208,7 +223,7 @@ else if (menu_state == 1) {
                 draw_set_color(is_sel ? col_gold : c_gray);
                 draw_rectangle(bar_x1, bar_y1, bar_x1 + (bar_w * val_brilho), bar_y1 + bar_h, false);
                 _draw_txt(rx2 - 14, yy, values_aba0[idx], is_sel ? col_gold : c_ltgray);
-            } else if (idx < 5) {
+            } else if (idx < 6) {
                 _draw_txt(rx2 - 14, yy, values_aba0[idx], is_sel ? col_gold : c_ltgray);
             }
         }
@@ -255,7 +270,7 @@ else if (menu_state == 1) {
     }
 }
 // ==========================================
-// TELA 2: SELEÇÃO DE 3 SLOTS DE SAVE (ESTILO SOULS / HOLLOW KNIGHT)
+// TELA 2: SELEÇÃO DE SLOTS DE SAVE
 // ==========================================
 else if (menu_state == 2) {
     var pw = round(_gw * 0.86);
@@ -270,7 +285,6 @@ else if (menu_state == 2) {
     draw_set_color(col_gold);
     draw_rectangle(px + 2, py + 2, px + pw - 2, py + ph - 2, true);
     
-    // Cabeçalho
     draw_set_color(col_header);
     draw_rectangle(px + 3, py + 3, px + pw - 3, py + 44, false);
     draw_set_color(col_gold);
@@ -303,17 +317,17 @@ else if (menu_state == 2) {
         }
         
         draw_set_halign(fa_left);
-        var txt_slot_title = "SLOT 0" + string(s + 1) + "  -  " + (info.existe ? info.sala : (_pt ? "[ VAZIO ]" : "[ EMPTY ]"));
+        var txt_slot_title = "SLOT 0" + string(s + 1) + "   -   " + (info.existe ? info.sala : (_pt ? "[ VAZIO ]" : "[ EMPTY ]"));
         _draw_txt(cx1 + 20, cy1 + 22, txt_slot_title, is_sel ? col_gold : c_white);
         
         if (info.existe) {
-            var txt_detalhes = "HP: " + string(info.hp) + "/100   |   " + (_pt ? "Lanca Nv. " : "Spear Lv. ") + string(info.nivel) + "   |   " + (_pt ? "Sucata: x" : "Scrap: x") + string(info.sucata);
+            var txt_detalhes = "HP: " + string(info.hp) + "/100    |    " + (_pt ? "Lanca Nv. " : "Spear Lv. ") + string(info.nivel) + "    |    " + (_pt ? "Sucata: x" : "Scrap: x") + string(info.sucata);
             _draw_txt(cx1 + 20, cy1 + 50, txt_detalhes, col_text_off);
             
             draw_set_halign(fa_right);
             var acao_txt = (modo_slot == "new")
-                ? (_pt ? "[ENTER: SOBRESCREVER]   [X/DEL: APAGAR]" : "[ENTER: OVERWRITE]   [X/DEL: DELETE]")
-                : (_pt ? "[ENTER: CONTINUAR]   [X/DEL: APAGAR]" : "[ENTER: CONTINUE]   [X/DEL: DELETE]");
+                ? (_pt ? "[ENTER: SOBRESCREVER]    [X/DEL: APAGAR]" : "[ENTER: OVERWRITE]    [X/DEL: DELETE]")
+                : (_pt ? "[ENTER: CONTINUAR]    [X/DEL: APAGAR]" : "[ENTER: CONTINUE]    [X/DEL: DELETE]");
             _draw_txt(cx2 - 18, cy1 + 36, acao_txt, is_sel ? col_ok : col_text_off);
         } else {
             _draw_txt(cx1 + 20, cy1 + 50, _pt ? "Nenhum progresso registrado neste slot." : "No progress recorded in this slot.", c_dkgray);
@@ -322,7 +336,6 @@ else if (menu_state == 2) {
         }
     }
     
-    // Botão Voltar (Índice 3)
     var by = start_y + (3 * (card_h + 12)) + 12;
     draw_set_halign(fa_center);
     if (slot_index == 3) {
@@ -336,15 +349,13 @@ else if (menu_state == 2) {
     }
 }
 
-// Rodapé de Dicas
 draw_set_halign(fa_center);
 draw_set_valign(fa_middle);
 var dica_menu = (menu_state == 2)
-    ? (_pt ? "[W/S] Escolher Slot   |   [ENTER] Confirmar   |   [DEL / X] Apagar Slot   |   [ESC] Voltar" : "[W/S] Select Slot   |   [ENTER] Confirm   |   [DEL / X] Delete Slot   |   [ESC] Back")
-    : (_pt ? "[W/S] Navegar   |   [Q/E] Aba   |   [A/D ou ENTER] Alterar   |   [ESC] Voltar" : "[W/S] Navigate   |   [Q/E] Tab   |   [A/D or ENTER] Change   |   [ESC] Back");
+    ? (_pt ? "[W/S] Escolher Slot    |    [ENTER] Confirmar    |    [DEL / X] Apagar Slot    |    [ESC] Voltar" : "[W/S] Select Slot    |    [ENTER] Confirm    |    [DEL / X] Delete Slot    |    [ESC] Back")
+    : (_pt ? "[W/S] Navegar    |    [Q/E] Aba    |    [A/D ou ENTER] Alterar    |    [ESC] Voltar" : "[W/S] Navigate    |    [Q/E] Tab    |    [A/D or ENTER] Change    |    [ESC] Back");
 _draw_txt(_gw / 2, _gh - 16, dica_menu, col_text_off);
 
-// Brilho Global
 if (variable_global_exists("brilho")) {
     if (global.brilho < 0.5) {
         draw_set_color(c_black);

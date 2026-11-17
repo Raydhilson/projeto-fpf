@@ -22,6 +22,8 @@ if (!variable_global_exists("idioma"))        global.idioma        = "PT";
 if (!variable_global_exists("tremer_tela"))   global.tremer_tela   = 1;
 if (!variable_global_exists("tela_cheia"))    global.tela_cheia    = window_get_fullscreen();
 if (!variable_global_exists("res_index"))     global.res_index     = 0;
+if (!variable_global_exists("vol_master"))    global.vol_master    = 1.0;
+if (!variable_global_exists("vol_sfx"))       global.vol_sfx       = 0.85;
 
 if (!variable_global_exists("key_jump"))      global.key_jump      = vk_space;
 if (!variable_global_exists("key_attack"))    global.key_attack    = ord("J");
@@ -42,6 +44,8 @@ gpu_set_tex_filter(false);
 if (file_exists("config.ini")) {
     carregar_configuracoes();
 }
+
+audio_master_gain(global.vol_master);
 
 nome_tecla = function(_k) {
     var _pt = (global.idioma == "PT");
