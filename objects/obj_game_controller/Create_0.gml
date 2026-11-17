@@ -1,10 +1,10 @@
 display_set_gui_size(800, 450);
+persistent = true;
+sala_montada = -1;
+onda_spawnada = false;
 
-// ==========================================
-// DECLARAÇÃO OBRIGATÓRIA DE PAUSE E CÂMERA
-// ==========================================
 is_paused = false;
-pause_state = 0; // 0 = Pause Principal | 1 = Opções e Controles
+pause_state = 0;
 pause_index = 0;
 opcao_aba = 0;
 aguardando_tecla = false;
@@ -14,9 +14,6 @@ shake_fade = 0.4;
 
 pause_opcoes = ["CONTINUAR", "OPCOES / CONTROLES", "VOLTAR AO MENU INICIAL"];
 
-// ==========================================
-// SEGURANÇA DE VARIÁVEIS GLOBAIS (FALLBACK)
-// ==========================================
 if (!variable_global_exists("brilho"))        global.brilho        = 0.5;
 if (!variable_global_exists("idioma"))        global.idioma        = "PT";
 if (!variable_global_exists("tremer_tela"))   global.tremer_tela   = 1;
@@ -66,63 +63,3 @@ nome_tecla = function(_k) {
             return "KEY " + string(_k);
     }
 };
-// =======================================================
-// ESTRUTURA AUTOMÁTICA DAS 3 SALAS (TUTORIAL, BICHOS, BOSS)
-// =======================================================
-if (room == rm_forest_1) {
-    // SALA 1: TUTORIAL (Remove os inimigos e o Boss para o jogador testar os controles em paz)
-    with (obj_boss_centopeia) instance_destroy();
-    with (obj_enemy) instance_destroy();
-    with (obj_vespa) instance_destroy();
-    
-    // Garante que haja um boneco de treino (dummy) e uma fogueira para avançar
-    if (!instance_exists(obj_dummy) && instance_exists(obj_player)) {
-        instance_create_depth(obj_player.x + 180, obj_player.y, 0, obj_dummy);
-    }
-    if (!instance_exists(obj_fogueira) && instance_exists(obj_player)) {
-        instance_create_depth(obj_player.x + 380, obj_player.y, 0, obj_fogueira);
-    }
-}
-else if (room == rm_forest_2 || room == rm_forest_3) {
-    // Monta o cenário básico automaticamente caso a room esteja vazia no editor
-    if (!instance_exists(obj_colisor)) {
-        var _chao = instance_create_depth(0, 672, 0, obj_colisor);
-        _chao.image_xscale = 45;
-        _chao.image_yscale = 3;
-        
-        var _p_esq = instance_create_depth(-32, 0, 0, obj_colisor);
-        _p_esq.image_yscale = 25;
-        
-        var _p_dir = instance_create_depth(1366, 0, 0, obj_colisor);
-        _p_dir.image_yscale = 25;
-    }
-    if (!instance_exists(obj_player)) {
-        instance_create_depth(140, 600, 0, obj_player);
-    }
-    if (!instance_exists(obj_camera)) {
-        instance_create_depth(0, 0, 0, obj_camera);
-    }
-    
-    if (room == rm_forest_2) {
-        // SALA 2: SALA SÓ COM OS BICHOS (Besouros + Vespa + Fogueira no final)
-        with (obj_boss_centopeia) instance_destroy();
-        if (!instance_exists(obj_enemy)) {
-            instance_create_depth(500, 580, 0, obj_enemy);
-            instance_create_depth(850, 580, 0, obj_enemy);
-        }
-        if (!instance_exists(obj_vespa)) {
-            instance_create_depth(680, 470, 0, obj_vespa);
-        }
-        if (!instance_exists(obj_fogueira)) {
-            instance_create_depth(1200, 640, 0, obj_fogueira);
-        }
-    }
-    else if (room == rm_forest_3) {
-        // SALA 3: SALA SÓ PARA O BOSS FINAL (Centopeia Alfa)
-        with (obj_enemy) instance_destroy();
-        with (obj_vespa) instance_destroy();
-        if (!instance_exists(obj_boss_centopeia)) {
-            instance_create_depth(900, 560, 0, obj_boss_centopeia);
-        }
-    }
-}

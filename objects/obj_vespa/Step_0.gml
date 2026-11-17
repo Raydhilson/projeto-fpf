@@ -1,3 +1,16 @@
+sprite_index = (asset_get_index("spr_vespa_box") != -1) ? asset_get_index("spr_vespa_box") : spr_enemy_box;
+if (!variable_instance_exists(id, "spawn_alpha")) spawn_alpha = 1.0;
+if (!variable_instance_exists(id, "spawn_scale")) spawn_scale = 1.0;
+if (spawn_alpha < 1.0) {
+    spawn_alpha = min(1.0, spawn_alpha + 0.03);
+    spawn_scale = lerp(spawn_scale, 1.0, 0.12);
+    image_alpha = spawn_alpha;
+    image_xscale = spawn_scale;
+    image_yscale = spawn_scale;
+    exit;
+}
+image_alpha = 1.0;
+
 if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
     image_speed = 0;
     exit;

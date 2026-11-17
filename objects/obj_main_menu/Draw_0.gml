@@ -23,7 +23,7 @@ draw_set_color(make_color_rgb(10, 12, 16));
 draw_rectangle(0, 0, _gw, _gh, false);
 
 // ==========================================
-// TELA 0: CAPA DO JOGO (MENU PRINCIPAL LATERAL)
+// TELA 0: CAPA DO JOGO (RATLAB)
 // ==========================================
 if (menu_state == 0) {
     var title_x = round(_gw * 0.07);
@@ -32,8 +32,8 @@ if (menu_state == 0) {
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
     
-    _draw_txt(title_x, title_y, _pt ? "TNK GAMES APRESENTA" : "TNK GAMES PRESENTS", col_text_off);
-    _draw_txt(title_x, title_y + 24, _pt ? "PROJETO FPF: SOBREVIVENCIA" : "PROJECT FPF: SURVIVAL", col_gold);
+    _draw_txt(title_x, title_y, _pt ? "PROJETO INDEPENDENTE" : "INDIE PROJECT", col_text_off);
+    _draw_txt(title_x, title_y + 24, _pt ? "RATLAB" : "RATLAB", col_gold);
     
     draw_set_color(col_border_out);
     draw_line(title_x, title_y + 56, title_x + 320, title_y + 56);
@@ -87,15 +87,15 @@ if (menu_state == 0) {
     
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
-    _draw_txt(pan_x + 20, pan_y + 20, _pt ? "RELATORIO DE CAMPO #04" : "FIELD REPORT #04", col_gold);
+    _draw_txt(pan_x + 20, pan_y + 20, _pt ? "ARQUIVO CONFIDENCIAL: RATLAB" : "CONFIDENTIAL FILE: RATLAB", col_gold);
     
     var desc_lore = _pt
-        ? "Laboratorio , Setor Sul.\n\n" +
-          "Apos o colapso estrutural, a instalacao foi tomada por mutacoes biologicas agressivas e fauna adaptada a toxinas quimicas.\n\n" +
-          "Equipado apenas com uma lanca de prego improvisada, o protagonista precisa cruzar o complexo industrial, cacar recursos e sobreviver ao predador alfa da floresta."
-        : "Gree do Brasil industrial lab, South Sector.\n\n" +
-          "After the structural collapse, the facility was overrun by aggressive biological mutations and chemical-adapted fauna.\n\n" +
-          "Armed only with an improvised nail spear, our survivor must cross the industrial complex, gather resources, and survive the alpha predator.";
+        ? "Estufa Botanica de Fachada - Interior da Floresta.\n\n" +
+          "O que parecia apenas uma estufa abandonada encobria um laboratorio clandestino de experimentos geneticos. Apos o incidente, a mata engoliu a estrutura e os insetos sofreram mutacoes letais.\n\n" +
+          "Armado com uma lanca improvisada, um pequeno rato sobrevivente precisa atravessar as ruinas da estufa e derrotar o predador alfa da floresta."
+        : "Covert Botanical Greenhouse - Deep Forest.\n\n" +
+          "What looked like an abandoned greenhouse hid a clandestine genetic research lab. After the incident, the forest reclaimed the structure and the insects mutated into lethal predators.\n\n" +
+          "Armed with an improvised spear, a small survivor mouse must cross the greenhouse ruins and defeat the forest alpha predator.";
           
     draw_set_color(c_black);
     draw_text_ext(pan_x + 21, pan_y + 53, desc_lore, 18, pan_w - 40);

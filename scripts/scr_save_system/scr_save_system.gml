@@ -1,13 +1,11 @@
 // =======================================================
-// 0. SISTEMA DE ÁUDIO COM REFERÊNCIA DIRETA (FORÇA COMPILAÇÃO)
+// 0. SISTEMA DE ÁUDIO COM REFERÊNCIA DIRETA
 // =======================================================
 function resolver_som(_nome) {
     if (!is_string(_nome)) {
         return _nome;
     }
     
-    // Referência direta aos assets de som (sem aspas) para obrigar 
-    // o compilador do GameMaker a incluir todos os arquivos .wav no jogo!
     switch (_nome) {
         case "snd_ui_move":         return snd_ui_move;
         case "snd_ui_confirm":      return snd_ui_confirm;
@@ -56,11 +54,9 @@ function tocar_sfx(_nome_som, _pitch_min = 0.92, _pitch_max = 1.08) {
         var _inst = audio_play_sound(_snd, 10, false);
         audio_sound_pitch(_inst, random_range(_pitch_min, _pitch_max));
         audio_sound_gain(_inst, global.vol_sfx * global.vol_master, 0);
-        show_debug_message("TOCANDO SOM AGORA: " + audio_get_name(_snd));
-    } else {
-        show_debug_message("FALHA AO ACHAR SOM: " + string(_nome_som));
     }
 }
+
 // =======================================================
 // 0.5 VERIFICAR SLOTS DE SAVE E APLICAR RESOLUÇÃO
 // =======================================================
@@ -87,10 +83,10 @@ function obter_info_slot(_slot) {
         
         var _pt = (!variable_global_exists("idioma") || global.idioma == "PT");
         switch (_raw_sala) {
-            case "rm_forest_1": _info.sala = _pt ? "Floresta - Setor 1" : "Forest - Sector 1"; break;
-            case "rm_forest_2": _info.sala = _pt ? "Floresta - Setor 2" : "Forest - Sector 2"; break;
-            case "rm_forest_3": _info.sala = _pt ? "Covil da Centopeia" : "Centipede Lair"; break;
-            case "rm_lab_1":    _info.sala = _pt ? "Laboratorio Gree"   : "Gree Laboratory"; break;
+            case "rm_forest_1": _info.sala = _pt ? "Estufa - Entrada"       : "Greenhouse - Entrance"; break;
+            case "rm_forest_2": _info.sala = _pt ? "Floresta Abandonada"    : "Abandoned Forest"; break;
+            case "rm_forest_3": _info.sala = _pt ? "Covil da Centopeia"     : "Centipede Lair"; break;
+            case "rm_lab_1":    _info.sala = _pt ? "Subsolo RatLab"         : "RatLab Underground"; break;
             default:            _info.sala = _raw_sala; break;
         }
         
@@ -169,7 +165,6 @@ function carregar_configuracoes() {
         global.res_index   = ini_read_real("Video", "ResolucaoIndex", 0);
         global.tremer_tela = ini_read_real("Video", "TremerTela", 1);
         global.vol_master  = ini_read_real("Audio", "Master", 1.0);
-		global.vol_master  = ini_read_real("Audio", "Master", 1.0);
         if (global.vol_master <= 0.05) global.vol_master = 1.0;
         
         global.key_right   = ini_read_real("Controles", "Direita", vk_right);

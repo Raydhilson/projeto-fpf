@@ -1,7 +1,2 @@
-if (piscar > 0) {
-    gpu_set_fog(true, c_white, 0, 1);
-    draw_self();
-    gpu_set_fog(false, c_white, 0, 0);
-} else {
-    draw_self();
-}
+sprite_index = (asset_get_index("spr_vespa_box") != -1) ? asset_get_index("spr_vespa_box") : spr_enemy_box;
+draw_self();

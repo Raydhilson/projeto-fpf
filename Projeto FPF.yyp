@@ -18,8 +18,8 @@
     {"$GMFolder":"","%Name":"PLAYER","folderPath":"folders/OBJETOS/PLAYER.yy","name":"PLAYER","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"SCRIPT","folderPath":"folders/SCRIPT.yy","name":"SCRIPT","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"SFX SOUNDS","folderPath":"folders/SFX SOUNDS.yy","name":"SFX SOUNDS","resourceType":"GMFolder","resourceVersion":"2.0",},
-    {"$GMFolder":"","%Name":"SOUNDTRACK","folderPath":"folders/SFX SOUNDS/SOUNDTRACK.yy","name":"SOUNDTRACK","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"SFX","folderPath":"folders/SFX SOUNDS/SFX.yy","name":"SFX","resourceType":"GMFolder","resourceVersion":"2.0",},
+    {"$GMFolder":"","%Name":"SOUNDTRACK","folderPath":"folders/SFX SOUNDS/SOUNDTRACK.yy","name":"SOUNDTRACK","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"SPRITES","folderPath":"folders/SPRITES.yy","name":"SPRITES","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"FISICOS","folderPath":"folders/SPRITES/FISICOS.yy","name":"FISICOS","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"HITBOX","folderPath":"folders/SPRITES/HITBOX.yy","name":"HITBOX","resourceType":"GMFolder","resourceVersion":"2.0",},
@@ -34,7 +34,7 @@
   "isEcma":false,
   "LibraryEmitters":[],
   "MetaData":{
-    "IDEVersion":"2026.0.0.16",
+    "IDEVersion":"2026.1.0.27",
   },
   "name":"Projeto FPF",
   "resources":[
@@ -107,6 +107,7 @@
     {"id":{"name":"spr_espinho","path":"sprites/spr_espinho/spr_espinho.yy",},},
     {"id":{"name":"spr_hitbox_enemy","path":"sprites/spr_hitbox_enemy/spr_hitbox_enemy.yy",},},
     {"id":{"name":"spr_hitbox","path":"sprites/spr_hitbox/spr_hitbox.yy",},},
+    {"id":{"name":"spr_molotov","path":"sprites/spr_molotov/spr_molotov.yy",},},
     {"id":{"name":"spr_player_air","path":"sprites/spr_player_air/spr_player_air.yy",},},
     {"id":{"name":"spr_player_attack_jump","path":"sprites/spr_player_attack_jump/spr_player_attack_jump.yy",},},
     {"id":{"name":"spr_player_attack","path":"sprites/spr_player_attack/spr_player_attack.yy",},},

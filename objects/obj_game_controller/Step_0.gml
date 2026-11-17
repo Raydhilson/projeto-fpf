@@ -1,7 +1,77 @@
-// ATALHOS DE TRANSIÇÃO DAS 3 SALAS (F1 = Tutorial | F2 = Bichos | F3 = Boss)
-if (keyboard_check_pressed(vk_f1)) room_goto(rm_forest_1);
-if (keyboard_check_pressed(vk_f2)) room_goto(rm_forest_2);
-if (keyboard_check_pressed(vk_f3)) room_goto(rm_forest_3);
+// ATALHOS DE APRESENTAÇÃO (F1 = Sala 1 | F2 = Sala 2 | F3 = Sala 3)
+if (keyboard_check_pressed(vk_f1)) { sala_montada = -1; room_goto(rm_forest_1); exit; }
+if (keyboard_check_pressed(vk_f2)) { sala_montada = -1; room_goto(rm_forest_2); exit; }
+if (keyboard_check_pressed(vk_f3)) { sala_montada = -1; room_goto(rm_forest_3); exit; }
+
+// GERADOR AUTOMÁTICO DAS 3 SALAS PLANAS + ÁREA DE SPAWN COM TRANSIÇÃO
+if (room == rm_forest_1 || room == rm_forest_2 || room == rm_forest_3) {
+    if (!variable_instance_exists(id, "sala_montada") || sala_montada != room) {
+        sala_montada = room;
+        onda_spawnada = false;
+        
+        with (obj_colisor) instance_destroy();
+        var _chao = instance_create_depth(0, 620, 0, obj_colisor);
+        _chao.image_xscale = 60;
+        _chao.image_yscale = 5;
+        
+        var _p_esq = instance_create_depth(-32, 0, 0, obj_colisor);
+        _p_esq.image_yscale = 25;
+        
+        var _p_dir = instance_create_depth(1366, 0, 0, obj_colisor);
+        _p_dir.image_yscale = 25;
+        
+        if (!instance_exists(obj_player)) {
+            instance_create_depth(140, 560, 0, obj_player);
+        } else {
+            obj_player.x = 140;
+            obj_player.y = 560;
+            obj_player.vspd = 0;
+        }
+        
+        if (!instance_exists(obj_camera)) {
+            instance_create_depth(obj_player.x, obj_player.y, 0, obj_camera);
+        }
+        
+        with (obj_enemy) instance_destroy();
+        with (obj_vespa) instance_destroy();
+        with (obj_boss_centopeia) instance_destroy();
+        with (obj_dummy) instance_destroy();
+        with (obj_fogueira) instance_destroy();
+        
+        if (room == rm_forest_1) {
+            instance_create_depth(450, 588, 0, obj_dummy);
+            instance_create_depth(650, 588, 0, obj_scrap);
+            instance_create_depth(1150, 588, 0, obj_fogueira);
+            onda_spawnada = true;
+        }
+        else if (room == rm_forest_2) {
+            instance_create_depth(1200, 588, 0, obj_fogueira);
+        }
+    }
+    
+    // ÁREA DE SPAWN: Quando o player avança além do X = 320, os inimigos surgem gradualmente
+    if (!onda_spawnada && instance_exists(obj_player) && obj_player.x >= 320) {
+        onda_spawnada = true;
+        shake_magnitude = 6;
+        
+        if (room == rm_forest_2) {
+            tocar_sfx("snd_beetle_charge");
+            var _e1 = instance_create_depth(650, 570, 0, obj_enemy);
+            _e1.spawn_alpha = 0; _e1.spawn_scale = 0.1;
+            
+            var _e2 = instance_create_depth(950, 570, 0, obj_enemy);
+            _e2.spawn_alpha = 0; _e2.spawn_scale = 0.1;
+            
+            var _v1 = instance_create_depth(800, 440, 0, obj_vespa);
+            _v1.spawn_alpha = 0; _v1.spawn_scale = 0.1;
+        }
+        else if (room == rm_forest_3) {
+            tocar_sfx("snd_centipede_roar");
+            var _boss = instance_create_depth(900, 520, 0, obj_boss_centopeia);
+            _boss.spawn_alpha = 0; _boss.spawn_scale = 0.1;
+        }
+    }
+}
 
 if (keyboard_check_pressed(vk_f11)) {
     global.tela_cheia = !window_get_fullscreen();
@@ -9,13 +79,10 @@ if (keyboard_check_pressed(vk_f11)) {
     salvar_configuracoes();
 }
 
-// ==========================================
-// 1. MODO DE REBIND (CAPTURANDO TECLA NOVA)
-// ==========================================
+// 1. MODO DE REBIND
 if (is_paused && pause_state == 1 && opcao_aba == 1 && aguardando_tecla) {
     if (keyboard_check_pressed(vk_anykey)) {
         var nova_tecla = keyboard_lastkey;
-        
         if (nova_tecla != vk_escape && nova_tecla != vk_f11) {
             switch (pause_index) {
                 case 0:  global.key_jump   = nova_tecla; break;
@@ -35,9 +102,7 @@ if (is_paused && pause_state == 1 && opcao_aba == 1 && aguardando_tecla) {
     exit;
 }
 
-// ==========================================
-// 2. GATILHO DO PAUSE (Botão ESC ou Select)
-// ==========================================
+// 2. GATILHO DO PAUSE
 var key_pause = keyboard_check_pressed(vk_escape) || gamepad_button_check_pressed(0, gp_select);
 
 if (key_pause) {
@@ -68,9 +133,7 @@ if (key_pause) {
     exit; 
 }
 
-// ==========================================
 // 3. NAVEGAÇÃO DO MENU DE PAUSE
-// ==========================================
 if (is_paused) {
     var key_up      = keyboard_check_pressed(vk_up)    || keyboard_check_pressed(ord("W")) || keyboard_check_pressed(global.key_up)    || gamepad_button_check_pressed(0, gp_padu);
     var key_down    = keyboard_check_pressed(vk_down)  || keyboard_check_pressed(ord("S")) || keyboard_check_pressed(global.key_down)  || gamepad_button_check_pressed(0, gp_padd);
@@ -78,7 +141,6 @@ if (is_paused) {
     var key_right   = keyboard_check_pressed(vk_right) || keyboard_check_pressed(ord("D")) || keyboard_check_pressed(global.key_right) || gamepad_button_check_pressed(0, gp_padr);
     var key_confirm = keyboard_check_pressed(vk_enter) || keyboard_check_pressed(vk_space) || keyboard_check_pressed(global.key_confirm) || gamepad_button_check_pressed(0, gp_face1);
     
-    // --- TELA 0: MENU DE PAUSE PRINCIPAL ---
     if (pause_state == 0) {
         var total_opcoes = 3;
         if (key_up)   { pause_index--; if (pause_index < 0) pause_index = total_opcoes - 1; tocar_sfx("snd_ui_move"); }
@@ -100,6 +162,7 @@ if (is_paused) {
                 
                 is_paused = false;
                 instance_activate_all();
+                sala_montada = -1;
                 
                 if (asset_get_index("obj_transition") != -1 && !instance_exists(obj_transition)) {
                     var t = instance_create_layer(0, 0, layer, obj_transition);
@@ -112,7 +175,6 @@ if (is_paused) {
             }
         }
     }
-    // --- TELA 1: OPÇÕES COM ABAS SEPARADAS ---
     else if (pause_state == 1) {
         if (!variable_instance_exists(id, "opcao_aba")) opcao_aba = 0;
         
@@ -122,7 +184,7 @@ if (is_paused) {
         if (tab_l) { opcao_aba = 0; pause_index = 0; tocar_sfx("snd_ui_move"); }
         if (tab_r) { opcao_aba = 1; pause_index = 0; tocar_sfx("snd_ui_move"); }
         
-        var total_opcoes_aba = (opcao_aba == 0) ? 7 : 8; // Aba 0 agora tem 7 itens (com Volume)
+        var total_opcoes_aba = (opcao_aba == 0) ? 7 : 8;
         
         if (key_up)   { pause_index--; if (pause_index < 0) pause_index = total_opcoes_aba - 1; tocar_sfx("snd_ui_move"); }
         if (key_down) { pause_index++; if (pause_index >= total_opcoes_aba) pause_index = 0; tocar_sfx("snd_ui_move"); }
@@ -130,7 +192,6 @@ if (is_paused) {
         var key_toggle = key_confirm || key_left || key_right;
         
         if (opcao_aba == 0) {
-            // Item 0: Volume Master
             if (pause_index == 0 && (key_left || key_right || key_confirm)) {
                 if (key_left) global.vol_master = clamp(global.vol_master - 0.1, 0.0, 1.0);
                 if (key_right || key_confirm) {
@@ -141,7 +202,6 @@ if (is_paused) {
                 salvar_configuracoes();
                 tocar_sfx("snd_ui_move");
             }
-            // Item 1 (Idioma), Item 2 (Tela Cheia), Item 4 (Tremor de Tela)
             else if (key_toggle && (pause_index == 1 || pause_index == 2 || pause_index == 4)) {
                 switch (pause_index) {
                     case 1: global.idioma = (global.idioma == "PT") ? "EN" : "PT"; break;
@@ -154,7 +214,6 @@ if (is_paused) {
                 salvar_configuracoes();
                 tocar_sfx("snd_ui_confirm");
             }
-            // Item 3: Resolução
             else if (pause_index == 3 && (key_left || key_right || key_confirm)) {
                 if (!variable_global_exists("res_index")) global.res_index = 0;
                 if (key_left) global.res_index--; else global.res_index++;
@@ -164,7 +223,6 @@ if (is_paused) {
                 salvar_configuracoes();
                 tocar_sfx("snd_ui_confirm");
             }
-            // Item 5: Brilho
             else if (pause_index == 5 && (key_left || key_right || key_confirm)) {
                 if (key_left) global.brilho = clamp(global.brilho - 0.1, 0.1, 1.0);
                 if (key_right || key_confirm) {
@@ -174,7 +232,6 @@ if (is_paused) {
                 salvar_configuracoes();
                 tocar_sfx("snd_ui_move");
             }
-            // Item 6: Voltar ao Menu de Pausa
             else if (key_confirm && pause_index == 6) {
                 salvar_configuracoes();
                 pause_state = 0;
@@ -195,6 +252,34 @@ if (is_paused) {
                     tocar_sfx("snd_ui_back");
                 }
             }
+        }
+    }
+}
+
+if (is_paused) exit;
+
+// SISTEMA DE HITSTOP
+if (hitstop_timer > 0) {
+    hitstop_timer--;
+    with (all) {
+        if (variable_instance_exists(id, "hspd") && variable_instance_exists(id, "vspd")) {
+            if (!variable_instance_exists(id, "hspd_save") || is_undefined(hspd_save)) {
+                hspd_save = hspd;
+                vspd_save = vspd;
+                image_speed_save = image_speed;
+            }
+            hspd = 0;
+            vspd = 0;
+            image_speed = 0;
+        }
+    }
+} else {
+    with (all) {
+        if (variable_instance_exists(id, "hspd_save") && !is_undefined(hspd_save)) {
+            hspd = hspd_save;
+            vspd = vspd_save;
+            image_speed = image_speed_save;
+            hspd_save = undefined;
         }
     }
 }

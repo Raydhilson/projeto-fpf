@@ -1,13 +1,19 @@
-// ==========================================
-// CONFIGURAÇÃO AUTOMÁTICA DAS SPRITES DO BESOURO
-// ==========================================
-var spr_walk = (asset_get_index("spr_enemy_walk") != -1) ? asset_get_index("spr_enemy_walk") : ((asset_get_index("spr_besouro_walk") != -1) ? asset_get_index("spr_besouro_walk") : sprite_index);
-var spr_atk_charge  = (asset_get_index("spr_enemy_attack") != -1) ? asset_get_index("spr_enemy_attack") : spr_walk;
-var spr_atk_defense = (asset_get_index("spr_enemy_attack_defense") != -1) ? asset_get_index("spr_enemy_attack_defense") : spr_atk_charge;
+sprite_index = spr_enemy_box;
+mask_index   = spr_enemy_box;
+escala_base  = 1.0;
 
-if (!variable_instance_exists(id, "tipo_ataque_atual")) tipo_ataque_atual = 0;
-if (!variable_instance_exists(id, "escala_base")) escala_base = 0.75;
-
+if (!variable_instance_exists(id, "spawn_alpha")) spawn_alpha = 1.0;
+if (!variable_instance_exists(id, "spawn_scale")) spawn_scale = 1.0;
+if (spawn_alpha < 1.0) {
+    spawn_alpha = min(1.0, spawn_alpha + 0.03);
+    spawn_scale = lerp(spawn_scale, 1.0, 0.12);
+    image_alpha = spawn_alpha;
+    image_xscale = sign(image_xscale == 0 ? 1 : image_xscale) * spawn_scale;
+    image_yscale = spawn_scale;
+    hspd = 0;
+    exit;
+}
+image_alpha = 1.0;
 // ==========================================
 // 0. SISTEMA DE HITSTOP (PAUSA O INIMIGO)
 // ==========================================
