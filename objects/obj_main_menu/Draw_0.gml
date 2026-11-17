@@ -90,7 +90,7 @@ if (menu_state == 0) {
     _draw_txt(pan_x + 20, pan_y + 20, _pt ? "RELATORIO DE CAMPO #04" : "FIELD REPORT #04", col_gold);
     
     var desc_lore = _pt
-        ? "Laboratorio industrial Gree do Brasil, Setor Sul.\n\n" +
+        ? "Laboratorio , Setor Sul.\n\n" +
           "Apos o colapso estrutural, a instalacao foi tomada por mutacoes biologicas agressivas e fauna adaptada a toxinas quimicas.\n\n" +
           "Equipado apenas com uma lanca de prego improvisada, o protagonista precisa cruzar o complexo industrial, cacar recursos e sobreviver ao predador alfa da floresta."
         : "Gree do Brasil industrial lab, South Sector.\n\n" +

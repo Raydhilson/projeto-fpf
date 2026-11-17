@@ -1,50 +1,66 @@
 // =======================================================
-// 0. SISTEMA DE ÁUDIO SEGURO (CORRIGIDO E BLINDADO)
+// 0. SISTEMA DE ÁUDIO COM REFERÊNCIA DIRETA (FORÇA COMPILAÇÃO)
 // =======================================================
 function resolver_som(_nome) {
     if (!is_string(_nome)) {
-        if (audio_exists(_nome)) return _nome;
-        return -1;
+        return _nome;
     }
     
-    var _id = asset_get_index(_nome);
-    if (_id != -1 && audio_exists(_id)) return _id;
-    
-    // Mapeamento de fallback para compatibilidade total
-    var _mapa = "";
+    // Referência direta aos assets de som (sem aspas) para obrigar 
+    // o compilador do GameMaker a incluir todos os arquivos .wav no jogo!
     switch (_nome) {
-        case "snd_spear_swing": _mapa = "snd_spear_thrust"; break;
-        case "snd_roll":        _mapa = "snd_souls_roll";   break;
-        case "snd_hurt":        _mapa = "snd_mouse_hurt";   break;
-        case "snd_save":        _mapa = "snd_save_shrine";  break;
-        case "snd_pickup":      _mapa = "snd_craft_pickup"; break;
-        case "snd_enemy_death": _mapa = "snd_beetle_carapace"; break;
+        case "snd_ui_move":         return snd_ui_move;
+        case "snd_ui_confirm":      return snd_ui_confirm;
+        case "snd_ui_back":         return snd_ui_back;
+        case "snd_jump":            return snd_jump;
+        case "snd_dash":            return snd_dash;
+        case "snd_souls_roll":      return snd_souls_roll;
+        case "snd_roll":            return snd_souls_roll;
+        case "snd_spear_thrust":    return snd_spear_thrust;
+        case "snd_spear_swing":     return snd_spear_thrust;
+        case "snd_pogo_bounce":     return snd_pogo_bounce;
+        case "snd_save_shrine":     return snd_save_shrine;
+        case "snd_save":            return snd_save_shrine;
+        case "snd_mouse_hurt":      return snd_mouse_hurt;
+        case "snd_hurt":            return snd_mouse_hurt;
+        case "snd_mouse_squeak":    return snd_mouse_squeak;
+        case "snd_craft_pickup":    return snd_craft_pickup;
+        case "snd_pickup":          return snd_craft_pickup;
+        case "snd_craft_hammer":    return snd_craft_hammer;
+        case "snd_craft_success":   return snd_craft_success;
+        case "snd_craft_fail":      return snd_craft_fail;
+        case "snd_beetle_carapace": return snd_beetle_carapace;
+        case "snd_enemy_death":     return snd_beetle_carapace;
+        case "snd_beetle_charge":   return snd_beetle_charge;
+        case "snd_wasp_buzz":       return snd_wasp_buzz;
+        case "snd_wasp_sting":      return snd_wasp_sting;
+        case "snd_centipede_roar":  return snd_centipede_roar;
+        case "snd_centipede_crawl": return snd_centipede_crawl;
+        default:                    return asset_get_index(_nome);
     }
-    
-    if (_mapa != "") {
-        _id = asset_get_index(_mapa);
-        if (_id != -1 && audio_exists(_id)) return _id;
-    }
-    
-    return -1;
 }
 
 function tocar_sfx(_nome_som, _pitch_min = 0.92, _pitch_max = 1.08) {
-    // Evita mudez caso o config.ini salve volume zerado
     if (!variable_global_exists("vol_master") || global.vol_master <= 0.05) {
         global.vol_master = 1.0;
     }
+    if (!variable_global_exists("vol_sfx") || global.vol_sfx <= 0.05) {
+        global.vol_sfx = 1.0;
+    }
+    
     audio_master_gain(global.vol_master);
     
     var _snd = resolver_som(_nome_som);
     if (_snd != -1 && audio_exists(_snd)) {
-        var _vol = variable_global_exists("vol_sfx") ? global.vol_sfx : 0.85;
+        audio_stop_sound(_snd);
         var _inst = audio_play_sound(_snd, 10, false);
         audio_sound_pitch(_inst, random_range(_pitch_min, _pitch_max));
-        audio_sound_gain(_inst, _vol, 0);
+        audio_sound_gain(_inst, global.vol_sfx * global.vol_master, 0);
+        show_debug_message("TOCANDO SOM AGORA: " + audio_get_name(_snd));
+    } else {
+        show_debug_message("FALHA AO ACHAR SOM: " + string(_nome_som));
     }
 }
-
 // =======================================================
 // 0.5 VERIFICAR SLOTS DE SAVE E APLICAR RESOLUÇÃO
 // =======================================================
@@ -153,6 +169,8 @@ function carregar_configuracoes() {
         global.res_index   = ini_read_real("Video", "ResolucaoIndex", 0);
         global.tremer_tela = ini_read_real("Video", "TremerTela", 1);
         global.vol_master  = ini_read_real("Audio", "Master", 1.0);
+		global.vol_master  = ini_read_real("Audio", "Master", 1.0);
+        if (global.vol_master <= 0.05) global.vol_master = 1.0;
         
         global.key_right   = ini_read_real("Controles", "Direita", vk_right);
         global.key_left    = ini_read_real("Controles", "Esquerda", vk_left);

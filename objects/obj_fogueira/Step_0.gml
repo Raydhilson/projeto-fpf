@@ -14,3 +14,9 @@ if (instance_exists(obj_player)) {
         }
     }
 }
+
+if (room == rm_forest_1) {
+    room_goto(rm_forest_2);
+} else if (room == rm_forest_2) {
+    room_goto(rm_forest_3);
+}

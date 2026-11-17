@@ -1,3 +1,8 @@
+// ATALHOS DE TRANSIÇÃO DAS 3 SALAS (F1 = Tutorial | F2 = Bichos | F3 = Boss)
+if (keyboard_check_pressed(vk_f1)) room_goto(rm_forest_1);
+if (keyboard_check_pressed(vk_f2)) room_goto(rm_forest_2);
+if (keyboard_check_pressed(vk_f3)) room_goto(rm_forest_3);
+
 if (keyboard_check_pressed(vk_f11)) {
     global.tela_cheia = !window_get_fullscreen();
     aplicar_resolucao();

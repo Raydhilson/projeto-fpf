@@ -203,7 +203,7 @@ else if (menu_state == 2) {
             apagar_save(_num_s);
             slots_info = [obter_info_slot(1), obter_info_slot(2), obter_info_slot(3)];
             has_save   = (save_existe(1) || save_existe(2) || save_existe(3));
-            tocar_sfx("snd_ui_confirm", 0.7, 0.8);
+            tocar_sfx("snd_ui_back", 0.7, 0.8);
         }
     }
     
