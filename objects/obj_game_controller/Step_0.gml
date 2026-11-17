@@ -1,30 +1,41 @@
+// =======================================================
 // ATALHOS DE APRESENTAÇÃO (F1 = Sala 1 | F2 = Sala 2 | F3 = Sala 3)
+// =======================================================
 if (keyboard_check_pressed(vk_f1)) { sala_montada = -1; room_goto(rm_forest_1); exit; }
 if (keyboard_check_pressed(vk_f2)) { sala_montada = -1; room_goto(rm_forest_2); exit; }
 if (keyboard_check_pressed(vk_f3)) { sala_montada = -1; room_goto(rm_forest_3); exit; }
 
-// GERADOR AUTOMÁTICO DAS 3 SALAS PLANAS + ÁREA DE SPAWN COM TRANSIÇÃO
+// =======================================================
+// GERADOR AUTOMÁTICO DAS 3 SALAS PLANAS + TRAVA ANTI-TERRA
+// =======================================================
 if (room == rm_forest_1 || room == rm_forest_2 || room == rm_forest_3) {
     if (!variable_instance_exists(id, "sala_montada") || sala_montada != room) {
         sala_montada = room;
         onda_spawnada = false;
         
+        // 1. Limpa qualquer bloco ou espinho antigo da room
         with (obj_colisor) instance_destroy();
-        var _chao = instance_create_depth(0, 620, 0, obj_colisor);
-        _chao.image_xscale = 60;
-        _chao.image_yscale = 5;
+        with (obj_espinho) instance_destroy();
+        
+        // 2. Cria um chão único, largo e plano na altura Y = 620
+        var _chao = instance_create_depth(-200, 620, 0, obj_colisor);
+        _chao.image_xscale = 120;
+        _chao.image_yscale = 10;
         
         var _p_esq = instance_create_depth(-32, 0, 0, obj_colisor);
-        _p_esq.image_yscale = 25;
+        _p_esq.image_yscale = 30;
         
         var _p_dir = instance_create_depth(1366, 0, 0, obj_colisor);
-        _p_dir.image_yscale = 25;
+        _p_dir.image_yscale = 30;
         
+        // 3. Desativa coordenadas antigas de save e posiciona o Player no alto (Y = 480)
+        global.carregando_save = false;
         if (!instance_exists(obj_player)) {
-            instance_create_depth(140, 560, 0, obj_player);
+            instance_create_depth(160, 480, 0, obj_player);
         } else {
-            obj_player.x = 140;
-            obj_player.y = 560;
+            obj_player.x = 160;
+            obj_player.y = 480;
+            obj_player.hspd = 0;
             obj_player.vspd = 0;
         }
         
@@ -32,6 +43,7 @@ if (room == rm_forest_1 || room == rm_forest_2 || room == rm_forest_3) {
             instance_create_depth(obj_player.x, obj_player.y, 0, obj_camera);
         }
         
+        // 4. Limpa entidades da sala anterior
         with (obj_enemy) instance_destroy();
         with (obj_vespa) instance_destroy();
         with (obj_boss_centopeia) instance_destroy();
@@ -39,8 +51,8 @@ if (room == rm_forest_1 || room == rm_forest_2 || room == rm_forest_3) {
         with (obj_fogueira) instance_destroy();
         
         if (room == rm_forest_1) {
-            instance_create_depth(450, 588, 0, obj_dummy);
-            instance_create_depth(650, 588, 0, obj_scrap);
+            instance_create_depth(450, 520, 0, obj_dummy);
+            instance_create_depth(650, 550, 0, obj_scrap);
             instance_create_depth(1150, 588, 0, obj_fogueira);
             onda_spawnada = true;
         }
@@ -49,25 +61,50 @@ if (room == rm_forest_1 || room == rm_forest_2 || room == rm_forest_3) {
         }
     }
     
-    // ÁREA DE SPAWN: Quando o player avança além do X = 320, os inimigos surgem gradualmente
+    // 5. TRAVA ANTI-TERRA CONTÍNUA: Empurra imediatamente para a superfície se entrar 1px no chão
+    if (instance_exists(obj_player)) {
+        with (obj_player) {
+            while (place_meeting(x, y, obj_colisor)) {
+                y -= 1;
+                vspd = 0;
+            }
+        }
+    }
+    with (obj_enemy) {
+        while (place_meeting(x, y, obj_colisor)) {
+            y -= 1;
+        }
+    }
+    with (obj_dummy) {
+        while (place_meeting(x, y, obj_colisor)) {
+            y -= 1;
+        }
+    }
+    with (obj_boss_centopeia) {
+        while (place_meeting(x, y, obj_colisor)) {
+            y -= 1;
+        }
+    }
+    
+    // 6. ÁREA DE SPAWN: Quando o player avança além do X = 320, os inimigos surgem no alto (Y = 480)
     if (!onda_spawnada && instance_exists(obj_player) && obj_player.x >= 320) {
         onda_spawnada = true;
         shake_magnitude = 6;
         
         if (room == rm_forest_2) {
             tocar_sfx("snd_beetle_charge");
-            var _e1 = instance_create_depth(650, 570, 0, obj_enemy);
+            var _e1 = instance_create_depth(650, 480, 0, obj_enemy);
             _e1.spawn_alpha = 0; _e1.spawn_scale = 0.1;
             
-            var _e2 = instance_create_depth(950, 570, 0, obj_enemy);
+            var _e2 = instance_create_depth(950, 480, 0, obj_enemy);
             _e2.spawn_alpha = 0; _e2.spawn_scale = 0.1;
             
-            var _v1 = instance_create_depth(800, 440, 0, obj_vespa);
+            var _v1 = instance_create_depth(800, 420, 0, obj_vespa);
             _v1.spawn_alpha = 0; _v1.spawn_scale = 0.1;
         }
         else if (room == rm_forest_3) {
             tocar_sfx("snd_centipede_roar");
-            var _boss = instance_create_depth(900, 520, 0, obj_boss_centopeia);
+            var _boss = instance_create_depth(900, 460, 0, obj_boss_centopeia);
             _boss.spawn_alpha = 0; _boss.spawn_scale = 0.1;
         }
     }
@@ -79,7 +116,9 @@ if (keyboard_check_pressed(vk_f11)) {
     salvar_configuracoes();
 }
 
+// =======================================================
 // 1. MODO DE REBIND
+// =======================================================
 if (is_paused && pause_state == 1 && opcao_aba == 1 && aguardando_tecla) {
     if (keyboard_check_pressed(vk_anykey)) {
         var nova_tecla = keyboard_lastkey;
@@ -102,7 +141,9 @@ if (is_paused && pause_state == 1 && opcao_aba == 1 && aguardando_tecla) {
     exit;
 }
 
+// =======================================================
 // 2. GATILHO DO PAUSE
+// =======================================================
 var key_pause = keyboard_check_pressed(vk_escape) || gamepad_button_check_pressed(0, gp_select);
 
 if (key_pause) {
@@ -133,7 +174,9 @@ if (key_pause) {
     exit; 
 }
 
+// =======================================================
 // 3. NAVEGAÇÃO DO MENU DE PAUSE
+// =======================================================
 if (is_paused) {
     var key_up      = keyboard_check_pressed(vk_up)    || keyboard_check_pressed(ord("W")) || keyboard_check_pressed(global.key_up)    || gamepad_button_check_pressed(0, gp_padu);
     var key_down    = keyboard_check_pressed(vk_down)  || keyboard_check_pressed(ord("S")) || keyboard_check_pressed(global.key_down)  || gamepad_button_check_pressed(0, gp_padd);
@@ -258,7 +301,9 @@ if (is_paused) {
 
 if (is_paused) exit;
 
+// =======================================================
 // SISTEMA DE HITSTOP
+// =======================================================
 if (hitstop_timer > 0) {
     hitstop_timer--;
     with (all) {
