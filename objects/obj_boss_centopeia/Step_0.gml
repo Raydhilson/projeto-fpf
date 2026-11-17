@@ -1,13 +1,12 @@
 // ==========================================
 // 0. SISTEMA DE HITSTOP E INICIALIZAÇÃO SEGURA
 // ==========================================
-if (!variable_instance_exists(id, "usando_mordida"))       usando_mordida = false;
+if (!variable_instance_exists(id, "usando_mordida"))        usando_mordida = false;
 if (!variable_instance_exists(id, "mordida_hitbox_ativa")) mordida_hitbox_ativa = false;
-if (!variable_instance_exists(id, "morrendo"))             morrendo = false;
+if (!variable_instance_exists(id, "morrendo"))               morrendo = false;
 if (!variable_instance_exists(id, "escala_boss"))          escala_boss = 1.0;
 if (!variable_instance_exists(id, "facing"))               facing = -1;
 
-// CORRIGIDO PARA 1 (Faz a Centopeia encarar o Rato corretamente!)
 var sprite_dir = 1; 
 
 if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
@@ -44,7 +43,6 @@ if (hp <= 0) {
     } else {
         sprite_index = spr_boss_centopeia_death;
         image_speed = 0.85;
-        // Quando chegar no último frame da animação de morte, dropa o loot e destrói
         if (image_index >= image_number - 1) {
             show_debug_message("CHEFE DERROTADO! A floresta esta livre!");
             repeat(8) {
@@ -67,7 +65,6 @@ if (hp <= 0) {
 
 if (piscar > 0) piscar--;
 
-// Dano de queimadura se a lança estiver em chamas
 if (queimando_timer > 0) {
     queimando_timer--;
     if (queimando_timer mod 60 == 0) {
@@ -76,7 +73,6 @@ if (queimando_timer > 0) {
     }
 }
 
-// Super Armor: impede que a estocada do rato jogue o chefe para o alto
 if (piscar == 9 && state != centopeia_state.emergindo) {
     vspd = 0;
     hspd *= 0.2;
@@ -84,7 +80,6 @@ if (piscar == 9 && state != centopeia_state.emergindo) {
 
 image_blend = (queimando_timer > 0) ? c_orange : c_white;
 
-// Direção horizontal em relação ao jogador
 var dir_to_player = 0;
 if (instance_exists(obj_player)) {
     dir_to_player = sign(obj_player.x - x);
@@ -95,7 +90,7 @@ if (instance_exists(obj_player)) {
 // ==========================================
 switch (state) {
     
-    // --- ESTADO 1: SUBTERRÂNEA (ESCONDIDA DEBAIXO DA TERRA - spr_boss_centopeia_submerge) ---
+    // --- ESTADO 1: SUBTERRÂNEA ---
     case centopeia_state.subterranea:
         hspd = 0;
         vspd = 0;
@@ -141,14 +136,14 @@ switch (state) {
         }
         break;
         
-    // --- ESTADO 2: EMERGINDO (O BOTE SURPRESA - spr_boss_centopeia_emerge) ---
+    // --- ESTADO 2: EMERGINDO ---
     case centopeia_state.emergindo:
         hspd = 0;
         vspd = 0;
         sprite_index = spr_boss_centopeia_emerge;
         image_speed = 0.85;
         
-        // Enquanto ainda está só tremendo a terra nos primeiros frames, alinha o olhar com o player
+        // Nos primeiros 14 frames (timer 36 até 23), é apenas o aviso da terra tremendo (sem dano!)
         if (action_timer > 24 && dir_to_player != 0) {
             facing = dir_to_player;
         }
@@ -163,9 +158,20 @@ switch (state) {
         }
         
         action_timer--;
-        if (action_timer == 22 && instance_exists(obj_game_controller)) {
-            obj_game_controller.hitstop_timer = 6;
-            obj_game_controller.shake_magnitude = 7;
+        
+        // EXATAMENTE NO FRAME 22: Ela rompe o chão e gera a Hitbox por 4 frames!
+        if (action_timer == 22) {
+            if (instance_exists(obj_game_controller)) {
+                obj_game_controller.hitstop_timer = 6;
+                obj_game_controller.shake_magnitude = 7;
+            }
+            if (object_exists(obj_hitbox_enemy)) {
+                var hit = instance_create_layer(x, y - 16, layer, obj_hitbox_enemy);
+                hit.image_xscale = 1.6;
+                hit.image_yscale = 1.6;
+                hit.duracao = 4;
+                hit.dano = 20;
+            }
         }
         
         if (action_timer <= 0) {
@@ -178,7 +184,7 @@ switch (state) {
         }
         break;
         
-    // --- ESTADO 3: PATRULHA E ESCOLHA INTELIGENTE POR DISTÂNCIA ---
+    // --- ESTADO 3: PATRULHA E ESCOLHA INTELIGENTE ---
     case centopeia_state.patrulha_luta:
         usando_mordida = false;
         mordida_hitbox_ativa = false;
@@ -206,7 +212,6 @@ switch (state) {
             if (action_timer <= 0) {
                 if (dir_to_player != 0) facing = dir_to_player;
                 
-                // CURTA DISTÂNCIA (< 95px): Prioriza a MORDIDA FRONTAL (spr_boss_centopeia_bite)
                 if (dist_p < 95) {
                     var _escolha_curta = choose("mordida", "mordida", "mordida", "investida");
                     if (_escolha_curta == "mordida") {
@@ -223,7 +228,6 @@ switch (state) {
                         image_index = 0;
                     }
                 }
-                // MÉDIA DISTÂNCIA (95px a 160px): Investida, Mordida ou Cavar
                 else if (dist_p < 160) {
                     var _escolha_media = choose("investida", "investida", "mordida", "cavando");
                     if (_escolha_media == "mordida") {
@@ -245,7 +249,6 @@ switch (state) {
                         image_index = 0;
                     }
                 }
-                // LONGA DISTÂNCIA (> 160px): Cuspe de Ácido, Investida ou Cavar
                 else {
                     var proximo_ataque = choose(
                         centopeia_state.cuspindo,
@@ -274,16 +277,14 @@ switch (state) {
         }
         break;
         
-    // --- ESTADO 3.5: PREPARANDO BOTE OU EXECUTANDO MORDIDA FRONTAL ---
+    // --- ESTADO 3.5: PREPARANDO BOTE OU EXECUTANDO MORDIDA ---
     case centopeia_state.preparando_bote:
         vspd += grv;
         
-        // MODO A: ATAQUE DE MORDIDA DE CURTO ALCANCE (spr_boss_centopeia_bite)
         if (usando_mordida) {
             sprite_index = spr_boss_centopeia_bite;
             mordida_hitbox_ativa = false;
             
-            // Fase 1 (Frames 36 até 17): Telegrafia — Alinha o olhar com o player enquanto abre as presas
             if (action_timer > 16) {
                 if (dir_to_player != 0) facing = dir_to_player;
                 hspd = -facing * 0.5;
@@ -293,7 +294,6 @@ switch (state) {
                     image_speed = 0;
                 }
             }
-            // Frame 16: O BOTE DA MORDIDA (Trava a direção e avança)
             else if (action_timer == 16) {
                 hspd = facing * 6.5;
                 image_index = 3;
@@ -302,34 +302,18 @@ switch (state) {
                     obj_game_controller.shake_magnitude = 3;
                 }
             }
-            // Fase 2 (Frames 16 até 9): Janela ativa da dentada (42px na frente da boca)
             else if (action_timer >= 9 && action_timer < 16) {
                 mordida_hitbox_ativa = true;
                 hspd = lerp(hspd, 0, 0.25);
                 image_speed = 1.1;
                 
-                var alcance_mordida = 42;
-                var x1 = (facing == 1) ? bbox_right : (bbox_left - alcance_mordida);
-                var x2 = (facing == 1) ? (bbox_right + alcance_mordida) : bbox_left;
-                var y1 = bbox_top - 6;
-                var y2 = bbox_bottom;
-                
-                var hit_p = collision_rectangle(x1, y1, x2, y2, obj_player, false, true);
-                if (hit_p != noone && !hit_p.is_invulnerable && hit_p.state != player_state.roll) {
-                    hit_p.hp -= 20;
-                    hit_p.is_invulnerable = true;
-                    hit_p.iframe_timer = 60;
-                    hit_p.hspd = facing * 6.5;
-                    hit_p.vspd = -4.5;
-                    hit_p.state = player_state.air;
-                    
-                    if (instance_exists(obj_game_controller)) {
-                        obj_game_controller.hitstop_timer = 5;
-                        obj_game_controller.shake_magnitude = 4;
-                    }
+                if (object_exists(obj_hitbox_enemy)) {
+                    var hit = instance_create_layer(x + (facing * 28), y - 10, layer, obj_hitbox_enemy);
+                    hit.image_xscale = facing * 1.5;
+                    hit.duracao = 2;
+                    hit.dano = 20;
                 }
             }
-            // Fase 3 (Frames 8 até 0): Fecha a mandíbula e termina os últimos frames da sprite
             else {
                 mordida_hitbox_ativa = false;
                 hspd = lerp(hspd, 0, 0.3);
@@ -347,7 +331,6 @@ switch (state) {
                 action_timer = 35;
             }
         }
-        // MODO B: AVISO DA INVESTIDA LONGA NORMAL (Primeiros frames de spr_boss_centopeia_dash)
         else {
             if (dir_to_player != 0) facing = dir_to_player;
             
@@ -372,12 +355,19 @@ switch (state) {
         }
         break;
 
-    // --- ESTADO 4: INVESTIDA FEROZ (spr_boss_centopeia_dash - DIREÇÃO TRAVADA) ---
+    // --- ESTADO 4: INVESTIDA FEROZ COM OBJ_HITBOX_ENEMY ---
     case centopeia_state.investida:
         sprite_index = spr_boss_centopeia_dash;
         image_speed = 1.2;
         hspd = facing * 5.8; 
         vspd += grv;
+        
+        if (object_exists(obj_hitbox_enemy)) {
+            var hit = instance_create_layer(x + (facing * 22), y - 10, layer, obj_hitbox_enemy);
+            hit.image_xscale = facing * 1.8;
+            hit.duracao = 2;
+            hit.dano = 25;
+        }
         
         if (place_meeting(x + hspd, y, obj_colisor)) {
             if (instance_exists(obj_game_controller)) {
@@ -397,7 +387,7 @@ switch (state) {
         }
         break;
 
-    // --- ESTADO 4.5: RECUPERANDO O FÔLEGO (spr_boss_centopeia_idle) ---
+    // --- ESTADO 4.5: RECUPERANDO O FÔLEGO ---
     case centopeia_state.recuperando:
         if (sprite_index != spr_boss_centopeia_idle) {
             sprite_index = spr_boss_centopeia_idle;
@@ -419,7 +409,7 @@ switch (state) {
         }
         break;
 
-    // --- ESTADO 5: CUSPINDO ÁCIDO (spr_boss_centopeia_bite) ---
+    // --- ESTADO 5: CUSPINDO ÁCIDO ---
     case centopeia_state.cuspindo:
         sprite_index = spr_boss_centopeia_bite;
         image_speed = 0.9;
@@ -452,7 +442,7 @@ switch (state) {
         }
         break;
         
-    // --- ESTADO 6: CAVANDO (MERGULHANDO NA TERRA - spr_boss_centopeia_submerge) ---
+    // --- ESTADO 6: CAVANDO ---
     case centopeia_state.cavando:
         hspd = 0;
         vspd = 0; 
@@ -472,7 +462,7 @@ switch (state) {
 }
 
 // ==========================================
-// 1.5 ALINHAMENTO AUTOMÁTICO DA SPRITE COM O FACING
+// 1.5 ALINHAMENTO AUTOMÁTICO DA SPRITE
 // ==========================================
 if (facing != 0) {
     image_xscale = facing * sprite_dir * escala_boss;

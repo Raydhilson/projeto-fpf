@@ -74,7 +74,6 @@ if (key_menu) {
         menu_index = 0;
         aba_atual = 1; // Abre direto na aba de Crafting
         
-        // Pausa todos os inimigos e projéteis, mas mantém os controladores vivos
         instance_deactivate_all(true);
         instance_activate_object(obj_game_controller);
         instance_activate_object(obj_camera);
@@ -134,9 +133,9 @@ switch (state) {
         
         if (key_roll) {
             state = player_state.roll; 
-            action_timer = 12; 
+            action_timer = 14; 
             is_invulnerable = true; 
-            iframe_timer = max(iframe_timer, 20); 
+            iframe_timer = max(iframe_timer, 14); 
             sprite_index = spr_player_roll; 
             image_index = 0;
         }
@@ -185,9 +184,9 @@ switch (state) {
         
         if (key_roll) {
             state = player_state.roll; 
-            action_timer = 12; 
+            action_timer = 14; 
             is_invulnerable = true; 
-            iframe_timer = max(iframe_timer, 20);
+            iframe_timer = max(iframe_timer, 14);
             sprite_index = spr_player_roll; 
             image_index = 0;
         }
@@ -253,13 +252,20 @@ switch (state) {
             image_index = 0;
         }
         image_blend = c_white;
-        image_speed = 1.35; 
+        
+        image_speed = (combo_count == 2) ? 0.95 : 1.15; 
+        
+        if (image_index >= image_number - 1) {
+            image_index = image_number - 1;
+            image_speed = 0;
+        }
         
         if (key_attack && arma_nivel >= 2) {
             ataque_buffer = true; 
         }
         
-        if (action_timer == 14) {
+        var _frame_hit = (combo_count == 2) ? 12 : 14;
+        if (action_timer == _frame_hit) {
             var hit = instance_create_layer(x + (facing * 30), y - 12, "Instances", obj_hitbox);
             hit.image_xscale = facing * 1.5;
             hit.duracao = 5; 
@@ -274,9 +280,9 @@ switch (state) {
         if (action_timer <= 10 && key_roll) {
             if (move_dir != 0) facing = move_dir;
             state = player_state.roll;
-            action_timer = 12;
+            action_timer = 14;
             is_invulnerable = true;
-            iframe_timer = max(iframe_timer, 20);
+            iframe_timer = max(iframe_timer, 14);
             sprite_index = spr_player_roll;
             image_index = 0;
             image_speed = 1;
@@ -289,7 +295,7 @@ switch (state) {
             if (ataque_buffer && combo_count == 1 && arma_nivel >= 2) {
                 if (move_dir != 0) facing = move_dir;
                 combo_count = 2;
-                action_timer = 26;
+                action_timer = 18;
                 sprite_index = on_ground ? spr_player_attack2 : spr_player_attack_jump;
                 image_index = 0;   
                 ataque_buffer = false;
@@ -309,7 +315,13 @@ switch (state) {
             sprite_index = spr_player_roll;
             image_index = 0;
         }
+        
         image_speed = 1.0; 
+        if (image_index >= image_number - 1) {
+            image_index = image_number - 1;
+            image_speed = 0;
+        }
+        
         hspd = facing * roll_sp; 
         vspd += grv; 
         image_blend = c_white;
@@ -317,6 +329,11 @@ switch (state) {
         action_timer--;
         
         if (action_timer <= 0) { 
+            image_speed = 1.0;
+            if (iframe_timer <= 10) {
+                iframe_timer = 0;
+                is_invulnerable = false;
+            }
             state = on_ground ? ((move_dir != 0) ? player_state.run : player_state.idle) : player_state.air; 
         }
         break;
@@ -352,7 +369,6 @@ switch (state) {
         if (key_tab_right || keyboard_check_pressed(vk_right) || keyboard_check_pressed(ord("D"))) { aba_atual++; if (aba_atual > 2) aba_atual = 0; menu_index = 0; }
         if (key_tab_left  || keyboard_check_pressed(vk_left)  || keyboard_check_pressed(ord("A"))) { aba_atual--; if (aba_atual < 0) aba_atual = 2; menu_index = 0; }
         
-        // Fechar com ESC consome a tecla na hora para NÃO abrir o Pause Global!
         if (keyboard_check_pressed(vk_escape) || gamepad_button_check_pressed(0, gp_face2)) {
             state = player_state.idle;
             instance_activate_all();
@@ -384,14 +400,14 @@ switch (state) {
                 }
             }
         }
-        exit; // Não aplica física nem dano enquanto está com o menu aberto
+        exit;
 
     // --- FABRICANDO ITEM ---
     case player_state.craft:
         hspd = 0; vspd = 0; 
         image_blend = c_white; 
         sprite_index = spr_player_idle;
-        craft_timer += 2; // Progresso ágil na tela de craft
+        craft_timer += 2;
         
         if (craft_timer >= craft_time_max) {
             if (craft_selected_item == 0) curativo_count++;
@@ -404,7 +420,7 @@ switch (state) {
 }
 
 // =====================================================================
-// 4. DANO E I-FRAMES
+// 4. DANO E I-FRAMES (BOSS REMOVIDO DAQUI POIS USA OBJ_HITBOX_ENEMY)
 // =====================================================================
 if (is_invulnerable) {
     iframe_timer--;
@@ -435,44 +451,43 @@ if (!is_invulnerable && state != player_state.roll) {
         state = player_state.air; 
     }
     
-    var boss = object_exists(obj_boss_centopeia) ? instance_place(x, y, obj_boss_centopeia) : noone;
-    if (boss != noone) {
-        if (boss.state == centopeia_state.investida || boss.state == centopeia_state.emergindo) {
-            var dano_boss = (boss.state == centopeia_state.investida) ? 25 : 20;
-            hp -= dano_boss;
+    // Inimigos comuns: Besouro só dá dano na investida (charge)
+    var inimigo = instance_place(x, y, obj_enemy);
+    if (inimigo != noone && inimigo.object_index != obj_boss_centopeia) {
+        if (inimigo.state == enemy_state.charge) {
+            hp -= 15;
             is_invulnerable = true;
-            iframe_timer = 75; 
-            var dir_empurrao = sign(x - boss.x);
-            if (dir_empurrao == 0) dir_empurrao = -facing;
-            hspd = dir_empurrao * 7.5;
-            vspd = -5.5;
+            iframe_timer = 65; 
+            var dir_hit = sign(x - inimigo.x);
+            if (dir_hit == 0) dir_hit = -facing;
+            hspd = dir_hit * 6.5;
+            vspd = -4.5;
             state = player_state.air;
+            inimigo.hspd = -dir_hit * 5;
+            inimigo.vspd = -2.5;
             if (instance_exists(obj_game_controller)) {
-                obj_game_controller.hitstop_timer = 6;
-                obj_game_controller.shake_magnitude = 5;
+                obj_game_controller.hitstop_timer = 5;
+                obj_game_controller.shake_magnitude = 3;
             }
         }
     }
     
-    var inimigo = instance_place(x, y, obj_enemy);
-    if (inimigo == noone && object_exists(obj_vespa)) {
-        inimigo = instance_place(x, y, obj_vespa);
-    }
-    
-    if (inimigo != noone && inimigo != boss && inimigo.object_index != obj_boss_centopeia) {
-        hp -= 15;
-        is_invulnerable = true;
-        iframe_timer = 65; 
-        var dir_hit = sign(x - inimigo.x);
-        if (dir_hit == 0) dir_hit = -facing;
-        hspd = dir_hit * 6.5;
-        vspd = -4.5;
-        state = player_state.air;
-        inimigo.hspd = -dir_hit * 5;
-        inimigo.vspd = -2.5;
-        if (instance_exists(obj_game_controller)) {
-            obj_game_controller.hitstop_timer = 5;
-            obj_game_controller.shake_magnitude = 3;
+    // Vespa continua dando dano de contato normal
+    if (object_exists(obj_vespa)) {
+        var vespa = instance_place(x, y, obj_vespa);
+        if (vespa != noone) {
+            hp -= 15;
+            is_invulnerable = true;
+            iframe_timer = 65; 
+            var dir_v = sign(x - vespa.x);
+            if (dir_v == 0) dir_v = -facing;
+            hspd = dir_v * 6.5;
+            vspd = -4.5;
+            state = player_state.air;
+            if (instance_exists(obj_game_controller)) {
+                obj_game_controller.hitstop_timer = 5;
+                obj_game_controller.shake_magnitude = 3;
+            }
         }
     }
 }

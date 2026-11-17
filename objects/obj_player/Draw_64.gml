@@ -188,7 +188,7 @@ if (state == player_state.menu || state == player_state.craft) {
         }
         
         // Coluna 2: Materiais
-        var mat_names = is_pt ? ["Sucata Industrial", "Carne de Besouro", "Glandula Volatil", "Ferrao de Vespa"] : ["Industrial Scrap", "Beetle Meat", "Volatile Gland", "Wasp Stinger"];
+        var mat_names = is_pt ? ["Sucata ", "Carne de Besouro", "Glandula Volatil", "Ferrao de Vespa"] : ["Industrial Scrap", "Beetle Meat", "Volatile Gland", "Wasp Stinger"];
         var mat_qtd   = [global.scrap, carne_count, glandula_count, ferrao_count];
         
         for (var m = 0; m < 4; m++) {

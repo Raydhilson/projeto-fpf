@@ -25,8 +25,8 @@
   "nineSlice":null,
   "origin":4,
   "parent":{
-    "name":"FISICOS",
-    "path":"folders/SPRITES/FISICOS.yy",
+    "name":"HITBOX",
+    "path":"folders/SPRITES/HITBOX.yy",
   },
   "preMultiplyAlpha":false,
   "resourceType":"GMSprite",

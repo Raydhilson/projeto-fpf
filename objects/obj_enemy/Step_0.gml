@@ -35,7 +35,7 @@ if (queimando_timer > 0) {
 var on_ground = place_meeting(x, y + 1, obj_colisor);
 
 // ==========================================
-// 2. MÁQUINA DE ESTADOS DA IA (BESOURO BOMBARDEIRO)
+// MÁQUINA DE ESTADOS DA IA (BESOURO TÁTICO)
 // ==========================================
 switch (state) {
     
@@ -52,21 +52,21 @@ switch (state) {
         }
         image_blend = (queimando_timer > 0) ? c_orange : c_white; 
         
-        var hit_wall = place_meeting(x + facing, y, obj_colisor);
-        var no_ledge = !place_meeting(x + (15 * facing), y + 1, obj_colisor); 
+        var hit_wall = place_meeting(x + (facing * 2), y, obj_colisor);
+        var no_ledge = !place_meeting(x + (20 * facing), y + 2, obj_colisor); 
         
         if ((hit_wall || no_ledge) && on_ground) {
             facing = -facing; 
         }
         
         if (instance_exists(obj_player)) {
-            if (point_distance(x, y, obj_player.x, obj_player.y) <= vision_range) {
+            if (point_distance(x, y, obj_player.x, obj_player.y) <= vision_range && abs(y - obj_player.y) < 48) {
                 state = enemy_state.chase; 
             }
         }
         break;
         
-    // --- ESTADO 2: PERSEGUIÇÃO ---
+    // --- ESTADO 2: PERSEGUIÇÃO (Tenta alcançar o range de bote) ---
     case enemy_state.chase:
         if (sprite_index != spr_walk) {
             sprite_index = spr_walk;
@@ -83,30 +83,24 @@ switch (state) {
                 facing = dir_to_player;
             }
             
-            // Evita cair de buracos enquanto persegue normal
-            var no_ledge = !place_meeting(x + (15 * facing), y + 1, obj_colisor);
-            if (no_ledge && on_ground) {
-                hspd = 0;
+            var no_ledge = !place_meeting(x + (20 * facing), y + 2, obj_colisor);
+            var hit_wall = place_meeting(x + (facing * 2), y, obj_colisor);
+            
+            if ((no_ledge || hit_wall) && on_ground) {
+                hspd = 0; 
             } else if (piscar <= 0) {
                 hspd = lerp(hspd, chase_spd * facing, 0.12);
             }
             
-            // GATILHO DE TRANSIÇÃO DE ATAQUE (Decide entre Avanço e Bombardeio Químico)
-            if (dist <= 85 && on_ground && attack_cooldown <= 0) {
+            // QUANDO CHEGA NO RANGE DE BOTE (Ex: 95 pixels) E O COOLDOWN ACABOU:
+            // Ele entra na preparação de 1 segundo (60 frames) antes de dar o charge!
+            if (dist <= 95 && on_ground && attack_cooldown <= 0) {
                 state = enemy_state.chemical_prep;
                 hspd = 0;
-                
-                // Se for Bombardeiro e o player estiver muito perto (<= 55px) ou no sorteio tático, usa o Bombardeio!
-                if (eh_bombardeiro && (dist <= 55 || irandom(1) == 1)) {
-                    tipo_ataque_atual = 1; // Bombardeio (spr_enemy_attack_defense)
-                    sprite_index = spr_atk_defense;
-                    state_timer = 16; // Tempo para tocar os frames 0 a 2 (preparação química)
-                } else {
-                    tipo_ataque_atual = 0; // Avanço físico (spr_enemy_attack)
-                    sprite_index = spr_atk_charge;
-                    state_timer = 14; // Tempo para tocar os frames 0 a 2 (preparação da investida)
-                }
+                tipo_ataque_atual = 0; // 0 = Investida
+                sprite_index = spr_atk_charge;
                 image_index = 0;
+                state_timer = 60; // EXATAMENTE 1 SEGUNDO DE PREPARAÇÃO (60 steps)
             }
             
             if (dist > lose_interest_range) {
@@ -117,88 +111,61 @@ switch (state) {
         }
         break;
         
-    // --- ESTADO 3: PREPARAÇÃO DO ATAQUE (Frames iniciais de Windup: 0 a 2) ---
+    // --- ESTADO 3: PREPARAÇÃO DE 1 SEGUNDO (Janela de Reação do Player) ---
     case enemy_state.chemical_prep:
-        hspd = lerp(hspd, 0, 0.3);
-        sprite_index = (tipo_ataque_atual == 1) ? spr_atk_defense : spr_atk_charge;
-        image_speed = 0.8; 
+        hspd = lerp(hspd, 0, 0.3); // Para totalmente para focar no bote
+        image_speed = 0.5; // Animação mais lenta tensionando o corpo
         image_blend = c_white;
         
-        // Trava nos frames de preparação (0 a 2) antes de soltar o golpe
-        if (image_index >= 3) {
-            image_index = 2.9;
-            image_speed = 0;
-        }
-        
+        // Mantém olhando para o player durante a preparação
         if (instance_exists(obj_player) && obj_player.x != x) {
             facing = sign(obj_player.x - x);
         }
         
-        state_timer--;
+        state_timer--; // Conta os 60 frames (1 segundo)
+        
         if (state_timer <= 0) {
-            state = enemy_state.charge;
-            image_index = 3; // Salta exatamente para o Frame 3 (início do impacto/jato!)
-            image_speed = 1.1;
-            
-            if (tipo_ataque_atual == 1) {
-                state_timer = 26; // Duração do espirro químico (spr_enemy_attack_defense)
-            } else {
-                state_timer = 22; // Duração da arrancada física (spr_enemy_attack)
-            }
+            state = enemy_state.charge; // Libera o avanço!
+            image_index = 0;
+            image_speed = 1.3;
+            state_timer = 24; // Duração máxima da investida
             
             if (instance_exists(obj_game_controller)) {
-                obj_game_controller.shake_magnitude = (tipo_ataque_atual == 1) ? 3 : 2;
+                obj_game_controller.shake_magnitude = 3;
             }
         }
         break;
         
-    // --- ESTADO 4: EXECUÇÃO DO ATAQUE (Avanço ou Bombardeio Químico: Frames 3 até o fim) ---
+    // --- ESTADO 4: EXECUÇÃO DO CHARGE (O Avanço) ---
     case enemy_state.charge:
-        sprite_index = (tipo_ataque_atual == 1) ? spr_atk_defense : spr_atk_charge;
+        sprite_index = spr_atk_charge;
         image_blend = c_white;
         state_timer--;
         
-        if (tipo_ataque_atual == 1) {
-            // MODO 1: BOMBARDEIO QUÍMICO (spr_enemy_attack_defense)
-            hspd = lerp(hspd, 0, 0.25);
-            
-            // Cria poça de fogo no chão se o objeto existir no projeto
-            if (state_timer == 18 || state_timer == 12) {
-                var obj_fogo = asset_get_index("obj_fogo_chao");
-                if (obj_fogo == -1) obj_fogo = asset_get_index("obj_poca_fogo");
-                if (obj_fogo != -1) {
-                    var dist_fogo = (state_timer == 18) ? 28 : 48;
-                    instance_create_layer(x + (facing * dist_fogo), y, "Instances", obj_fogo);
-                }
-            }
-        } else {
-            // MODO 0: AVANÇO / INVESTIDA (spr_enemy_attack)
-            hspd = facing * charge_spd;
-        }
+        // Aqui ele acelera com força para a frente
+        hspd = facing * charge_spd;
         
-        // Mantém no último frame se a animação terminar antes dos últimos steps
         if (image_index >= image_number - 1) {
             image_index = image_number - 1;
             image_speed = 0;
         }
         
-        // Finaliza o ataque se bater na parede (no avanço) ou quando acabar o state_timer
-        var bateu_parede = (tipo_ataque_atual == 0 && place_meeting(x + facing, y, obj_colisor));
+        var bateu_parede = place_meeting(x + facing, y, obj_colisor);
         if (bateu_parede || state_timer <= 0) {
             hspd = 0;
             state = enemy_state.cooldown;
-            state_timer = 38;     // Janela vulnerável pós-ataque
-            attack_cooldown = 90; // 1.5s de recarga
+            state_timer = 45;     // Janela generosa para o player punir o besouro pós-investida
+            attack_cooldown = 110; // Tempo até ele poder dar outro bote
         }
         break;
         
-    // --- ESTADO 5: RESFRIANDO (Janela vulnerável pós-ataque) ---
+    // --- ESTADO 5: COOLDOWN (Janela de Punição) ---
     case enemy_state.cooldown:
         sprite_index = spr_walk;
         image_index = 0;
-        image_speed = 0; // Fica parado recuperando o fôlego
+        image_speed = 0; 
         hspd = lerp(hspd, 0, 0.2);
-        image_blend = c_ltgray; 
+        image_blend = c_ltgray; // Fica cinza indicando cansaço/vulnerabilidade
         state_timer--;
         if (state_timer <= 0) {
             image_speed = 1;
@@ -207,12 +174,6 @@ switch (state) {
         }
         break;
 }
-
-// Aplica a direção e a escala reduzida do Besouro (0.75)
-if (facing != 0) {
-    image_xscale = facing * escala_base;
-}
-image_yscale = escala_base;
 
 // ==========================================
 // 3. COLISÕES FÍSICAS
@@ -234,7 +195,7 @@ if (place_meeting(x, y + vspd, obj_colisor)) {
 y += vspd;
 
 // ==========================================
-// 4. MORTE, XP DE MAESTRIA, BUFF E DROPS DO BESOURO
+// 4. MORTE E DROPS
 // ==========================================
 if (hp <= 0) {
     if (instance_exists(obj_player)) {
@@ -256,16 +217,13 @@ if (hp <= 0) {
         }
     }
     
-    // 1. Dropa Sucata garantida
     instance_create_layer(x, y - 6, layer, obj_scrap);
     
-    // 2. Chance de dropar Alimento / Carne (70% de chance -> tipo_item = 0)
     if (irandom(99) < 70 && object_exists(obj_item_drop)) {
         var _carne = instance_create_layer(x - 4, y - 8, layer, obj_item_drop);
         _carne.tipo_item = 0;
     }
     
-    // 3. Chance de dropar Glândula Química (50% de chance -> tipo_item = 1)
     if (eh_bombardeiro && irandom(99) < 50 && object_exists(obj_item_drop)) {
         var _glandula = instance_create_layer(x + 4, y - 8, layer, obj_item_drop);
         _glandula.tipo_item = 1;

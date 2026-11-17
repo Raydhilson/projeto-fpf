@@ -1,11 +1,11 @@
 // --- ATRIBUTOS BASE ---
 hp = 3;
-walk_spd = 1;       
-chase_spd = 2.4;    
-charge_spd = 5.2; // Velocidade da investida explosiva
+walk_spd = 1.2;        
+chase_spd = 2.6;    
+charge_spd = 5.5; // Velocidade da investida explosiva
 hspd = 0;
 vspd = 0;
-grv = 0.3;
+grv = 0.35;
 
 // --- ESCALA DE TAMANHO DO BESOURO (0.75 = 25% menor) ---
 escala_base = 0.75;
@@ -26,8 +26,8 @@ enum enemy_state {
 state = enemy_state.patrol;
 
 // --- INTELIGÊNCIA ARTIFICIAL E TIMERS ---
-vision_range = 160;        
-lose_interest_range = 260; 
+vision_range = 170;        
+lose_interest_range = 280; 
 state_timer = 0;
 attack_cooldown = 0;
 
