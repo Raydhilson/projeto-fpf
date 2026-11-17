@@ -1,7 +1,7 @@
-// Garante escala HD padrão para a interface
 if (display_get_gui_width() != 800) {
     display_set_gui_size(800, 450);
 }
+if (!variable_global_exists("slot_atual"))    global.slot_atual    = 1;
 if (!variable_global_exists("brilho"))        global.brilho        = 0.5;
 if (!variable_global_exists("idioma"))        global.idioma        = "PT";
 if (!variable_global_exists("tremer_tela"))   global.tremer_tela   = 1;
@@ -19,13 +19,17 @@ if (!variable_global_exists("key_confirm"))   global.key_confirm   = vk_enter;
 if (!variable_global_exists("key_tab_left"))  global.key_tab_left  = ord("Q");
 if (!variable_global_exists("key_tab_right")) global.key_tab_right = ord("E");
 
-menu_state = 0; // 0 = Menu Principal | 1 = Opções e Controles
-opcao_aba  = 0; // 0 = Geral & Vídeo | 1 = Controles
+menu_state = 0; // 0 = Menu Principal | 1 = Opções | 2 = Seleção de Slots de Save
+modo_slot  = "load"; // "new" = Novo Jogo | "load" = Continuar
+slot_index = 0;      // 0 = Slot 1, 1 = Slot 2, 2 = Slot 3, 3 = Voltar
+slots_info = [obter_info_slot(1), obter_info_slot(2), obter_info_slot(3)];
+
+opcao_aba  = 0;
 aguardando_tecla = false;
 
 options = ["new_game", "continue_game", "options", "quit"];
 
-has_save = file_exists("save_1.ini");
+has_save = (save_existe(1) || save_existe(2) || save_existe(3));
 menu_index = has_save ? 1 : 0;
 
 gpu_set_tex_filter(false);
@@ -33,6 +37,8 @@ gpu_set_tex_filter(false);
 if (file_exists("config.ini")) {
     carregar_configuracoes();
 }
+
+tocar_musica("snd_bgm_menu");
 
 nome_tecla = function(_k) {
     var _pt = (global.idioma == "PT");

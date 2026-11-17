@@ -3,6 +3,7 @@ if (!variable_instance_exists(id, "escala_base")) escala_base = 1.15;
 // ==========================================
 // 1. SEGURANÇA DE CONTROLES (FALLBACK)
 // ==========================================
+if (!variable_global_exists("slot_atual"))    global.slot_atual    = 1;
 if (!variable_global_exists("key_right"))     global.key_right     = vk_right;
 if (!variable_global_exists("key_left"))      global.key_left      = vk_left;
 if (!variable_global_exists("key_up"))        global.key_up        = vk_up;
@@ -112,15 +113,17 @@ enum player_state {
 
 state = player_state.idle;
 
-// Restaurar Save se houver
+// Restaurar Save se houver (Incluindo Facas e Escala de XP Máximo)
 if (variable_global_exists("carregando_save") && global.carregando_save == true) {
     x              = global.load_x;
     y              = global.load_y;
     hp             = global.load_hp;
     curativo_count = global.load_curativos;
     molotov_count  = global.load_molotovs;
+    faca_count     = variable_global_exists("load_facas") ? global.load_facas : 0;
     arma_nivel     = global.load_arma_nivel;
     arma_xp        = global.load_arma_xp;
+    arma_xp_max    = (arma_nivel >= 2) ? 20 : 10;
     carne_count    = global.load_carne;
     glandula_count = global.load_glandula;
     ferrao_count   = global.load_ferrao;

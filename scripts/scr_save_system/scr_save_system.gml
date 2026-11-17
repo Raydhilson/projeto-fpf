@@ -1,8 +1,75 @@
 // =======================================================
-// 0. VERIFICAR SE O SAVE EXISTE E APLICAR RESOLUÇÃO
+// 0. SISTEMA DE ÁUDIO SEGURO (COM VARIAÇÃO DE PITCH)
 // =======================================================
+function tocar_sfx(_nome_som, _pitch_min = 0.9, _pitch_max = 1.1) {
+    var _snd = is_string(_nome_som) ? asset_get_index(_nome_som) : _nome_som;
+    if (_snd != -1 && audio_exists(_snd)) {
+        var _vol = variable_global_exists("vol_sfx") ? global.vol_sfx : 0.8;
+        var _inst = audio_play_sound(_snd, 10, false);
+        audio_sound_pitch(_inst, random_range(_pitch_min, _pitch_max));
+        audio_sound_gain(_inst, _vol, 0);
+    }
+}
+
+function tocar_musica(_nome_musica) {
+    var _snd = is_string(_nome_musica) ? asset_get_index(_nome_musica) : _nome_musica;
+    if (_snd != -1 && audio_exists(_snd)) {
+        if (!audio_is_playing(_snd)) {
+            audio_stop_all();
+            var _vol = variable_global_exists("vol_musica") ? global.vol_musica : 0.5;
+            var _inst = audio_play_sound(_snd, 100, true);
+            audio_sound_gain(_inst, _vol, 0);
+        }
+    }
+}
+
+// =======================================================
+// 0.5 VERIFICAR SLOTS DE SAVE E APLICAR RESOLUÇÃO
+// =======================================================
+if (!variable_global_exists("slot_atual")) global.slot_atual = 1;
+
 function save_existe(_slot) {
     return file_exists("save_" + string(_slot) + ".ini");
+}
+
+function obter_info_slot(_slot) {
+    var _arq = "save_" + string(_slot) + ".ini";
+    var _info = {
+        existe: false,
+        sala: "---",
+        hp: 100,
+        nivel: 1,
+        sucata: 0
+    };
+    
+    if (file_exists(_arq)) {
+        ini_open(_arq);
+        _info.existe = true;
+        var _raw_sala = ini_read_string("Mundo", "Sala", "rm_forest_1");
+        
+        // Nome amigável da sala para exibir no card do Slot
+        var _pt = (!variable_global_exists("idioma") || global.idioma == "PT");
+        switch (_raw_sala) {
+            case "rm_forest_1": _info.sala = _pt ? "Floresta - Setor 1" : "Forest - Sector 1"; break;
+            case "rm_forest_2": _info.sala = _pt ? "Floresta - Setor 2" : "Forest - Sector 2"; break;
+            case "rm_forest_3": _info.sala = _pt ? "Covil da Centopeia" : "Centipede Lair"; break;
+            case "rm_lab_1":    _info.sala = _pt ? "Laboratorio Gree"   : "Gree Laboratory"; break;
+            default:            _info.sala = _raw_sala; break;
+        }
+        
+        _info.hp     = ini_read_real("Player", "HP", 100);
+        _info.nivel  = ini_read_real("Player", "ArmaNivel", 1);
+        _info.sucata = ini_read_real("Economia", "Sucata", 0);
+        ini_close();
+    }
+    return _info;
+}
+
+function apagar_save(_slot) {
+    var _arq = "save_" + string(_slot) + ".ini";
+    if (file_exists(_arq)) {
+        file_delete(_arq);
+    }
 }
 
 function aplicar_resolucao() {
@@ -17,13 +84,11 @@ function aplicar_resolucao() {
     
     window_set_fullscreen(global.tela_cheia);
     
-    // Se estiver em modo janela, altera o tamanho e centraliza no monitor
     if (!window_get_fullscreen()) {
         window_set_size(_w, _h);
         window_center();
     }
     
-    // Mantém a superfície de renderização nítida
     if (surface_exists(application_surface)) {
         surface_resize(application_surface, _w, _h);
     }
@@ -55,7 +120,6 @@ function salvar_configuracoes() {
     ini_write_real("Controles", "Confirmar", global.key_confirm);
     
     ini_close();
-    show_debug_message("Configuracoes salvas no config.ini!");
 }
 
 function carregar_configuracoes() {
@@ -90,35 +154,11 @@ function carregar_configuracoes() {
     }
 }
 
-function restaurar_padroes() {
-    global.brilho      = 0.5;
-    global.idioma      = "PT";
-    global.tela_cheia  = 0;
-    global.res_index   = 0;
-    global.tremer_tela = 1;
-    global.vol_master  = 1.0;
-    
-    global.key_right   = vk_right;
-    global.key_left    = vk_left;
-    global.key_up      = vk_up;
-    global.key_down    = vk_down;
-    
-    global.key_jump    = vk_space;
-    global.key_attack  = ord("J");
-    global.key_roll    = ord("K");
-    global.key_heal    = ord("H");
-    global.key_throw   = ord("F");
-    global.key_confirm = vk_enter;
-    
-    aplicar_resolucao();
-    salvar_configuracoes();
-    show_debug_message("Configuracoes restauradas para o padrao!");
-}
-
 // =======================================================
 // 2. SALVAR O PROGRESSO (Fogueira e Pause)
 // =======================================================
-function salvar_jogo(_slot) {
+function salvar_jogo(_slot = global.slot_atual) {
+    global.slot_atual = _slot;
     var _arquivo = "save_" + string(_slot) + ".ini";
     
     var _reativar_pause = false;
@@ -142,7 +182,6 @@ function salvar_jogo(_slot) {
         ini_write_real("Player", "ArmaNivel", obj_player.arma_nivel);
         ini_write_real("Player", "ArmaXP", obj_player.arma_xp);
         
-        // Materiais Orgânicos
         ini_write_real("Player", "carne", obj_player.carne_count);
         ini_write_real("Player", "glandula", obj_player.glandula_count);
         ini_write_real("Player", "ferrao", obj_player.ferrao_count);
@@ -154,13 +193,14 @@ function salvar_jogo(_slot) {
         instance_deactivate_object(obj_player);
     }
     
-    show_debug_message("Jogo salvo com sucesso no " + _arquivo);
+    tocar_sfx("snd_save", 0.95, 1.05);
 }
 
 // =======================================================
 // 3. CARREGAR O PROGRESSO (Menu Inicial e Morte)
 // =======================================================
-function carregar_jogo(_slot) {
+function carregar_jogo(_slot = global.slot_atual) {
+    global.slot_atual = _slot;
     var _arquivo = "save_" + string(_slot) + ".ini";
     
     if (file_exists(_arquivo)) {
@@ -179,7 +219,6 @@ function carregar_jogo(_slot) {
         global.load_arma_nivel = ini_read_real("Player", "ArmaNivel", 1);
         global.load_arma_xp    = ini_read_real("Player", "ArmaXP", 0);
         
-        // Materiais Orgânicos Carregados
         global.load_carne      = ini_read_real("Player", "carne", 0);
         global.load_glandula   = ini_read_real("Player", "glandula", 0);
         global.load_ferrao     = ini_read_real("Player", "ferrao", 0);
@@ -188,9 +227,9 @@ function carregar_jogo(_slot) {
         
         var _id_sala = asset_get_index(_nome_sala);
         if (_id_sala > -1) {
-            // TRANSIÇÃO SUAVE AO CARREGAR SAVE (USANDO OBJ_TRANSITION)
             if (asset_get_index("obj_transition") != -1 && !instance_exists(obj_transition)) {
                 var t = instance_create_layer(0, 0, layer, obj_transition);
+                t.persistent = true;
                 t.destino_room = _id_sala;
                 t.estado = 1;
             } else {
@@ -205,9 +244,10 @@ function carregar_jogo(_slot) {
 }
 
 // =======================================================
-// 4. INICIAR NOVO JOGO DO ZERO (COM TRANSIÇÃO SUAVE)
+// 4. INICIAR NOVO JOGO DO ZERO (NO SLOT ESCOLHIDO)
 // =======================================================
-function novo_jogo(_slot) {
+function novo_jogo(_slot = global.slot_atual) {
+    global.slot_atual = _slot;
     var _arquivo = "save_" + string(_slot) + ".ini";
     if (file_exists(_arquivo)) {
         file_delete(_arquivo);
@@ -216,9 +256,9 @@ function novo_jogo(_slot) {
     global.scrap = 0;
     global.carregando_save = false;
     
-    // TRANSIÇÃO SUAVE PARA A PRIMEIRA FASE (USANDO OBJ_TRANSITION)
     if (asset_get_index("obj_transition") != -1 && !instance_exists(obj_transition)) {
         var t = instance_create_layer(0, 0, layer, obj_transition);
+        t.persistent = true;
         t.destino_room = rm_forest_1;
         t.estado = 1;
     } else {

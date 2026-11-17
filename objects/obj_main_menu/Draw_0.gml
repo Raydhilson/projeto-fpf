@@ -10,8 +10,8 @@ var col_border_out = make_color_rgb(85, 75, 60);
 var col_gold       = make_color_rgb(245, 195, 65);
 var col_highlight  = make_color_rgb(42, 48, 66);
 var col_text_off   = make_color_rgb(175, 180, 195);
+var col_ok         = make_color_rgb(80, 215, 105);
 
-// Função auxiliar para sombra nítida no texto
 var _draw_txt = function(_x, _y, _str, _col) {
     draw_set_color(c_black);
     draw_text(round(_x) + 1, round(_y) + 1, _str);
@@ -50,7 +50,7 @@ if (menu_state == 0) {
         
         switch (_option) {
             case "new_game":      _text = _pt ? "NOVO JOGO" : "NEW GAME"; break;
-            case "continue_game": _text = _pt ? "CONTINUAR" : "CONTINUE"; break;
+            case "continue_game": _text = _pt ? "CARREGAR SLOTS" : "LOAD SLOTS"; break;
             case "options":       _text = _pt ? "OPCOES"    : "OPTIONS";  break;
             case "quit":          _text = _pt ? "SAIR"      : "QUIT";     break;
         }
@@ -103,7 +103,7 @@ if (menu_state == 0) {
     draw_text_ext(pan_x + 20, pan_y + 52, desc_lore, 18, pan_w - 40);
 }
 // ==========================================
-// TELA 1: SUB-MENU DE OPÇÕES EM TELA INTEIRA (94%)
+// TELA 1: SUB-MENU DE OPÇÕES
 // ==========================================
 else if (menu_state == 1) {
     var pw = round(_gw * 0.92);
@@ -118,7 +118,6 @@ else if (menu_state == 1) {
     draw_set_color(col_gold);
     draw_rectangle(px + 2, py + 2, px + pw - 2, py + ph - 2, true);
     
-    // --- ABAS SUPERIORES ---
     var tab_w = (pw - 4) / 2;
     var tab_h = 40;
     var nomes_abas = [
@@ -156,7 +155,6 @@ else if (menu_state == 1) {
     var val_brilho  = clamp(variable_global_exists("brilho") ? global.brilho : 0.5, 0.1, 1.0);
     var _brilho_pct = string(round(val_brilho * 100)) + "%";
     
-    // --- ABA 0: GERAL E VÍDEO (COM RESOLUÇÃO) ---
     if (opcao_aba == 0) {
         if (!variable_global_exists("res_index")) global.res_index = 0;
         var _res_nomes = ["1280 x 720 (HD)", "1600 x 900 (HD+)", "1920 x 1080 (FHD)"];
@@ -215,7 +213,6 @@ else if (menu_state == 1) {
             }
         }
     }
-    // --- ABA 1: CONTROLES ---
     else if (opcao_aba == 1) {
         var labels_aba1 = [
             _pt ? "Pular" : "Jump",
@@ -257,13 +254,94 @@ else if (menu_state == 1) {
         }
     }
 }
+// ==========================================
+// TELA 2: SELEÇÃO DE 3 SLOTS DE SAVE (ESTILO SOULS / HOLLOW KNIGHT)
+// ==========================================
+else if (menu_state == 2) {
+    var pw = round(_gw * 0.86);
+    var ph = round(_gh * 0.84);
+    var px = round((_gw - pw) / 2);
+    var py = round((_gh - ph) / 2) - 6;
+    
+    draw_set_color(col_bg_panel);
+    draw_rectangle(px, py, px + pw, py + ph, false);
+    draw_set_color(col_border_out);
+    draw_rectangle(px, py, px + pw, py + ph, true);
+    draw_set_color(col_gold);
+    draw_rectangle(px + 2, py + 2, px + pw - 2, py + ph - 2, true);
+    
+    // Cabeçalho
+    draw_set_color(col_header);
+    draw_rectangle(px + 3, py + 3, px + pw - 3, py + 44, false);
+    draw_set_color(col_gold);
+    draw_line(px + 2, py + 44, px + pw - 2, py + 44);
+    
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    var titulo_slots = (modo_slot == "new")
+        ? (_pt ? "ESCOLHA UM SLOT PARA NOVO JOGO" : "SELECT A SLOT FOR NEW GAME")
+        : (_pt ? "ESCOLHA UM SLOT PARA CARREGAR" : "SELECT A SAVE SLOT TO LOAD");
+    _draw_txt(_gw / 2, py + 24, titulo_slots, col_gold);
+    
+    var card_h = 74;
+    var start_y = py + 62;
+    
+    for (var s = 0; s < 3; s++) {
+        var cy1 = start_y + (s * (card_h + 12));
+        var cy2 = cy1 + card_h;
+        var cx1 = px + 32;
+        var cx2 = px + pw - 32;
+        var is_sel = (slot_index == s);
+        var info   = slots_info[s];
+        
+        draw_set_color(is_sel ? col_highlight : col_header);
+        draw_rectangle(cx1, cy1, cx2, cy2, false);
+        draw_set_color(is_sel ? col_gold : col_border_out);
+        draw_rectangle(cx1, cy1, cx2, cy2, true);
+        if (is_sel) {
+            draw_rectangle(cx1, cy1, cx1 + 6, cy2, false);
+        }
+        
+        draw_set_halign(fa_left);
+        var txt_slot_title = "SLOT 0" + string(s + 1) + "  -  " + (info.existe ? info.sala : (_pt ? "[ VAZIO ]" : "[ EMPTY ]"));
+        _draw_txt(cx1 + 20, cy1 + 22, txt_slot_title, is_sel ? col_gold : c_white);
+        
+        if (info.existe) {
+            var txt_detalhes = "HP: " + string(info.hp) + "/100   |   " + (_pt ? "Lanca Nv. " : "Spear Lv. ") + string(info.nivel) + "   |   " + (_pt ? "Sucata: x" : "Scrap: x") + string(info.sucata);
+            _draw_txt(cx1 + 20, cy1 + 50, txt_detalhes, col_text_off);
+            
+            draw_set_halign(fa_right);
+            var acao_txt = (modo_slot == "new")
+                ? (_pt ? "[ENTER: SOBRESCREVER]   [X/DEL: APAGAR]" : "[ENTER: OVERWRITE]   [X/DEL: DELETE]")
+                : (_pt ? "[ENTER: CONTINUAR]   [X/DEL: APAGAR]" : "[ENTER: CONTINUE]   [X/DEL: DELETE]");
+            _draw_txt(cx2 - 18, cy1 + 36, acao_txt, is_sel ? col_ok : col_text_off);
+        } else {
+            _draw_txt(cx1 + 20, cy1 + 50, _pt ? "Nenhum progresso registrado neste slot." : "No progress recorded in this slot.", c_dkgray);
+            draw_set_halign(fa_right);
+            _draw_txt(cx2 - 18, cy1 + 36, _pt ? "[ENTER: INICIAR JORNADA]" : "[ENTER: START JOURNEY]", is_sel ? col_gold : col_text_off);
+        }
+    }
+    
+    // Botão Voltar (Índice 3)
+    var by = start_y + (3 * (card_h + 12)) + 12;
+    draw_set_halign(fa_center);
+    if (slot_index == 3) {
+        draw_set_color(col_highlight);
+        draw_rectangle(_gw / 2 - 140, by - 16, _gw / 2 + 140, by + 16, false);
+        draw_set_color(col_gold);
+        draw_rectangle(_gw / 2 - 140, by - 16, _gw / 2 + 140, by + 16, true);
+        _draw_txt(_gw / 2, by, _pt ? "VOLTAR AO MENU PRINCIPAL" : "BACK TO MAIN MENU", c_white);
+    } else {
+        _draw_txt(_gw / 2, by, _pt ? "VOLTAR AO MENU PRINCIPAL" : "BACK TO MAIN MENU", col_text_off);
+    }
+}
 
 // Rodapé de Dicas
 draw_set_halign(fa_center);
 draw_set_valign(fa_middle);
-var dica_menu = _pt 
-    ? "[W/S] Navegar   |   [Q/E] Aba   |   [A/D ou ENTER] Alterar   |   [ESC] Voltar" 
-    : "[W/S] Navigate   |   [Q/E] Tab   |   [A/D or ENTER] Change   |   [ESC] Back";
+var dica_menu = (menu_state == 2)
+    ? (_pt ? "[W/S] Escolher Slot   |   [ENTER] Confirmar   |   [DEL / X] Apagar Slot   |   [ESC] Voltar" : "[W/S] Select Slot   |   [ENTER] Confirm   |   [DEL / X] Delete Slot   |   [ESC] Back")
+    : (_pt ? "[W/S] Navegar   |   [Q/E] Aba   |   [A/D ou ENTER] Alterar   |   [ESC] Voltar" : "[W/S] Navigate   |   [Q/E] Tab   |   [A/D or ENTER] Change   |   [ESC] Back");
 _draw_txt(_gw / 2, _gh - 16, dica_menu, col_text_off);
 
 // Brilho Global

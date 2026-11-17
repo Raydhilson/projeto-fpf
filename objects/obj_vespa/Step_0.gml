@@ -93,17 +93,27 @@ if (hspd != 0 && state != vespa_state.preparando) {
     image_xscale = sign(hspd);
 }
 
-// Morte da Vespa + Drops (Sucata + Chance de Ferrão)
-// Morte da Vespa + Drops (Sucata + Chance de Ferrão + XP da Arma)
+// Morte da Vespa + Drops (Sucata + Chance de Ferrão + XP e Level Up da Arma)
 if (hp <= 0) {
     if (instance_exists(obj_game_controller)) {
         obj_game_controller.hitstop_timer = 5;
         obj_game_controller.shake_magnitude = 3;
     }
     
-    // Dá +5 de XP para a Lança do Rato ao derrotar a Vespa
+    // Dá +5 de XP para a Lança do Rato e verifica evolução de Nível
     if (instance_exists(obj_player)) {
         obj_player.arma_xp += 5;
+        
+        if (obj_player.arma_xp >= obj_player.arma_xp_max) {
+            if (obj_player.arma_nivel == 1) {
+                obj_player.arma_nivel = 2;
+                obj_player.arma_xp = 0;
+                obj_player.arma_xp_max = 20;
+            } else if (obj_player.arma_nivel == 2) {
+                obj_player.arma_nivel = 3;
+                obj_player.arma_xp = obj_player.arma_xp_max;
+            }
+        }
     }
     
     // Dropa Sucata
@@ -117,4 +127,3 @@ if (hp <= 0) {
     
     instance_destroy();
 }
-    

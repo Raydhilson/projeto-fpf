@@ -86,7 +86,8 @@ if (is_paused) {
                 opcao_aba = 0;
                 pause_index = 0;
             } else if (pause_index == 2) {
-                salvar_jogo(1);
+                var _slot = variable_global_exists("slot_atual") ? global.slot_atual : 1;
+                salvar_jogo(_slot);
                 salvar_configuracoes();
                 
                 is_paused = false;
@@ -95,6 +96,7 @@ if (is_paused) {
                 // TRANSIÇÃO SUAVE PARA O MENU PRINCIPAL (USANDO OBJ_TRANSITION)
                 if (asset_get_index("obj_transition") != -1 && !instance_exists(obj_transition)) {
                     var t = instance_create_layer(0, 0, layer, obj_transition);
+                    t.persistent = true;
                     t.destino_room = rm_main_menu;
                     t.estado = 1;
                 } else {

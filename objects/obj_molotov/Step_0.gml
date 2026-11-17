@@ -8,10 +8,13 @@ vspd += grv; // Gravidade da parábola
 // Giro visual no ar
 image_angle -= sign(hspd) * 15; 
 
-// 1. Colisão com o Chão/Parede (Usa círculo de 6px para funcionar mesmo sem sprite!)
+// 1. Colisão com o Chão/Parede (Cria poça de fogo contínua no solo)
 if (collision_circle(x + hspd, y + vspd, 6, obj_colisor, false, true) != noone) {
     if (instance_exists(obj_game_controller)) {
         obj_game_controller.shake_magnitude = 3;
+    }
+    if (object_exists(obj_fogo_chao)) {
+        instance_create_layer(x, y, layer, obj_fogo_chao);
     }
     instance_destroy(); 
     exit;
@@ -37,7 +40,7 @@ if (hit_enemy != noone) {
         }
         
         if (pode_acertar) {
-            hp -= 3; // Dano explosivo alto (mata Besouro e Vespa na hora e tira bom HP do Boss!)
+            hp -= 3; // Dano explosivo alto
             piscar = 12;
             
             // Aplica queimadura se o inimigo tiver suporte a fogo
@@ -46,8 +49,10 @@ if (hit_enemy != noone) {
             }
             
             // Pequeno empurrão
-            hspd = sign(other.hspd) * 5;
-            vspd = -3;
+            if (object_index != obj_boss_centopeia) {
+                hspd = sign(other.hspd) * 5;
+                vspd = -3;
+            }
         }
     }
     
@@ -55,6 +60,11 @@ if (hit_enemy != noone) {
     if (instance_exists(obj_game_controller)) {
         obj_game_controller.hitstop_timer = 6;
         obj_game_controller.shake_magnitude = 5;
+    }
+    
+    // Também espalha fogo no chão caso o ponto de impacto esteja próximo ao solo
+    if (object_exists(obj_fogo_chao)) {
+        instance_create_layer(x, y, layer, obj_fogo_chao);
     }
     
     instance_destroy(); // Quebra o molotov

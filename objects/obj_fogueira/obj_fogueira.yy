@@ -10,8 +10,8 @@
   "name":"obj_fogueira",
   "overriddenProperties":[],
   "parent":{
-    "name":"INIMIGOS",
-    "path":"folders/OBJETOS/INIMIGOS.yy",
+    "name":"OBJETOS_CONTROLADORES",
+    "path":"folders/OBJETOS/OBJETOS_CONTROLADORES.yy",
   },
   "parentObjectId":null,
   "persistent":false,

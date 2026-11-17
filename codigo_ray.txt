@@ -1,0 +1,4411 @@
+﻿=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_acido_centopeia\Create_0.gml ===
+hspd = 0;
+vspd = 0;
+grv = 0.22;
+dano = 15; // VariÃ¡vel lida pelo obj_player quando Ã© atingido!
+vida_timer = 180; // Desaparece apÃ³s 3 segundos por seguranÃ§a
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_acido_centopeia\Draw_0.gml ===
+if (sprite_index != -1 && sprite_exists(sprite_index)) {
+    draw_self();
+} else {
+    // Gota de Ã¡cido brilhante (verde-limÃ£o com nÃºcleo amarelo)
+    draw_set_color(c_lime);
+    draw_circle(x, y, 5, false);
+    draw_set_color(c_yellow);
+    draw_circle(x - 1, y - 1, 2, false);
+    draw_set_color(c_white);
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_acido_centopeia\Step_0.gml ===
+if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
+    exit;
+}
+
+vspd += grv;
+vida_timer--;
+
+// 1. Acertou o chÃ£o ou parede
+if (collision_circle(x + hspd, y + vspd, 5, obj_colisor, false, true) != noone || vida_timer <= 0) {
+    instance_destroy();
+    exit;
+}
+
+// 2. Acertou o Player (Garante o acerto mesmo se o Ã¡cido nÃ£o tiver sprite atribuÃ­da!)
+if (instance_exists(obj_player)) {
+    var hit_p = collision_circle(x, y, 6, obj_player, false, true);
+    if (hit_p != noone && !hit_p.is_invulnerable && hit_p.state != player_state.roll) {
+        hit_p.hp -= dano;
+        hit_p.is_invulnerable = true;
+        hit_p.iframe_timer = 45;
+        
+        var dir_acido = (hspd != 0) ? sign(hspd) : -hit_p.facing;
+        hit_p.hspd = dir_acido * 4;
+        hit_p.vspd = -3;
+        hit_p.state = player_state.air;
+        
+        if (instance_exists(obj_game_controller)) {
+            obj_game_controller.hitstop_timer = 4;
+            obj_game_controller.shake_magnitude = 3;
+        }
+        instance_destroy();
+        exit;
+    }
+}
+
+x += hspd;
+y += vspd;
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_ataque\Alarm_0.gml ===
+instance_destroy();
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_ataque\Create_0.gml ===
+// Define que este objeto vai existir por apenas 5 frames (fraÃ§Ã£o de segundo)
+alarm[0] = 5;
+
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_boss_centopeia\Create_0.gml ===
+// --- ATRIBUTOS DO CHEFE ---
+hp_max = 50;
+hp = hp_max;
+hspd = 0;
+vspd = 0;
+grv = 0.3;
+
+// --- DIREÃ‡ÃƒO E ALINHAMENTO DA SPRITE ---
+facing = -1;     // 1 = Olhando para a Direita | -1 = Olhando para a Esquerda
+sprite_dir = 1;  // CORRIGIDO PARA 1 (Alinha o olhar do Boss com o Rato!)
+escala_boss = 1.0;
+
+image_xscale = facing * sprite_dir * escala_boss;
+image_yscale = escala_boss;
+
+// --- ESTADOS DA CENTOPEIA ---
+enum centopeia_state {
+    subterranea,     // Escondida
+    emergindo,       // Saindo do chÃ£o
+    patrulha_luta,   // Andando e escolhendo ataque
+    preparando_bote, // Aviso antes da investida ou execuÃ§Ã£o da mordida
+    investida,       // Bote rÃ¡pido corpo a corpo
+    recuperando,     // Janela de cansaÃ§o apÃ³s ataques
+    cuspindo,        // Ataque de projÃ©teis de Ã¡cido
+    cavando,         // Voltando para a terra
+    mordida
+}
+state = centopeia_state.subterranea;
+
+// --- TIMERS E GATILHOS ---
+action_timer = 0;
+aviso_emergir = false;
+alvo_x = x;
+alvo_y = y;
+
+usando_mordida = false;
+mordida_hitbox_ativa = false;
+morrendo = false;
+
+piscar = 0;          // Flash de dano
+queimando_timer = 0; // Suporte para queimadura da lanÃ§a
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_boss_centopeia\Draw_0.gml ===
+// ==========================================
+// 0. VERIFICAÃ‡ÃƒO DE ESTADO INICIAL
+// ==========================================
+// Se estiver escondida debaixo da terra, nÃ£o desenha o corpo nem a barra
+if (state == centopeia_state.subterranea) {
+    exit;
+}
+
+// ==========================================
+// 1. DESENHO DO CORPO OU AVISO DE BOTE
+// ==========================================
+// Se estiver EMERGINDO, desenha um aviso visual piscando no chÃ£o onde ela vai atacar!
+if (state == centopeia_state.emergindo) {
+    if ((action_timer div 4) mod 2 == 0) {
+        draw_set_color(c_orange);
+    } else {
+        draw_set_color(c_red);
+    }
+    draw_rectangle(alvo_x - 24, alvo_y - 6, alvo_x + 24, alvo_y + 2, false);
+    draw_set_color(c_white);
+} else {
+    // A. Efeito de piscar branco ao tomar dano
+    if (piscar > 0) {
+        gpu_set_fog(true, c_white, 0, 1);
+    }
+
+    // B. Desenho da Centopeia (Sprite real ou retÃ¢ngulos procedurais temporÃ¡rios)
+    if (sprite_index != -1 && sprite_exists(sprite_index)) {
+        draw_self();
+		// --- EFEITO VISUAL DA MORDIDA (Mesmo sendo um bloco!) ---
+if (state == centopeia_state.mordida) {
+    var boca_x = (facing == 1) ? bbox_right : bbox_left;
+    var boca_y = (bbox_top + bbox_bottom) / 2;
+    
+    // 1. Aviso da mandÃ­bula abrindo (Frames 35 a 16)
+    if (action_timer > 15) {
+        draw_set_color(c_yellow);
+        // Presa superior e inferior abertas preparando o bote
+        draw_triangle(boca_x, boca_y - 14, boca_x, boca_y - 4, boca_x + (facing * 20), boca_y - 10, false);
+        draw_triangle(boca_x, boca_y + 14, boca_x, boca_y + 4, boca_x + (facing * 20), boca_y + 10, false);
+    }
+    // 2. O Impacto da Dentada! (Frames 15 a 8)
+    else if (mordida_hitbox_ativa) {
+        draw_set_color(c_white);
+        // Desenha o clarÃ£o das presas se fechando 38px Ã  frente!
+        draw_triangle(boca_x, boca_y - 16, boca_x + (facing * 38), boca_y - 2, boca_x + (facing * 14), boca_y + 4, false);
+        draw_triangle(boca_x, boca_y + 16, boca_x + (facing * 38), boca_y + 2, boca_x + (facing * 14), boca_y - 4, false);
+        
+        draw_set_color(c_red);
+        draw_line_width(boca_x, boca_y - 12, boca_x + (facing * 36), boca_y, 2);
+        draw_line_width(boca_x, boca_y + 12, boca_x + (facing * 36), boca_y, 2);
+    }
+    draw_set_color(c_white);
+}
+    } else {
+        // Corpo alongado
+        draw_set_color(image_blend);
+        draw_rectangle(x - 24, y - 24, x + 24, y, false);
+        
+        // Olhos amarelos brilhantes do chefe
+        draw_set_color(c_yellow);
+        draw_rectangle(x + (12 * facing), y - 18, x + (18 * facing), y - 14, false);
+        
+        draw_set_color(c_white);
+    }
+
+    if (piscar > 0) {
+        gpu_set_fog(false, c_white, 0, 0);
+    }
+    
+    // C. EFEITO VISUAL DE EXAUSTÃƒO (FumaÃ§a / Suor quando cansada)
+    if (state == centopeia_state.recuperando) {
+        var tempo_anim = current_time / 100;
+        
+        for (var i = 0; i < 3; i++) {
+            var offset_x = (i * 12) - 12;
+            var offset_y = -22 - ((tempo_anim + (i * 2)) mod 20);
+            var alpha = 1 - (((tempo_anim + (i * 2)) mod 20) / 20);
+            
+            draw_set_alpha(alpha);
+            draw_set_color(c_ltgray);
+            draw_circle(x + offset_x, y + offset_y, 3, false);
+            draw_set_alpha(1.0); // Restaura o alpha normal
+        }
+    }
+}
+
+// ==========================================
+// 2. BARRA DE VIDA DO CHEFE (HUD DA CÃ‚MERA)
+// ==========================================
+var is_pt = (!variable_global_exists("idioma") || global.idioma == "PT");
+var nome_boss = is_pt ? "CENTOPEIA ALFA" : "ALPHA CENTIPEDE";
+
+var cam = view_camera[0];
+var cam_x = camera_get_view_x(cam);
+var cam_y = camera_get_view_y(cam);
+var cam_w = camera_get_view_width(cam);
+
+var bar_w = 200;
+var bar_h = 8;
+var bar_x = cam_x + (cam_w / 2) - (bar_w / 2);
+var bar_y = cam_y + 24;
+
+// Borda preta de fundo
+draw_set_color(c_black);
+draw_rectangle(bar_x - 2, bar_y - 2, bar_x + bar_w + 2, bar_y + bar_h + 2, false);
+
+// Fundo cinza escuro
+draw_set_color(c_dkgray);
+draw_rectangle(bar_x, bar_y, bar_x + bar_w, bar_y + bar_h, false);
+
+// Preenchimento roxo do HP
+var hp_pct = clamp(hp / hp_max, 0, 1);
+draw_set_color(c_purple);
+draw_rectangle(bar_x, bar_y, bar_x + (bar_w * hp_pct), bar_y + bar_h, false);
+
+// Contorno branco e Nome do Chefe
+draw_set_color(c_white);
+draw_rectangle(bar_x, bar_y, bar_x + bar_w, bar_y + bar_h, true);
+
+draw_set_halign(fa_center);
+draw_text(bar_x + (bar_w / 2), bar_y - 14, nome_boss);
+draw_set_halign(fa_left);
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_boss_centopeia\Step_0.gml ===
+// ==========================================
+// 0. SISTEMA DE HITSTOP E INICIALIZAÃ‡ÃƒO SEGURA
+// ==========================================
+if (!variable_instance_exists(id, "usando_mordida"))        usando_mordida = false;
+if (!variable_instance_exists(id, "mordida_hitbox_ativa")) mordida_hitbox_ativa = false;
+if (!variable_instance_exists(id, "morrendo"))               morrendo = false;
+if (!variable_instance_exists(id, "escala_boss"))          escala_boss = 1.0;
+if (!variable_instance_exists(id, "facing"))               facing = -1;
+
+var sprite_dir = 1; 
+
+if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
+    image_speed = 0;
+    exit;
+}
+
+// ==========================================
+// 0.5 ESTADO DE MORTE COM ANIMAÃ‡ÃƒO (spr_boss_centopeia_death)
+// ==========================================
+if (hp <= 0) {
+    hp = 0;
+    hspd = 0;
+    vspd += grv;
+    if (place_meeting(x, y + vspd, obj_colisor)) {
+        while (!place_meeting(x, y + sign(vspd), obj_colisor)) y += sign(vspd);
+        vspd = 0;
+    }
+    y += vspd;
+
+    if (facing != 0) image_xscale = facing * sprite_dir * escala_boss;
+    image_yscale = escala_boss;
+
+    if (!morrendo) {
+        morrendo = true;
+        sprite_index = spr_boss_centopeia_death;
+        image_index = 0;
+        image_speed = 0.85;
+        image_blend = c_white;
+        if (instance_exists(obj_game_controller)) {
+            obj_game_controller.hitstop_timer = 20;
+            obj_game_controller.shake_magnitude = 10;
+        }
+    } else {
+        sprite_index = spr_boss_centopeia_death;
+        image_speed = 0.85;
+        if (image_index >= image_number - 1) {
+            show_debug_message("CHEFE DERROTADO! A floresta esta livre!");
+            repeat(8) {
+                instance_create_layer(x + irandom_range(-20, 20), y - 12, layer, obj_scrap);
+            }
+            if (object_exists(obj_item_drop)) {
+                for (var i = 0; i < 3; i++) {
+                    var _d = instance_create_layer(x + (i * 12) - 12, y - 16, layer, obj_item_drop);
+                    _d.tipo_item = i;
+                }
+            }
+            if (instance_exists(obj_player)) {
+                obj_player.arma_xp += 50;
+            }
+            instance_destroy();
+        }
+    }
+    exit;
+}
+
+if (piscar > 0) piscar--;
+
+if (queimando_timer > 0) {
+    queimando_timer--;
+    if (queimando_timer mod 60 == 0) {
+        hp -= 0.5;
+        piscar = 4;
+    }
+}
+
+if (piscar == 9 && state != centopeia_state.emergindo) {
+    vspd = 0;
+    hspd *= 0.2;
+}
+
+image_blend = (queimando_timer > 0) ? c_orange : c_white;
+
+var dir_to_player = 0;
+if (instance_exists(obj_player)) {
+    dir_to_player = sign(obj_player.x - x);
+}
+
+// ==========================================
+// 1. MÃQUINA DE ESTADOS DA CENTOPEIA
+// ==========================================
+switch (state) {
+    
+    // --- ESTADO 1: SUBTERRÃ‚NEA ---
+    case centopeia_state.subterranea:
+        hspd = 0;
+        vspd = 0;
+        usando_mordida = false;
+        mordida_hitbox_ativa = false;
+        
+        sprite_index = spr_boss_centopeia_submerge;
+        image_index = image_number - 1;
+        image_speed = 0;
+        
+        if (instance_exists(obj_player)) {
+            var dist = point_distance(x, y, obj_player.x, obj_player.y);
+            if (dist < 220) {
+                alvo_x = obj_player.x;
+                alvo_y = obj_player.y;
+                
+                var _chao = 0;
+                while (!place_meeting(alvo_x, alvo_y + 1, obj_colisor) && _chao < 200) {
+                    alvo_y += 2;
+                    _chao++;
+                }
+                
+                x = alvo_x;
+                y = alvo_y;
+                var seguranca = 0;
+                while (place_meeting(x, y, obj_colisor) && seguranca < 64) {
+                    y -= 1;
+                    seguranca++;
+                }
+                
+                if (dir_to_player != 0) facing = dir_to_player;
+                sprite_index = spr_boss_centopeia_emerge;
+                image_index = 0;
+                image_speed = 0.65;
+                
+                state = centopeia_state.emergindo;
+                action_timer = 36; 
+                
+                if (instance_exists(obj_game_controller)) {
+                    obj_game_controller.shake_magnitude = 2;
+                }
+            }
+        }
+        break;
+        
+    // --- ESTADO 2: EMERGINDO ---
+    case centopeia_state.emergindo:
+        hspd = 0;
+        vspd = 0;
+        sprite_index = spr_boss_centopeia_emerge;
+        image_speed = 0.85;
+        
+        // Nos primeiros 14 frames (timer 36 atÃ© 23), Ã© apenas o aviso da terra tremendo (sem dano!)
+        if (action_timer > 24 && dir_to_player != 0) {
+            facing = dir_to_player;
+        }
+        
+        if (image_index >= image_number - 1) {
+            image_index = image_number - 1;
+            image_speed = 0;
+        }
+        
+        if (instance_exists(obj_game_controller)) {
+            obj_game_controller.shake_magnitude = max(obj_game_controller.shake_magnitude, 1.5);
+        }
+        
+        action_timer--;
+        
+        // EXATAMENTE NO FRAME 22: Ela rompe o chÃ£o e gera a Hitbox por 4 frames!
+        if (action_timer == 22) {
+            if (instance_exists(obj_game_controller)) {
+                obj_game_controller.hitstop_timer = 6;
+                obj_game_controller.shake_magnitude = 7;
+            }
+            if (object_exists(obj_hitbox_enemy)) {
+                var hit = instance_create_layer(x, y - 16, layer, obj_hitbox_enemy);
+                hit.image_xscale = 1.6;
+                hit.image_yscale = 1.6;
+                hit.duracao = 4;
+                hit.dano = 20;
+            }
+        }
+        
+        if (action_timer <= 0) {
+            if (dir_to_player != 0) facing = dir_to_player;
+            state = centopeia_state.patrulha_luta;
+            action_timer = 55; 
+            sprite_index = spr_boss_centopeia_idle;
+            image_index = 0;
+            image_speed = 1;
+        }
+        break;
+        
+    // --- ESTADO 3: PATRULHA E ESCOLHA INTELIGENTE ---
+    case centopeia_state.patrulha_luta:
+        usando_mordida = false;
+        mordida_hitbox_ativa = false;
+        vspd += grv;
+        
+        if (sprite_index != spr_boss_centopeia_idle) {
+            sprite_index = spr_boss_centopeia_idle;
+            image_index = 0;
+        }
+        image_speed = 1;
+        
+        if (instance_exists(obj_player)) {
+            if (dir_to_player != 0) facing = dir_to_player;
+            
+            var dist_p = abs(obj_player.x - x);
+            
+            if (dist_p < 75) {
+                hspd = facing * 0.8;
+                if (action_timer > 18) action_timer = 18;
+            } else {
+                hspd = facing * 1.8;
+            }
+            
+            action_timer--;
+            if (action_timer <= 0) {
+                if (dir_to_player != 0) facing = dir_to_player;
+                
+                if (dist_p < 95) {
+                    var _escolha_curta = choose("mordida", "mordida", "mordida", "investida");
+                    if (_escolha_curta == "mordida") {
+                        usando_mordida = true;
+                        state = centopeia_state.preparando_bote;
+                        action_timer = 36; 
+                        sprite_index = spr_boss_centopeia_bite;
+                        image_index = 0;
+                    } else {
+                        usando_mordida = false;
+                        state = centopeia_state.preparando_bote;
+                        action_timer = 20;
+                        sprite_index = spr_boss_centopeia_dash;
+                        image_index = 0;
+                    }
+                }
+                else if (dist_p < 160) {
+                    var _escolha_media = choose("investida", "investida", "mordida", "cavando");
+                    if (_escolha_media == "mordida") {
+                        usando_mordida = true;
+                        state = centopeia_state.preparando_bote;
+                        action_timer = 36;
+                        sprite_index = spr_boss_centopeia_bite;
+                        image_index = 0;
+                    } else if (_escolha_media == "investida") {
+                        usando_mordida = false;
+                        state = centopeia_state.preparando_bote;
+                        action_timer = 20;
+                        sprite_index = spr_boss_centopeia_dash;
+                        image_index = 0;
+                    } else {
+                        state = centopeia_state.cavando;
+                        action_timer = 32;
+                        sprite_index = spr_boss_centopeia_submerge;
+                        image_index = 0;
+                    }
+                }
+                else {
+                    var proximo_ataque = choose(
+                        centopeia_state.cuspindo,
+                        centopeia_state.cuspindo,
+                        centopeia_state.preparando_bote,
+                        centopeia_state.cavando
+                    );
+                    usando_mordida = false;
+                    state = proximo_ataque;
+                    
+                    if (proximo_ataque == centopeia_state.preparando_bote) {
+                        action_timer = 20;
+                        sprite_index = spr_boss_centopeia_dash;
+                        image_index = 0;
+                    } else if (proximo_ataque == centopeia_state.cuspindo) {
+                        action_timer = 60;
+                        sprite_index = spr_boss_centopeia_bite;
+                        image_index = 0;
+                    } else {
+                        action_timer = 32;
+                        sprite_index = spr_boss_centopeia_submerge;
+                        image_index = 0;
+                    }
+                }
+            }
+        }
+        break;
+        
+    // --- ESTADO 3.5: PREPARANDO BOTE OU EXECUTANDO MORDIDA ---
+    case centopeia_state.preparando_bote:
+        vspd += grv;
+        
+        if (usando_mordida) {
+            sprite_index = spr_boss_centopeia_bite;
+            mordida_hitbox_ativa = false;
+            
+            if (action_timer > 16) {
+                if (dir_to_player != 0) facing = dir_to_player;
+                hspd = -facing * 0.5;
+                image_speed = 0.6;
+                if (image_index >= 2.9) {
+                    image_index = 2.9;
+                    image_speed = 0;
+                }
+            }
+            else if (action_timer == 16) {
+                hspd = facing * 6.5;
+                image_index = 3;
+                image_speed = 1.2;
+                if (instance_exists(obj_game_controller)) {
+                    obj_game_controller.shake_magnitude = 3;
+                }
+            }
+            else if (action_timer >= 9 && action_timer < 16) {
+                mordida_hitbox_ativa = true;
+                hspd = lerp(hspd, 0, 0.25);
+                image_speed = 1.1;
+                
+                if (object_exists(obj_hitbox_enemy)) {
+                    var hit = instance_create_layer(x + (facing * 28), y - 10, layer, obj_hitbox_enemy);
+                    hit.image_xscale = facing * 1.5;
+                    hit.duracao = 2;
+                    hit.dano = 20;
+                }
+            }
+            else {
+                mordida_hitbox_ativa = false;
+                hspd = lerp(hspd, 0, 0.3);
+                if (image_index >= image_number - 1) {
+                    image_index = image_number - 1;
+                    image_speed = 0;
+                }
+            }
+            
+            action_timer--;
+            if (action_timer <= 0) {
+                usando_mordida = false;
+                mordida_hitbox_ativa = false;
+                state = centopeia_state.recuperando;
+                action_timer = 35;
+            }
+        }
+        else {
+            if (dir_to_player != 0) facing = dir_to_player;
+            
+            sprite_index = spr_boss_centopeia_dash;
+            image_speed = 0.7;
+            if (image_index >= 2) {
+                image_index = 2;
+                image_speed = 0;
+            }
+            hspd = -facing * 0.8;
+            
+            action_timer--;
+            if (action_timer <= 0) {
+                state = centopeia_state.investida;
+                action_timer = 28;
+                image_index = 2;
+                image_speed = 1.2;
+                if (instance_exists(obj_game_controller)) {
+                    obj_game_controller.shake_magnitude = 3;
+                }
+            }
+        }
+        break;
+
+    // --- ESTADO 4: INVESTIDA FEROZ COM OBJ_HITBOX_ENEMY ---
+    case centopeia_state.investida:
+        sprite_index = spr_boss_centopeia_dash;
+        image_speed = 1.2;
+        hspd = facing * 5.8; 
+        vspd += grv;
+        
+        if (object_exists(obj_hitbox_enemy)) {
+            var hit = instance_create_layer(x + (facing * 22), y - 10, layer, obj_hitbox_enemy);
+            hit.image_xscale = facing * 1.8;
+            hit.duracao = 2;
+            hit.dano = 25;
+        }
+        
+        if (place_meeting(x + hspd, y, obj_colisor)) {
+            if (instance_exists(obj_game_controller)) {
+                obj_game_controller.shake_magnitude = 6;
+            }
+            hspd = -facing * 2;
+            vspd = -3;
+            state = centopeia_state.recuperando;
+            action_timer = 55; 
+            break;
+        }
+        
+        action_timer--;
+        if (action_timer <= 0) {
+            state = centopeia_state.recuperando;
+            action_timer = 45; 
+        }
+        break;
+
+    // --- ESTADO 4.5: RECUPERANDO O FÃ”LEGO ---
+    case centopeia_state.recuperando:
+        if (sprite_index != spr_boss_centopeia_idle) {
+            sprite_index = spr_boss_centopeia_idle;
+            image_index = 0;
+        }
+        image_speed = 0.8;
+        hspd = lerp(hspd, 0, 0.15); 
+        vspd += grv;
+        image_blend = c_ltgray; 
+        usando_mordida = false;
+        mordida_hitbox_ativa = false;
+        
+        action_timer--;
+        if (action_timer <= 0) {
+            if (dir_to_player != 0) facing = dir_to_player;
+            image_blend = c_white;
+            state = centopeia_state.patrulha_luta;
+            action_timer = 55;
+        }
+        break;
+
+    // --- ESTADO 5: CUSPINDO ÃCIDO ---
+    case centopeia_state.cuspindo:
+        sprite_index = spr_boss_centopeia_bite;
+        image_speed = 0.9;
+        hspd = 0;
+        vspd += grv;
+        
+        if (action_timer > 45 && dir_to_player != 0) {
+            facing = dir_to_player;
+        }
+        
+        action_timer--;
+        
+        if ((action_timer == 42 || action_timer == 26 || action_timer == 10) && object_exists(obj_acido_centopeia)) {
+            image_index = 2; 
+            var tiro = instance_create_layer(x + (facing * 20), y - 24, layer, obj_acido_centopeia);
+            var dist_x = instance_exists(obj_player) ? abs(obj_player.x - x) : 120;
+            var forca_h = clamp(dist_x / 35, 3, 7) + random_range(-0.8, 0.8);
+            
+            tiro.hspd = facing * forca_h;
+            tiro.vspd = random_range(-6.5, -4.5);
+            
+            if (instance_exists(obj_game_controller)) {
+                obj_game_controller.shake_magnitude = 2;
+            }
+        }
+        
+        if (action_timer <= 0) {
+            state = centopeia_state.recuperando;
+            action_timer = 25;
+        }
+        break;
+        
+    // --- ESTADO 6: CAVANDO ---
+    case centopeia_state.cavando:
+        hspd = 0;
+        vspd = 0; 
+        sprite_index = spr_boss_centopeia_submerge;
+        image_speed = 0.85;
+        
+        if (image_index >= image_number - 1) {
+            image_index = image_number - 1;
+            image_speed = 0;
+        }
+        
+        action_timer--;
+        if (action_timer <= 0) {
+            state = centopeia_state.subterranea;
+        }
+        break;
+}
+
+// ==========================================
+// 1.5 ALINHAMENTO AUTOMÃTICO DA SPRITE
+// ==========================================
+if (facing != 0) {
+    image_xscale = facing * sprite_dir * escala_boss;
+}
+image_yscale = escala_boss;
+
+// ==========================================
+// 2. COLISÃ•ES FÃSICAS
+// ==========================================
+if (state != centopeia_state.cavando && state != centopeia_state.subterranea && state != centopeia_state.emergindo) {
+    if (place_meeting(x + hspd, y, obj_colisor)) {
+        while (!place_meeting(x + sign(hspd), y, obj_colisor)) {
+            x += sign(hspd);
+        }
+        hspd = 0;
+    }
+    x += hspd;
+
+    if (place_meeting(x, y + vspd, obj_colisor)) {
+        while (!place_meeting(x, y + sign(vspd), obj_colisor)) {
+            y += sign(vspd);
+        }
+        vspd = 0;
+    }
+    y += vspd;
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_camera\Create_0.gml ===
+// --- CONFIGURAÃ‡ÃƒO DA CÃ‚MERA ---
+target = obj_player; // Quem a cÃ¢mera deve seguir
+
+// ResoluÃ§Ã£o virtual da cÃ¢mera (tamanho da janela que aparece na tela)
+cam_width = 480;
+cam_height = 270;
+
+// Configura e ativa a View 0 do GameMaker
+view_enabled = true;
+view_visible[0] = true;
+
+// Cria a cÃ¢mera digital
+camera = camera_create_view(0, 0, cam_width, cam_height);
+view_set_camera(0, camera);
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_camera\Step_2.gml ===
+// Verifica se o player existe na sala antes de tentar segui-lo
+if (instance_exists(target)) {
+    
+    // 1. Calcula para onde a cÃ¢mera DEVE ir (centralizada no player)
+    var target_x = target.x - (cam_width / 2);
+    var target_y = target.y - (cam_height / 2) - 20; // O -20 joga a cÃ¢mera um pouco acima para focar melhor no rato
+    
+    // 2. Trava a cÃ¢mera para nÃ£o passar das bordas da sala (evita mostrar o "vazio" fora do mapa)
+    target_x = clamp(target_x, 0, room_width - cam_width);
+    target_y = clamp(target_y, 0, room_height - cam_height);
+    
+    // 3. Pega a posiÃ§Ã£o atual da cÃ¢mera
+    var current_x = camera_get_view_x(camera);
+    var current_y = camera_get_view_y(camera);
+    
+    // 4. A MÃGICA DA SUAVIZAÃ‡ÃƒO (LERP)
+    var lerp_speed = 0.1;
+    var final_x = lerp(current_x, target_x, lerp_speed);
+    var final_y = lerp(current_y, target_y, lerp_speed);
+    
+ // 5. APLICA O SCREEN SHAKE (Sincronizado com o obj_game_controller e OpÃ§Ãµes)
+if (instance_exists(obj_game_controller) && obj_game_controller.shake_magnitude > 0 && global.tremer_tela) {
+    var _mag = obj_game_controller.shake_magnitude;
+    final_x += random_range(-_mag, _mag);
+    final_y += random_range(-_mag, _mag);
+}
+    
+    // 6. Aplica a posiÃ§Ã£o final na cÃ¢mera do jogo
+    camera_set_view_pos(camera, final_x, final_y);
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_colisor\Draw_0.gml ===
+// Calcula as bordas exatas do bloco (mesmo esticado na Room!)
+var x1 = bbox_left;
+var y1 = bbox_top;
+var x2 = bbox_right;
+var y2 = bbox_bottom;
+
+// 1. Corpo de terra/concreto escuro da ruÃ­na
+draw_set_color(make_color_rgb(35, 30, 40));
+draw_rectangle(x1, y1, x2, y2, false);
+
+// 2. Borda interna sutil para dar volume de plataforma
+draw_set_color(make_color_rgb(55, 48, 65));
+draw_rectangle(x1 + 1, y1 + 1, x2 - 1, y2 - 1, true);
+
+// 3. Camada de musgo/grama da floresta no topo (4 pixels de altura)
+draw_set_color(make_color_rgb(45, 115, 60));
+draw_rectangle(x1, y1, x2, min(y1 + 4, y2), false);
+
+draw_set_color(c_white);
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_dummy\Create_0.gml ===
+hp = 100;
+tempo_piscar = 0; // Inicia zerado, pois ele nÃ£o estÃ¡ tomando dano agora
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_dummy\Step_0.gml ===
+// Checa se a lanÃ§a colidiu com o boneco e armazena o ID do ataque
+var _hitbox = instance_place(x, y, obj_ataque);
+
+// Se a colisÃ£o for verdadeira (diferente de 'noone'/vazio)
+if (_hitbox != noone) {
+
+    // 1 e 2. DADO DO CRÃTICO E VARIÃVEIS
+    var _dado_critico = irandom_range(1, 100);
+    var _dano_final = global.ataque_base;
+    var _foi_critico = false;
+
+    // 3. VALIDAÃ‡ÃƒO DO CRÃTICO
+    if (_dado_critico <= global.chance_critico) {
+        _dano_final = global.ataque_base * global.multiplicador_crit;
+        _foi_critico = true;
+    }
+
+    // 4. APLICANDO O DANO (Removemos o 'other', pois o cÃ³digo jÃ¡ estÃ¡ dentro do dummy)
+    hp -= _dano_final;
+
+    // 5. GAME FEEL
+    if (_foi_critico == true) {
+        global.hitstop_timer = 15;
+        // scr_tremor_camera(5, 10); // Descomente quando o script da cÃ¢mera for criado
+        // instance_create_layer(x, y, "Efeitos", obj_faisca_critica);
+    } else {
+        global.hitstop_timer = 4;
+    }
+
+    // DestrÃ³i a hitbox do ataque para o boneco nÃ£o receber o dano 60x no mesmo golpe
+    instance_destroy(_hitbox);
+}
+
+// CONTROLE DO FLASH DE DANO
+if (tempo_piscar > 0) {
+    tempo_piscar -= 1;       // Vai diminuindo o cronÃ´metro atÃ© chegar a zero
+    image_blend = c_red;     // Pinta o sprite inteiro de vermelho
+} else {
+    image_blend = c_white;   // c_white devolve a cor original do seu desenho
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_enemy\Create_0.gml ===
+// --- ATRIBUTOS BASE ---
+hp = 3;
+walk_spd = 1.2;        
+chase_spd = 2.6;    
+charge_spd = 5.5; // Velocidade da investida explosiva
+hspd = 0;
+vspd = 0;
+grv = 0.35;
+
+// --- ESCALA DE TAMANHO DO BESOURO (0.75 = 25% menor) ---
+escala_base = 0.75;
+image_xscale = escala_base;
+image_yscale = escala_base;
+
+// --- DIREÃ‡ÃƒO E ESTADOS ---
+facing = 1;         
+tipo_ataque_atual = 0; // 0 = AvanÃ§o (spr_enemy_attack) | 1 = Bombardeio (spr_enemy_attack_defense)
+
+enum enemy_state {
+    patrol,
+    chase,
+    chemical_prep, // Aviso visual: misturando reagentes quÃ­micos
+    charge,        // Investida explosiva ou disparo quÃ­mico
+    cooldown       // Janela vulnerÃ¡vel pÃ³s-ataque
+}
+state = enemy_state.patrol;
+
+// --- INTELIGÃŠNCIA ARTIFICIAL E TIMERS ---
+vision_range = 170;        
+lose_interest_range = 280; 
+state_timer = 0;
+attack_cooldown = 0;
+
+// --- GAME FEEL, BUFF E EFEITOS DE COMBATE ---
+piscar = 0;            // Controla o brilho branco e a imunidade rÃ¡pida do knockback
+eh_bombardeiro = true; // Se true, ao morrer concede o Buff de Fogo direto para a lanÃ§a do Rato
+queimando_timer = 0;   // Tempo que o inimigo fica pegando fogo (dano contÃ­nuo)
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_enemy\Draw_0.gml ===
+var _shake_x = (state == enemy_state.chemical_prep) ? irandom_range(-2, 2) : 0;
+
+if (piscar > 0) {
+    gpu_set_fog(true, c_white, 0, 0); 
+}
+
+if (sprite_index != -1) {
+    draw_sprite_ext(sprite_index, image_index, x + _shake_x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
+} else {
+    draw_set_color(image_blend);
+    draw_rectangle(x - 16 + _shake_x, y - 32, x + 16 + _shake_x, y, false);
+    
+    draw_set_color(c_black);
+    draw_rectangle(x + (8 * facing) + _shake_x, y - 24, x + (12 * facing) + _shake_x, y - 20, false);
+    
+    draw_set_color(c_white);
+}
+
+if (piscar > 0) {
+    gpu_set_fog(false, c_white, 0, 0); 
+}
+
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_enemy\Step_0.gml ===
+// ==========================================
+// CONFIGURAÃ‡ÃƒO AUTOMÃTICA DAS SPRITES DO BESOURO
+// ==========================================
+var spr_walk = (asset_get_index("spr_enemy_walk") != -1) ? asset_get_index("spr_enemy_walk") : ((asset_get_index("spr_besouro_walk") != -1) ? asset_get_index("spr_besouro_walk") : sprite_index);
+var spr_atk_charge  = (asset_get_index("spr_enemy_attack") != -1) ? asset_get_index("spr_enemy_attack") : spr_walk;
+var spr_atk_defense = (asset_get_index("spr_enemy_attack_defense") != -1) ? asset_get_index("spr_enemy_attack_defense") : spr_atk_charge;
+
+if (!variable_instance_exists(id, "tipo_ataque_atual")) tipo_ataque_atual = 0;
+if (!variable_instance_exists(id, "escala_base")) escala_base = 0.75;
+
+// ==========================================
+// 0. SISTEMA DE HITSTOP (PAUSA O INIMIGO)
+// ==========================================
+if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
+    image_speed = 0;
+    exit;
+}
+
+// ==========================================
+// 1. GRAVIDADE, TIMERS E QUEIMADURA
+// ==========================================
+vspd += grv;
+if (piscar > 0) piscar--;
+if (attack_cooldown > 0) attack_cooldown--;
+
+// LÃ³gica de dano contÃ­nuo de Fogo (Queimadura)
+if (queimando_timer > 0) {
+    queimando_timer--;
+    if (queimando_timer mod 60 == 0) {
+        hp -= 0.5;
+        piscar = 4;
+    }
+}
+
+var on_ground = place_meeting(x, y + 1, obj_colisor);
+
+// ==========================================
+// MÃQUINA DE ESTADOS DA IA (BESOURO TÃTICO)
+// ==========================================
+switch (state) {
+    
+    // --- ESTADO 1: PATRULHA ---
+    case enemy_state.patrol:
+        if (sprite_index != spr_walk) {
+            sprite_index = spr_walk;
+            image_index = 0;
+        }
+        image_speed = 1;
+        
+        if (piscar <= 0) {
+            hspd = lerp(hspd, walk_spd * facing, 0.1);
+        }
+        image_blend = (queimando_timer > 0) ? c_orange : c_white; 
+        
+        var hit_wall = place_meeting(x + (facing * 2), y, obj_colisor);
+        var no_ledge = !place_meeting(x + (20 * facing), y + 2, obj_colisor); 
+        
+        if ((hit_wall || no_ledge) && on_ground) {
+            facing = -facing; 
+        }
+        
+        if (instance_exists(obj_player)) {
+            if (point_distance(x, y, obj_player.x, obj_player.y) <= vision_range && abs(y - obj_player.y) < 48) {
+                state = enemy_state.chase; 
+            }
+        }
+        break;
+        
+    // --- ESTADO 2: PERSEGUIÃ‡ÃƒO (Tenta alcanÃ§ar o range de bote) ---
+    case enemy_state.chase:
+        if (sprite_index != spr_walk) {
+            sprite_index = spr_walk;
+            image_index = 0;
+        }
+        image_speed = 1.25;
+        image_blend = (queimando_timer > 0) ? c_orange : c_white; 
+        
+        if (instance_exists(obj_player)) {
+            var dist = point_distance(x, y, obj_player.x, obj_player.y);
+            var dir_to_player = sign(obj_player.x - x);
+            
+            if (dir_to_player != 0 && piscar <= 0) {
+                facing = dir_to_player;
+            }
+            
+            var no_ledge = !place_meeting(x + (20 * facing), y + 2, obj_colisor);
+            var hit_wall = place_meeting(x + (facing * 2), y, obj_colisor);
+            
+            if ((no_ledge || hit_wall) && on_ground) {
+                hspd = 0; 
+            } else if (piscar <= 0) {
+                hspd = lerp(hspd, chase_spd * facing, 0.12);
+            }
+            
+            // QUANDO CHEGA NO RANGE DE BOTE (Ex: 95 pixels) E O COOLDOWN ACABOU:
+            // Ele entra na preparaÃ§Ã£o de 1 segundo (60 frames) antes de dar o charge!
+            if (dist <= 95 && on_ground && attack_cooldown <= 0) {
+                state = enemy_state.chemical_prep;
+                hspd = 0;
+                tipo_ataque_atual = 0; // 0 = Investida
+                sprite_index = spr_atk_charge;
+                image_index = 0;
+                state_timer = 60; // EXATAMENTE 1 SEGUNDO DE PREPARAÃ‡ÃƒO (60 steps)
+            }
+            
+            if (dist > lose_interest_range) {
+                state = enemy_state.patrol;
+            }
+        } else {
+            state = enemy_state.patrol;
+        }
+        break;
+        
+    // --- ESTADO 3: PREPARAÃ‡ÃƒO DE 1 SEGUNDO (Janela de ReaÃ§Ã£o do Player) ---
+    case enemy_state.chemical_prep:
+        hspd = lerp(hspd, 0, 0.3); // Para totalmente para focar no bote
+        image_speed = 0.5; // AnimaÃ§Ã£o mais lenta tensionando o corpo
+        image_blend = c_white;
+        
+        // MantÃ©m olhando para o player durante a preparaÃ§Ã£o
+        if (instance_exists(obj_player) && obj_player.x != x) {
+            facing = sign(obj_player.x - x);
+        }
+        
+        state_timer--; // Conta os 60 frames (1 segundo)
+        
+        if (state_timer <= 0) {
+            state = enemy_state.charge; // Libera o avanÃ§o!
+            image_index = 0;
+            image_speed = 1.3;
+            state_timer = 24; // DuraÃ§Ã£o mÃ¡xima da investida
+            
+            if (instance_exists(obj_game_controller)) {
+                obj_game_controller.shake_magnitude = 3;
+            }
+        }
+        break;
+        
+    // --- ESTADO 4: EXECUÃ‡ÃƒO DO CHARGE (O AvanÃ§o) ---
+    case enemy_state.charge:
+        sprite_index = spr_atk_charge;
+        image_blend = c_white;
+        state_timer--;
+        
+        // Aqui ele acelera com forÃ§a para a frente
+        hspd = facing * charge_spd;
+        
+        if (image_index >= image_number - 1) {
+            image_index = image_number - 1;
+            image_speed = 0;
+        }
+        
+        var bateu_parede = place_meeting(x + facing, y, obj_colisor);
+        if (bateu_parede || state_timer <= 0) {
+            hspd = 0;
+            state = enemy_state.cooldown;
+            state_timer = 45;     // Janela generosa para o player punir o besouro pÃ³s-investida
+            attack_cooldown = 110; // Tempo atÃ© ele poder dar outro bote
+        }
+        break;
+        
+    // --- ESTADO 5: COOLDOWN (Janela de PuniÃ§Ã£o) ---
+    case enemy_state.cooldown:
+        sprite_index = spr_walk;
+        image_index = 0;
+        image_speed = 0; 
+        hspd = lerp(hspd, 0, 0.2);
+        image_blend = c_ltgray; // Fica cinza indicando cansaÃ§o/vulnerabilidade
+        state_timer--;
+        if (state_timer <= 0) {
+            image_speed = 1;
+            image_blend = c_white;
+            state = enemy_state.chase;
+        }
+        break;
+}
+
+// ==========================================
+// 3. COLISÃ•ES FÃSICAS
+// ==========================================
+if (place_meeting(x + hspd, y, obj_colisor)) {
+    while (!place_meeting(x + sign(hspd), y, obj_colisor)) {
+        x += sign(hspd);
+    }
+    hspd = 0;
+}
+x += hspd;
+
+if (place_meeting(x, y + vspd, obj_colisor)) {
+    while (!place_meeting(x, y + sign(vspd), obj_colisor)) {
+        y += sign(vspd);
+    }
+    vspd = 0;
+}
+y += vspd;
+
+// ==========================================
+// 4. MORTE E DROPS
+// ==========================================
+if (hp <= 0) {
+    if (instance_exists(obj_player)) {
+        obj_player.arma_xp += 5;
+        
+        if (obj_player.arma_xp >= obj_player.arma_xp_max) {
+            if (obj_player.arma_nivel == 1) {
+                obj_player.arma_nivel = 2;
+                obj_player.arma_xp = 0;
+                obj_player.arma_xp_max = 20;
+            } else if (obj_player.arma_nivel == 2) {
+                obj_player.arma_nivel = 3;
+                obj_player.arma_xp = obj_player.arma_xp_max;
+            }
+        }
+        
+        if (eh_bombardeiro) {
+            obj_player.buff_fogo_timer = 600;
+        }
+    }
+    
+    instance_create_layer(x, y - 6, layer, obj_scrap);
+    
+    if (irandom(99) < 70 && object_exists(obj_item_drop)) {
+        var _carne = instance_create_layer(x - 4, y - 8, layer, obj_item_drop);
+        _carne.tipo_item = 0;
+    }
+    
+    if (eh_bombardeiro && irandom(99) < 50 && object_exists(obj_item_drop)) {
+        var _glandula = instance_create_layer(x + 4, y - 8, layer, obj_item_drop);
+        _glandula.tipo_item = 1;
+    }
+    
+    if (instance_exists(obj_game_controller)) {
+        obj_game_controller.hitstop_timer = 6;
+        obj_game_controller.shake_magnitude = 5;
+    }
+    
+    instance_destroy();
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_espinho\Draw_0.gml ===
+// Draw_0.gml do obj_espinho
+var x1 = bbox_left; var y1 = bbox_top; var x2 = bbox_right; var y2 = bbox_bottom;
+draw_set_color(c_crimson);
+for (var xx = x1; xx < x2; xx += 8) {
+    draw_triangle(xx, y2, min(xx + 8, x2), y2, xx + 4, y1, false);
+}
+draw_set_color(c_white);
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_faca_arremesso\Create_0.gml ===
+hspd = 0;
+vspd = 0;
+grv = 0.04; // Quase reta, cai muito pouquinho
+dano = 4;   // Dano perfurante alto em alvo Ãºnico!
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_faca_arremesso\Draw_0.gml ===
+if (sprite_index != -1 && sprite_exists(sprite_index)) {
+    draw_self();
+} else {
+    var dir = (hspd >= 0) ? 1 : -1;
+    // LÃ¢mina / FerrÃ£o afiado
+    draw_set_color(c_ltgray);
+    draw_triangle(x - (6 * dir), y - 3, x - (6 * dir), y + 3, x + (10 * dir), y, false);
+    // Cabo
+    draw_set_color(c_maroon);
+    draw_rectangle(x - (10 * dir), y - 2, x - (6 * dir), y + 2, false);
+    draw_set_color(c_white);
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_faca_arremesso\Step_0.gml ===
+if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
+    exit;
+}
+
+vspd += grv;
+
+// 1. Bateu na parede
+if (collision_circle(x + hspd, y + vspd, 4, obj_colisor, false, true) != noone) {
+    instance_destroy();
+    exit;
+}
+
+// 2. Acertou Inimigo
+var hit_enemy = collision_circle(x + hspd, y + vspd, 8, obj_enemy, false, true);
+if (hit_enemy == noone && object_exists(obj_vespa)) {
+    hit_enemy = collision_circle(x + hspd, y + vspd, 8, obj_vespa, false, true);
+}
+if (hit_enemy == noone && object_exists(obj_boss_centopeia)) {
+    hit_enemy = collision_circle(x + hspd, y + vspd, 8, obj_boss_centopeia, false, true);
+}
+
+if (hit_enemy != noone) {
+    with (hit_enemy) {
+        var pode_acertar = true;
+        if (object_index == obj_boss_centopeia) {
+            if (state == centopeia_state.subterranea || state == centopeia_state.emergindo) {
+                pode_acertar = false;
+            }
+        }
+        
+        if (pode_acertar) {
+            hp -= other.dano;
+            piscar = 10;
+            if (object_index != obj_boss_centopeia) {
+                hspd = sign(other.hspd) * 7;
+                vspd = -3;
+            }
+        }
+    }
+    
+    if (instance_exists(obj_game_controller)) {
+        obj_game_controller.hitstop_timer = 5;
+        obj_game_controller.shake_magnitude = 3;
+    }
+    instance_destroy();
+    exit;
+}
+
+x += hspd;
+y += vspd;
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_fogo_chao\Create_0.gml ===
+duracao = 180; // Dura 3 segundos (180 frames)
+dano_tick = 1; // Dano por segundo de contato
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_fogo_chao\Draw_0.gml ===
+// Desenha labaredas animadas via cÃ³digo
+for (var i = -20; i <= 20; i += 8) {
+    var alt = 8 + sin((current_time / 60) + i) * 6;
+    draw_set_color(c_orange);
+    draw_triangle(x + i - 5, y, x + i + 5, y, x + i, y - alt - 4, false);
+    draw_set_color(c_yellow);
+    draw_triangle(x + i - 3, y, x + i + 3, y, x + i, y - (alt * 0.6), false);
+}
+draw_set_color(c_white);
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_fogo_chao\Step_0.gml ===
+if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
+    exit;
+}
+
+duracao--;
+if (duracao <= 0) {
+    instance_destroy();
+    exit;
+}
+
+// A cada 30 frames (meio segundo), queima qualquer inimigo na Ã¡rea das chamas (largura de 48px)
+if (duracao mod 30 == 0) {
+    var _inimigo = collision_rectangle(x - 24, y - 16, x + 24, y + 4, obj_enemy, false, true);
+    if (_inimigo == noone && object_exists(obj_vespa)) {
+        _inimigo = collision_rectangle(x - 24, y - 16, x + 24, y + 4, obj_vespa, false, true);
+    }
+    if (_inimigo == noone && object_exists(obj_boss_centopeia)) {
+        _inimigo = collision_rectangle(x - 24, y - 16, x + 24, y + 4, obj_boss_centopeia, false, true);
+    }
+    
+    if (_inimigo != noone) {
+        with (_inimigo) {
+            var pode_queimar = true;
+            if (object_index == obj_boss_centopeia) {
+                if (state == centopeia_state.subterranea || state == centopeia_state.emergindo) {
+                    pode_queimar = false;
+                }
+            }
+            if (pode_queimar) {
+                hp -= other.dano_tick;
+                piscar = 6;
+                if (variable_instance_exists(id, "queimando_timer")) {
+                    queimando_timer = 120;
+                }
+            }
+        }
+    }
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_fogueira\Create_0.gml ===
+salvo_timer = 0;
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_fogueira\Draw_0.gml ===
+if (sprite_index != -1 && sprite_exists(sprite_index)) {
+    draw_self();
+} else {
+    // Fogueira provisÃ³ria caso ainda nÃ£o tenha sprite
+    draw_set_color(make_color_rgb(120, 70, 30));
+    draw_rectangle(x - 10, y - 4, x + 10, y, false);
+    draw_set_color(choose(c_orange, c_yellow, c_red));
+    draw_triangle(x - 8, y - 4, x + 8, y - 4, x, y - 22 + irandom_range(-2, 2), false);
+    draw_set_color(c_white);
+}
+
+if (instance_exists(obj_player) && point_distance(x, y, obj_player.x, obj_player.y) <= 40) {
+    draw_set_font(fnt_menu);
+    draw_set_halign(fa_center);
+    var _pt = (!variable_global_exists("idioma") || global.idioma == "PT");
+    
+    if (salvo_timer > 0) {
+        draw_set_color(c_lime);
+        draw_text(x, y - 42, _pt ? "JOGO SALVO & VIDA RECUPERADA!" : "GAME SAVED & HP RESTORED!");
+    } else {
+        draw_set_color(c_yellow);
+        draw_text(x, y - 42, _pt ? "[E / ENTER] DESCANSAR" : "[E / ENTER] REST & SAVE");
+    }
+    draw_set_halign(fa_left);
+    draw_set_color(c_white);
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_fogueira\Step_0.gml ===
+if (salvo_timer > 0) salvo_timer--;
+
+if (instance_exists(obj_player)) {
+    var _dist = point_distance(x, y, obj_player.x, obj_player.y);
+    var _interagir = keyboard_check_pressed(vk_enter) || keyboard_check_pressed(ord("E")) || keyboard_check_pressed(global.key_confirm) || gamepad_button_check_pressed(0, gp_face1);
+    
+    if (_dist <= 40 && _interagir) {
+        obj_player.hp = 100; // Recupera a vida
+        salvar_jogo(1);      // Salva no save_1.ini
+        salvo_timer = 120;   // Mostra mensagem por 2 segundos
+        
+        if (instance_exists(obj_game_controller)) {
+            obj_game_controller.shake_magnitude = 2;
+        }
+    }
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_game_controller\Create_0.gml ===
+display_set_gui_size(800, 450);
+
+// ==========================================
+// DECLARAÃ‡ÃƒO OBRIGATÃ“RIA DE PAUSE E CÃ‚MERA
+// ==========================================
+is_paused = false;
+pause_state = 0; // 0 = Pause Principal | 1 = OpÃ§Ãµes e Controles
+pause_index = 0;
+opcao_aba = 0;
+aguardando_tecla = false;
+hitstop_timer = 0;
+shake_magnitude = 0;
+shake_fade = 0.4;
+
+pause_opcoes = ["CONTINUAR", "OPCOES / CONTROLES", "VOLTAR AO MENU INICIAL"];
+
+// ==========================================
+// SEGURANÃ‡A DE VARIÃVEIS GLOBAIS (FALLBACK)
+// ==========================================
+if (!variable_global_exists("brilho"))        global.brilho        = 0.5;
+if (!variable_global_exists("idioma"))        global.idioma        = "PT";
+if (!variable_global_exists("tremer_tela"))   global.tremer_tela   = 1;
+if (!variable_global_exists("tela_cheia"))    global.tela_cheia    = window_get_fullscreen();
+if (!variable_global_exists("res_index"))     global.res_index     = 0;
+
+if (!variable_global_exists("key_jump"))      global.key_jump      = vk_space;
+if (!variable_global_exists("key_attack"))    global.key_attack    = ord("J");
+if (!variable_global_exists("key_roll"))      global.key_roll      = ord("K");
+if (!variable_global_exists("key_heal"))      global.key_heal      = ord("H");
+if (!variable_global_exists("key_throw"))     global.key_throw     = ord("F");
+if (!variable_global_exists("key_right"))     global.key_right     = vk_right;
+if (!variable_global_exists("key_left"))      global.key_left      = vk_left;
+if (!variable_global_exists("key_up"))        global.key_up        = vk_up;
+if (!variable_global_exists("key_down"))      global.key_down      = vk_down;
+if (!variable_global_exists("key_confirm"))   global.key_confirm   = vk_enter;
+if (!variable_global_exists("key_menu"))      global.key_menu      = ord("I");
+if (!variable_global_exists("key_tab_left"))  global.key_tab_left  = ord("Q");
+if (!variable_global_exists("key_tab_right")) global.key_tab_right = ord("E");
+
+gpu_set_tex_filter(false);
+
+if (file_exists("config.ini")) {
+    carregar_configuracoes();
+}
+
+nome_tecla = function(_k) {
+    var _pt = (global.idioma == "PT");
+    switch (_k) {
+        case vk_space:     return _pt ? "ESPACO" : "SPACE";
+        case vk_up:        return _pt ? "SETA CIMA" : "UP ARROW";
+        case vk_down:      return _pt ? "SETA BAIXO" : "DOWN ARROW";
+        case vk_left:      return _pt ? "SETA ESQ" : "LEFT ARROW";
+        case vk_right:     return _pt ? "SETA DIR" : "RIGHT ARROW";
+        case vk_enter:     return "ENTER";
+        case vk_shift:     return "SHIFT";
+        case vk_control:   return "CTRL";
+        case vk_alt:       return "ALT";
+        case vk_tab:       return "TAB";
+        case vk_backspace: return "BACKSPACE";
+        default:
+            if (_k >= 48 && _k <= 90) return chr(_k);
+            return "KEY " + string(_k);
+    }
+};
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_game_controller\Draw_64.gml ===
+// Garante que a GUI rode sempre na escala proporcional 800x450
+if (display_get_gui_width() != 800) {
+    display_set_gui_size(800, 450);
+}
+
+var gw = display_get_gui_width();
+var gh = display_get_gui_height();
+
+// ==========================================
+// 1. EFEITO GLOBAL DE BRILHO NA TELA
+// ==========================================
+if (variable_global_exists("brilho")) {
+    if (global.brilho < 0.5) {
+        draw_set_color(c_black);
+        draw_set_alpha((0.5 - global.brilho) * 1.4);
+        draw_rectangle(0, 0, gw, gh, false);
+        draw_set_alpha(1.0);
+    } else if (global.brilho > 0.5) {
+        gpu_set_blendmode(bm_add);
+        draw_set_color(c_white);
+        draw_set_alpha((global.brilho - 0.5) * 0.6);
+        draw_rectangle(0, 0, gw, gh, false);
+        draw_set_alpha(1.0);
+        gpu_set_blendmode(bm_normal);
+    }
+}
+
+// ==========================================
+// 2. MENU DE PAUSA EM TELA INTEIRA (800x450 NÃTIDO)
+// ==========================================
+if (is_paused) {
+    draw_set_font(fnt_menu);
+    var is_pt = (!variable_global_exists("idioma") || global.idioma == "PT");
+    
+    var col_bg_panel   = make_color_rgb(14, 16, 22);
+    var col_header     = make_color_rgb(24, 28, 38);
+    var col_border_out = make_color_rgb(85, 75, 60);
+    var col_gold       = make_color_rgb(245, 195, 65);
+    var col_highlight  = make_color_rgb(42, 48, 66);
+    var col_text_off   = make_color_rgb(175, 180, 195);
+    
+    var _draw_txt = function(_x, _y, _str, _col) {
+        draw_set_color(c_black);
+        draw_text(round(_x) + 1, round(_y) + 1, _str);
+        draw_set_color(_col);
+        draw_text(round(_x), round(_y), _str);
+    };
+    
+    // Fundo escuro cobrindo 100% da tela
+    draw_set_color(c_black);
+    draw_set_alpha(0.90);
+    draw_rectangle(0, 0, gw, gh, false);
+    draw_set_alpha(1.0);
+    
+    var pw = round(gw * 0.92);
+    var ph = round(gh * 0.86);
+    var px = round((gw - pw) / 2);
+    var py = round((gh - ph) / 2) - 6;
+    
+    draw_set_color(col_bg_panel);
+    draw_rectangle(px, py, px + pw, py + ph, false);
+    draw_set_color(col_border_out);
+    draw_rectangle(px, py, px + pw, py + ph, true);
+    draw_set_color(col_gold);
+    draw_rectangle(px + 2, py + 2, px + pw - 2, py + ph - 2, true);
+    
+    // ----------------------------------------------------
+    // TELA 0: PAUSA PRINCIPAL
+    // ----------------------------------------------------
+    if (pause_state == 0) {
+        draw_set_color(col_header);
+        draw_rectangle(px + 3, py + 3, px + pw - 3, py + 44, false);
+        draw_set_color(col_gold);
+        draw_line(px + 2, py + 44, px + pw - 2, py + 44);
+        
+        draw_set_halign(fa_center);
+        draw_set_valign(fa_middle);
+        _draw_txt(gw / 2, py + 24, is_pt ? "JOGO EM PAUSA" : "GAME PAUSED", col_gold);
+        
+        pause_opcoes[0] = is_pt ? "CONTINUAR JOGO" : "RESUME GAME";
+        pause_opcoes[1] = is_pt ? "OPCOES E CONTROLES" : "OPTIONS & CONTROLS";
+        pause_opcoes[2] = is_pt ? "SALVAR E SAIR PARA O MENU" : "SAVE & QUIT TO MENU";
+        
+        var start_y = py + round(ph * 0.36);
+        var row_h   = 56;
+        var btn_w   = min(380, round(pw * 0.60));
+        var bx1     = round((gw - btn_w) / 2);
+        var bx2     = bx1 + btn_w;
+        
+        for (var i = 0; i < array_length(pause_opcoes); i++) {
+            var yy = start_y + (i * row_h);
+            
+            if (pause_index == i) {
+                draw_set_color(col_highlight);
+                draw_rectangle(bx1, yy - 18, bx2, yy + 18, false);
+                draw_set_color(col_gold);
+                draw_rectangle(bx1, yy - 18, bx1 + 6, yy + 18, false);
+                draw_set_color(col_border_out);
+                draw_rectangle(bx1, yy - 18, bx2, yy + 18, true);
+                
+                _draw_txt(gw / 2, yy, pause_opcoes[i], c_white);
+            } else {
+                draw_set_color(col_header);
+                draw_rectangle(bx1, yy - 18, bx2, yy + 18, false);
+                draw_set_color(col_border_out);
+                draw_rectangle(bx1, yy - 18, bx2, yy + 18, true);
+                _draw_txt(gw / 2, yy, pause_opcoes[i], col_text_off);
+            }
+        }
+    }
+    // ----------------------------------------------------
+    // TELA 1: OPÃ‡Ã•ES E CONTROLES EM ABAS SEPARADAS
+    // ----------------------------------------------------
+    else if (pause_state == 1) {
+        if (!variable_instance_exists(id, "opcao_aba")) opcao_aba = 0;
+        
+        var tab_w = (pw - 4) / 2;
+        var tab_h = 38;
+        var nomes_abas = [
+            is_pt ? "[Q] 1. GERAL E VIDEO" : "[Q] 1. GENERAL & VIDEO",
+            is_pt ? "2. CONTROLES [E]" : "2. CONTROLS [E]"
+        ];
+        
+        draw_set_halign(fa_center);
+        draw_set_valign(fa_middle);
+        
+        for (var t = 0; t < 2; t++) {
+            var tx1 = px + 2 + (t * tab_w);
+            var tx2 = tx1 + tab_w;
+            var ty1 = py + 2;
+            var ty2 = ty1 + tab_h;
+            
+            if (opcao_aba == t) {
+                draw_set_color(col_highlight);
+                draw_rectangle(tx1, ty1, tx2, ty2, false);
+                draw_set_color(col_gold);
+                draw_rectangle(tx1, ty2 - 3, tx2, ty2, false);
+                _draw_txt((tx1 + tx2) / 2, (ty1 + ty2) / 2, nomes_abas[t], c_white);
+            } else {
+                draw_set_color(col_header);
+                draw_rectangle(tx1, ty1, tx2, ty2, false);
+                draw_set_color(col_border_out);
+                draw_rectangle(tx1, ty1, tx2, ty2, true);
+                _draw_txt((tx1 + tx2) / 2, (ty1 + ty2) / 2, nomes_abas[t], col_text_off);
+            }
+        }
+        
+        var txt_sim     = is_pt ? "LIGADO" : "ON";
+        var txt_nao     = is_pt ? "DESLIGADO" : "OFF";
+        var txt_espera  = is_pt ? "PRESSIONE TECLA..." : "PRESS ANY KEY...";
+        var val_brilho  = clamp(variable_global_exists("brilho") ? global.brilho : 0.5, 0.1, 1.0);
+        var _brilho_pct = string(round(val_brilho * 100)) + "%";
+        
+        // --- CONTEÃšDO DA ABA 0: GERAL E VÃDEO (COM RESOLUÃ‡ÃƒO) ---
+        if (opcao_aba == 0) {
+            if (!variable_global_exists("res_index")) global.res_index = 0;
+            var _res_nomes = ["1280 x 720 (HD)", "1600 x 900 (HD+)", "1920 x 1080 (FHD)"];
+            var _res_atual = _res_nomes[clamp(global.res_index, 0, 2)];
+            
+            var labels_aba0 = [
+                is_pt ? "Idioma do Jogo" : "Game Language",
+                is_pt ? "Modo Tela Cheia" : "Fullscreen Mode",
+                is_pt ? "Resolucao da Janela" : "Window Resolution",
+                is_pt ? "Tremor de Tela (Shake)" : "Screen Shake",
+                is_pt ? "Nivel de Brilho" : "Brightness Level",
+                is_pt ? "Voltar ao Menu de Pausa" : "Back to Pause Menu"
+            ];
+            
+            var values_aba0 = [
+                "< " + global.idioma + " >",
+                "< " + (window_get_fullscreen() ? txt_sim : txt_nao) + " >",
+                "< " + _res_atual + " >",
+                "< " + (global.tremer_tela ? txt_sim : txt_nao) + " >",
+                "< " + _brilho_pct + " >",
+                ""
+            ];
+            
+            var row_h = (ph - 85) / 6;
+            var list_y = py + 72;
+            
+            for (var idx = 0; idx < array_length(labels_aba0); idx++) {
+                var yy = list_y + (idx * row_h);
+                var rx1 = px + 32;
+                var rx2 = px + pw - 32;
+                var is_sel = (pause_index == idx);
+                
+                if (is_sel) {
+                    draw_set_color(col_highlight);
+                    draw_rectangle(rx1, yy - 15, rx2, yy + 15, false);
+                    draw_set_color(col_gold);
+                    draw_rectangle(rx1, yy - 15, rx1 + 5, yy + 15, false);
+                }
+                
+                draw_set_halign(fa_left);
+                _draw_txt(rx1 + 16, yy, labels_aba0[idx], is_sel ? c_white : col_text_off);
+                
+                draw_set_halign(fa_right);
+                if (idx == 4) {
+                    var bar_w = 100;
+                    var bar_h = 10;
+                    var bar_x1 = rx2 - 80 - bar_w;
+                    var bar_y1 = yy - (bar_h / 2);
+                    draw_set_color(c_dkgray);
+                    draw_rectangle(bar_x1, bar_y1, bar_x1 + bar_w, bar_y1 + bar_h, false);
+                    draw_set_color(is_sel ? col_gold : c_gray);
+                    draw_rectangle(bar_x1, bar_y1, bar_x1 + (bar_w * val_brilho), bar_y1 + bar_h, false);
+                    _draw_txt(rx2 - 14, yy, values_aba0[idx], is_sel ? col_gold : c_ltgray);
+                } else if (idx < 5) {
+                    _draw_txt(rx2 - 14, yy, values_aba0[idx], is_sel ? col_gold : c_ltgray);
+                }
+            }
+        }
+        // --- CONTEÃšDO DA ABA 1: CONTROLES ---
+        else if (opcao_aba == 1) {
+            var labels_aba1 = [
+                is_pt ? "Pular" : "Jump",
+                is_pt ? "Atacar (Lanca)" : "Attack (Spear)",
+                is_pt ? "Esquivar (Roll)" : "Dodge (Roll)",
+                is_pt ? "Usar Curativo" : "Use Bandage",
+                is_pt ? "Arremessar Item" : "Throw Item",
+                is_pt ? "Mover Esquerda" : "Move Left",
+                is_pt ? "Mover Direita" : "Move Right",
+                is_pt ? "Voltar ao Menu de Pausa" : "Back to Pause Menu"
+            ];
+            
+            var keys_array = [global.key_jump, global.key_attack, global.key_roll, global.key_heal, global.key_throw, global.key_left, global.key_right];
+            
+            var row_h = (ph - 80) / 8;
+            var list_y = py + 66;
+            
+            for (var idx = 0; idx < array_length(labels_aba1); idx++) {
+                var yy = list_y + (idx * row_h);
+                var rx1 = px + 32;
+                var rx2 = px + pw - 32;
+                var is_sel = (pause_index == idx);
+                
+                if (is_sel) {
+                    draw_set_color(col_highlight);
+                    draw_rectangle(rx1, yy - 13, rx2, yy + 13, false);
+                    draw_set_color(aguardando_tecla ? c_orange : col_gold);
+                    draw_rectangle(rx1, yy - 13, rx1 + 5, yy + 13, false);
+                }
+                
+                draw_set_halign(fa_left);
+                _draw_txt(rx1 + 16, yy, labels_aba1[idx], is_sel ? c_white : col_text_off);
+                
+                draw_set_halign(fa_right);
+                if (idx < 7) {
+                    var txt_k = (aguardando_tecla && pause_index == idx) ? txt_espera : "[ " + nome_tecla(keys_array[idx]) + " ]";
+                    _draw_txt(rx2 - 14, yy, txt_k, is_sel ? (aguardando_tecla ? c_orange : col_gold) : c_ltgray);
+                }
+            }
+        }
+    }
+    
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    var dica_rodape = is_pt 
+        ? "[W/S] Navegar   |   [Q/E] Aba   |   [A/D ou ENTER] Alterar   |   [ESC] Voltar" 
+        : "[W/S] Navigate   |   [Q/E] Tab   |   [A/D or ENTER] Change   |   [ESC] Back";
+    _draw_txt(gw / 2, gh - 15, dica_rodape, col_text_off);
+    
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(c_white);
+    draw_set_font(-1);
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_game_controller\Step_0.gml ===
+// Alternar entre Tela Cheia e Modo Janela no F11
+if (keyboard_check_pressed(vk_f11)) {
+    global.tela_cheia = !window_get_fullscreen();
+    aplicar_resolucao();
+    salvar_configuracoes();
+}
+
+// ==========================================
+// 1. MODO DE REBIND (CAPTURANDO TECLA NOVA)
+// ==========================================
+if (is_paused && pause_state == 1 && opcao_aba == 1 && aguardando_tecla) {
+    if (keyboard_check_pressed(vk_anykey)) {
+        var nova_tecla = keyboard_lastkey;
+        
+        if (nova_tecla != vk_escape && nova_tecla != vk_f11) {
+            switch (pause_index) {
+                case 0:  global.key_jump   = nova_tecla; break;
+                case 1:  global.key_attack = nova_tecla; break;
+                case 2:  global.key_roll   = nova_tecla; break;
+                case 3:  global.key_heal   = nova_tecla; break;
+                case 4:  global.key_throw  = nova_tecla; break;
+                case 5:  global.key_left   = nova_tecla; break;
+                case 6:  global.key_right  = nova_tecla; break;
+            }
+            salvar_configuracoes();
+        }
+        aguardando_tecla = false;
+        keyboard_clear(vk_anykey);
+    }
+    exit;
+}
+
+// ==========================================
+// 2. GATILHO DO PAUSE (BotÃ£o ESC ou Select)
+// ==========================================
+var key_pause = keyboard_check_pressed(vk_escape) || gamepad_button_check_pressed(0, gp_select);
+
+if (key_pause) {
+    // Blindagem: Se o player estiver no InventÃ¡rio ou Craftando, deixa o obj_player fechar o menu dele!
+    if (instance_exists(obj_player) && (obj_player.state == player_state.menu || obj_player.state == player_state.craft)) {
+        exit; 
+    }
+
+    if (!is_paused) {
+        is_paused = true;
+        pause_state = 0;
+        pause_index = 0;
+        aguardando_tecla = false;
+        instance_deactivate_all(true);
+    } else {
+        if (pause_state == 1) {
+            salvar_configuracoes();
+            pause_state = 0;
+            pause_index = 1; 
+        } else {
+            is_paused = false;
+            instance_activate_all();
+        }
+    }
+    keyboard_clear(vk_escape);
+    exit; 
+}
+
+// ==========================================
+// 3. NAVEGAÃ‡ÃƒO DO MENU DE PAUSA
+// ==========================================
+if (is_paused) {
+    var key_up      = keyboard_check_pressed(vk_up)    || keyboard_check_pressed(ord("W")) || keyboard_check_pressed(global.key_up)    || gamepad_button_check_pressed(0, gp_padu);
+    var key_down    = keyboard_check_pressed(vk_down)  || keyboard_check_pressed(ord("S")) || keyboard_check_pressed(global.key_down)  || gamepad_button_check_pressed(0, gp_padd);
+    var key_left    = keyboard_check_pressed(vk_left)  || keyboard_check_pressed(ord("A")) || keyboard_check_pressed(global.key_left)  || gamepad_button_check_pressed(0, gp_padl);
+    var key_right   = keyboard_check_pressed(vk_right) || keyboard_check_pressed(ord("D")) || keyboard_check_pressed(global.key_right) || gamepad_button_check_pressed(0, gp_padr);
+    var key_confirm = keyboard_check_pressed(vk_enter) || keyboard_check_pressed(vk_space) || keyboard_check_pressed(global.key_confirm) || gamepad_button_check_pressed(0, gp_face1);
+    
+    // --- TELA 0: MENU DE PAUSE PRINCIPAL ---
+    if (pause_state == 0) {
+        var total_opcoes = 3;
+        if (key_up)   { pause_index--; if (pause_index < 0) pause_index = total_opcoes - 1; }
+        if (key_down) { pause_index++; if (pause_index >= total_opcoes) pause_index = 0; }
+        
+        if (key_confirm) {
+            if (pause_index == 0) {
+                is_paused = false;
+                instance_activate_all();
+            } else if (pause_index == 1) {
+                pause_state = 1;
+                opcao_aba = 0;
+                pause_index = 0;
+            } else if (pause_index == 2) {
+                salvar_jogo(1);
+                salvar_configuracoes();
+                
+                is_paused = false;
+                instance_activate_all();
+                
+                // TRANSIÃ‡ÃƒO SUAVE PARA O MENU PRINCIPAL (USANDO OBJ_TRANSITION)
+                if (asset_get_index("obj_transition") != -1 && !instance_exists(obj_transition)) {
+                    var t = instance_create_layer(0, 0, layer, obj_transition);
+                    t.destino_room = rm_main_menu;
+                    t.estado = 1;
+                } else {
+                    room_goto(rm_main_menu);
+                }
+            }
+        }
+    }
+    // --- TELA 1: OPÃ‡Ã•ES COM ABAS SEPARADAS ---
+    else if (pause_state == 1) {
+        if (!variable_instance_exists(id, "opcao_aba")) opcao_aba = 0;
+        
+        var tab_l = keyboard_check_pressed(global.key_tab_left)  || gamepad_button_check_pressed(0, gp_shoulderl);
+        var tab_r = keyboard_check_pressed(global.key_tab_right) || gamepad_button_check_pressed(0, gp_shoulderr);
+        
+        if (tab_l) { opcao_aba = 0; pause_index = 0; }
+        if (tab_r) { opcao_aba = 1; pause_index = 0; }
+        
+        var total_opcoes_aba = (opcao_aba == 0) ? 6 : 8; // Aba 0 (6 itens com ResoluÃ§Ã£o) | Aba 1 (8 itens)
+        
+        if (key_up) {
+            pause_index--;
+            if (pause_index < 0) pause_index = total_opcoes_aba - 1;
+        }
+        if (key_down) {
+            pause_index++;
+            if (pause_index >= total_opcoes_aba) pause_index = 0;
+        }
+        
+        var key_toggle = key_confirm || key_left || key_right;
+        
+        // Aba 0: Geral e VÃ­deo (Com ResoluÃ§Ã£o no Ã­ndice 2)
+        if (opcao_aba == 0) {
+            if (key_toggle && (pause_index == 0 || pause_index == 1 || pause_index == 3)) {
+                switch (pause_index) {
+                    case 0: global.idioma = (global.idioma == "PT") ? "EN" : "PT"; break;
+                    case 1:
+                        global.tela_cheia = !window_get_fullscreen();
+                        aplicar_resolucao();
+                        break;
+                    case 3: global.tremer_tela = !global.tremer_tela; break;
+                }
+                salvar_configuracoes();
+            }
+            else if (pause_index == 2 && (key_left || key_right || key_confirm)) {
+                if (!variable_global_exists("res_index")) global.res_index = 0;
+                
+                if (key_left) {
+                    global.res_index--;
+                } else {
+                    global.res_index++;
+                }
+                
+                if (global.res_index < 0) global.res_index = 2;
+                if (global.res_index > 2) global.res_index = 0;
+                
+                aplicar_resolucao();
+                salvar_configuracoes();
+            }
+            else if (pause_index == 4 && (key_left || key_right || key_confirm)) {
+                if (key_left) global.brilho = clamp(global.brilho - 0.1, 0.1, 1.0);
+                if (key_right || key_confirm) {
+                    global.brilho += 0.1;
+                    if (global.brilho > 1.0) global.brilho = 0.1;
+                }
+                salvar_configuracoes();
+            }
+            else if (key_confirm && pause_index == 5) {
+                salvar_configuracoes();
+                pause_state = 0;
+                pause_index = 1;
+            }
+        }
+        // Aba 1: Controles e Rebind
+        else if (opcao_aba == 1) {
+            if (key_confirm) {
+                if (pause_index >= 0 && pause_index <= 6) {
+                    aguardando_tecla = true;
+                    keyboard_clear(vk_anykey);
+                } else if (pause_index == 7) {
+                    salvar_configuracoes();
+                    pause_state = 0;
+                    pause_index = 1;
+                }
+            }
+        }
+    }
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_game_controller\Step_1.gml ===
+// Se o jogo estiver pausado, nÃ£o roda a lÃ³gica de hitstop
+if (is_paused) exit;
+
+// ==========================================
+// SISTEMA DE HITSTOP (Congelamento de Tempo)
+// ==========================================
+if (hitstop_timer > 0) {
+    hitstop_timer--;
+    
+    with (all) {
+        if (variable_instance_exists(id, "hspd") && variable_instance_exists(id, "vspd")) {
+            if (!variable_instance_exists(id, "hspd_save") || is_undefined(hspd_save)) {
+                hspd_save = hspd;
+                vspd_save = vspd;
+                image_speed_save = image_speed;
+            }
+            hspd = 0;
+            vspd = 0;
+            image_speed = 0;
+        }
+    }
+} else {
+    // Restaura as velocidades assim que o hitstop acaba
+    with (all) {
+        if (variable_instance_exists(id, "hspd_save") && !is_undefined(hspd_save)) {
+            hspd = hspd_save;
+            vspd = vspd_save;
+            image_speed = image_speed_save;
+            hspd_save = undefined;
+        }
+    }
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_game_controller\Step_2.gml ===
+if (variable_global_exists("tremer_tela") && !global.tremer_tela) {
+    shake_magnitude = 0;
+}
+
+// Se estiver pausado, nÃ£o desconta o tremor
+if (is_paused) exit;
+
+// ==========================================
+// REDUÃ‡ÃƒO DO SCREEN SHAKE
+// ==========================================
+if (shake_magnitude > 0) {
+    shake_magnitude -= shake_fade;
+    if (shake_magnitude < 0) {
+        shake_magnitude = 0;
+    }
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_hitbox\Collision_obj_enemy.gml ===
+// Se for o Boss Centopeia escondido debaixo da terra, nÃ£o aplica dano
+if (other.object_index == obj_boss_centopeia) {
+    if (other.state == centopeia_state.subterranea || other.state == centopeia_state.emergindo) {
+        exit;
+    }
+}
+
+if (other.piscar <= 0) {
+    var dano_final = dano;
+    var foi_critico = false;
+    
+    // 1. CÃLCULO DE ACERTO CRÃTICO (15% base, ou 30% no NÃ­vel 3 de Maestria)
+    var chance = variable_global_exists("chance_critico") ? global.chance_critico : 15;
+    if (instance_exists(obj_player) && obj_player.arma_nivel >= 3) {
+        chance = 30; // BÃ´nus do NÃ­vel 3 de Maestria
+    }
+    
+    if (random(100) < chance) {
+        foi_critico = true;
+        var mult = variable_global_exists("multiplicador_crit") ? global.multiplicador_crit : 2.0;
+        dano_final = dano * mult;
+    }
+    
+    // 2. APLICA DANO E EFEITO DE QUEIMADURA (BUFF DO BESOURO)
+    other.hp -= dano_final;
+    other.piscar = 10; 
+    
+    if (aplica_fogo && variable_instance_exists(other, "queimando_timer")) {
+        other.queimando_timer = 180; // Queima o inimigo por 3 segundos (180 frames)
+    }
+    
+    // 3. KNOCKBACK (Apenas em inimigos comuns; o Boss Centopeia nÃ£o toma empurrÃ£o da lanÃ§a)
+    if (other.object_index != obj_boss_centopeia) {
+        var kb_forca = foi_critico ? 9 : 6;
+        other.hspd = sign(image_xscale) * kb_forca; 
+        other.vspd = -4;                     
+    }
+    
+    // 4. HITSTOP E SCREEN SHAKE
+    if (instance_exists(obj_game_controller)) {
+        if (foi_critico) {
+            obj_game_controller.hitstop_timer = 10;
+            obj_game_controller.shake_magnitude = 5;
+            show_debug_message("CRITICO BRUTAL! Dano: " + string(dano_final) + " | Vida do Inimigo: " + string(other.hp));
+        } else {
+            obj_game_controller.hitstop_timer = 4;
+            obj_game_controller.shake_magnitude = 1.5;
+            show_debug_message("BATEU! Vida do Inimigo: " + string(other.hp));
+        }
+    }
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_hitbox\Create_0.gml ===
+dano = 1;            // Vai tirar 1 ponto de HP base do inimigo
+duracao = 3;         // Ele sÃ³ vai existir por 3 frames (Ã© super rÃ¡pido!)
+aplica_fogo = false; // Recebe true do player se o Buff do Besouro estiver ativo
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_hitbox\Step_0.gml ===
+// Pausa a contagem da hitbox durante o Hitstop para nÃ£o sumir antes da hora
+if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
+    exit;
+}
+
+duracao--;
+
+if (duracao <= 0) {
+    instance_destroy();
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_hitbox_enemy\Create_0.gml ===
+duracao = 5;
+dano = 15;
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_hitbox_enemy\Step_0.gml ===
+duracao--;
+if (duracao <= 0) {
+    instance_destroy();
+    exit;
+}
+
+// Verifica se encostou no player
+var _player = instance_place(x, y, obj_player);
+if (_player != noone && !_player.is_invulnerable && _player.state != player_state.roll) {
+    _player.hp -= dano;
+    _player.is_invulnerable = true;
+    _player.iframe_timer = 65;
+    _player.hspd = sign(_player.x - x) * 6;
+    _player.vspd = -4;
+    _player.state = player_state.air;
+
+    if (instance_exists(obj_game_controller)) {
+        obj_game_controller.hitstop_timer = 5;
+        obj_game_controller.shake_magnitude = 4;
+    }
+
+    instance_destroy();
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_item_drop\Create_0.gml ===
+// ==========================================
+// CONFIGURAÃ‡Ã•ES INICIAIS DO ITEM DROPADO
+// ==========================================
+// Nota: Se nÃ£o definido ao criar, assume Carne (0) por padrÃ£o
+if (!variable_instance_exists(id, "tipo_item")) {
+    tipo_item = 0; 
+}
+
+hspd = random_range(-2.5, 2.5);
+vspd = random_range(-4.5, -2.5);
+grv  = 0.3;
+
+coletavel_timer = 20; // Frames de seguranÃ§a para nÃ£o coletar instantaneamente ao nascer
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_item_drop\Draw_0.gml ===
+var _cor = c_white;
+
+switch (tipo_item) {
+    case 0: _cor = make_color_rgb(210, 50, 60);   break; // Vermelho (Carne)
+    case 1: _cor = make_color_rgb(50, 205, 120);  break; // Verde (GlÃ¢ndula)
+    case 2: _cor = make_color_rgb(240, 200, 50);  break; // Amarelo (FerrÃ£o)
+}
+
+// Desenha uma sombrinha simples no chÃ£o
+draw_set_color(c_black);
+draw_set_alpha(0.4);
+draw_ellipse(x - 5, y - 2, x + 5, y + 2, false);
+draw_set_alpha(1.0);
+
+// Desenha o item provisÃ³rio (um losango brilhante)
+draw_set_color(_cor);
+draw_rectangle(x - 4, y - 6, x + 4, y + 2, false);
+draw_set_color(c_white);
+draw_rectangle(x - 2, y - 4, x + 2, y, false);
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_item_drop\Step_0.gml ===
+// ==========================================
+// 1. TIMERS E FÃSICA DE QUEDA
+// ==========================================
+if (coletavel_timer > 0) {
+    coletavel_timer--;
+}
+
+vspd += grv;
+
+// ColisÃ£o Horizontal
+if (place_meeting(x + hspd, y, obj_colisor)) {
+    while (!place_meeting(x + sign(hspd), y, obj_colisor)) {
+        x += sign(hspd);
+    }
+    hspd = 0;
+}
+x += hspd;
+
+// ColisÃ£o Vertical e Frenagem no ChÃ£o
+if (place_meeting(x, y + vspd, obj_colisor)) {
+    while (!place_meeting(x, y + sign(vspd), obj_colisor)) {
+        y += sign(vspd);
+    }
+    vspd = 0;
+    hspd = lerp(hspd, 0, 0.2); // Freia gradualmente ao tocar o solo
+}
+y += vspd;
+
+// ==========================================
+// 2. COLETA PELO JOGADOR
+// ==========================================
+if (coletavel_timer <= 0 && instance_exists(obj_player)) {
+    if (place_meeting(x, y, obj_player)) {
+        switch (tipo_item) {
+            case 0: obj_player.carne_count++;    break; // Carne (Besouro)
+            case 1: obj_player.glandula_count++; break; // GlÃ¢ndula (Besouro)
+            case 2: obj_player.ferrao_count++;   break; // FerrÃ£o (Vespa)
+        }
+        
+        // Futuramente aqui entra o som de coleta: audio_play_sound(snd_pickup, 1, false);
+        instance_destroy();
+    }
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_main_menu\Create_0.gml ===
+// Garante escala HD padrÃ£o para a interface
+if (display_get_gui_width() != 800) {
+    display_set_gui_size(800, 450);
+}
+if (!variable_global_exists("brilho"))        global.brilho        = 0.5;
+if (!variable_global_exists("idioma"))        global.idioma        = "PT";
+if (!variable_global_exists("tremer_tela"))   global.tremer_tela   = 1;
+if (!variable_global_exists("tela_cheia"))    global.tela_cheia    = window_get_fullscreen();
+if (!variable_global_exists("key_jump"))      global.key_jump      = vk_space;
+if (!variable_global_exists("key_attack"))    global.key_attack    = ord("J");
+if (!variable_global_exists("key_roll"))      global.key_roll      = ord("K");
+if (!variable_global_exists("key_heal"))      global.key_heal      = ord("H");
+if (!variable_global_exists("key_throw"))     global.key_throw     = ord("F");
+if (!variable_global_exists("key_right"))     global.key_right     = vk_right;
+if (!variable_global_exists("key_left"))      global.key_left      = vk_left;
+if (!variable_global_exists("key_up"))        global.key_up        = vk_up;
+if (!variable_global_exists("key_down"))      global.key_down      = vk_down;
+if (!variable_global_exists("key_confirm"))   global.key_confirm   = vk_enter;
+if (!variable_global_exists("key_tab_left"))  global.key_tab_left  = ord("Q");
+if (!variable_global_exists("key_tab_right")) global.key_tab_right = ord("E");
+
+menu_state = 0; // 0 = Menu Principal | 1 = OpÃ§Ãµes e Controles
+opcao_aba  = 0; // 0 = Geral & VÃ­deo | 1 = Controles
+aguardando_tecla = false;
+
+options = ["new_game", "continue_game", "options", "quit"];
+
+has_save = file_exists("save_1.ini");
+menu_index = has_save ? 1 : 0;
+
+gpu_set_tex_filter(false);
+
+if (file_exists("config.ini")) {
+    carregar_configuracoes();
+}
+
+nome_tecla = function(_k) {
+    var _pt = (global.idioma == "PT");
+    switch (_k) {
+        case vk_space:     return _pt ? "ESPACO" : "SPACE";
+        case vk_up:        return _pt ? "SETA CIMA" : "UP ARROW";
+        case vk_down:      return _pt ? "SETA BAIXO" : "DOWN ARROW";
+        case vk_left:      return _pt ? "SETA ESQ" : "LEFT ARROW";
+        case vk_right:     return _pt ? "SETA DIR" : "RIGHT ARROW";
+        case vk_enter:     return "ENTER";
+        case vk_shift:     return "SHIFT";
+        case vk_control:   return "CTRL";
+        case vk_alt:       return "ALT";
+        case vk_tab:       return "TAB";
+        case vk_backspace: return "BACKSPACE";
+        default:
+            if (_k >= 48 && _k <= 90) return chr(_k);
+            return "KEY " + string(_k);
+    }
+};
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_main_menu\Draw_0.gml ===
+var _gw = view_enabled ? camera_get_view_width(view_camera[0]) : room_width;
+var _gh = view_enabled ? camera_get_view_height(view_camera[0]) : room_height;
+var _pt = (!variable_global_exists("idioma") || global.idioma == "PT");
+
+draw_set_font(fnt_menu);
+
+var col_bg_panel   = make_color_rgb(14, 16, 22);
+var col_header     = make_color_rgb(24, 28, 38);
+var col_border_out = make_color_rgb(85, 75, 60);
+var col_gold       = make_color_rgb(245, 195, 65);
+var col_highlight  = make_color_rgb(42, 48, 66);
+var col_text_off   = make_color_rgb(175, 180, 195);
+
+// FunÃ§Ã£o auxiliar para sombra nÃ­tida no texto
+var _draw_txt = function(_x, _y, _str, _col) {
+    draw_set_color(c_black);
+    draw_text(round(_x) + 1, round(_y) + 1, _str);
+    draw_set_color(_col);
+    draw_text(round(_x), round(_y), _str);
+};
+
+draw_set_color(make_color_rgb(10, 12, 16));
+draw_rectangle(0, 0, _gw, _gh, false);
+
+// ==========================================
+// TELA 0: CAPA DO JOGO (MENU PRINCIPAL LATERAL)
+// ==========================================
+if (menu_state == 0) {
+    var title_x = round(_gw * 0.07);
+    var title_y = round(_gh * 0.14);
+    
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    
+    _draw_txt(title_x, title_y, _pt ? "TNK GAMES APRESENTA" : "TNK GAMES PRESENTS", col_text_off);
+    _draw_txt(title_x, title_y + 24, _pt ? "PROJETO FPF: SOBREVIVENCIA" : "PROJECT FPF: SURVIVAL", col_gold);
+    
+    draw_set_color(col_border_out);
+    draw_line(title_x, title_y + 56, title_x + 320, title_y + 56);
+    
+    var menu_x = title_x;
+    var menu_y = title_y + 90;
+    var item_h = 42;
+    
+    draw_set_valign(fa_middle);
+    
+    for (var i = 0; i < array_length(options); i++) {
+        var _option = options[i];
+        var _text = "";
+        
+        switch (_option) {
+            case "new_game":      _text = _pt ? "NOVO JOGO" : "NEW GAME"; break;
+            case "continue_game": _text = _pt ? "CONTINUAR" : "CONTINUE"; break;
+            case "options":       _text = _pt ? "OPCOES"    : "OPTIONS";  break;
+            case "quit":          _text = _pt ? "SAIR"      : "QUIT";     break;
+        }
+        
+        var yy = menu_y + (i * item_h);
+        
+        if (_option == "continue_game" && !has_save) {
+            _draw_txt(menu_x, yy, _text, c_dkgray);
+        } else if (i == menu_index) {
+            draw_set_color(col_highlight);
+            draw_rectangle(menu_x - 10, yy - 16, menu_x + 240, yy + 16, false);
+            draw_set_color(col_gold);
+            draw_rectangle(menu_x - 10, yy - 16, menu_x - 4, yy + 16, false);
+            draw_set_color(col_border_out);
+            draw_rectangle(menu_x - 10, yy - 16, menu_x + 240, yy + 16, true);
+            
+            _draw_txt(menu_x + 14, yy, _text, c_white);
+        } else {
+            _draw_txt(menu_x, yy, _text, col_text_off);
+        }
+    }
+    
+    var pan_w = min(440, round(_gw * 0.44));
+    var pan_h = min(320, round(_gh * 0.58));
+    var pan_x = _gw - pan_w - round(_gw * 0.07);
+    var pan_y = title_y + 50;
+    
+    draw_set_color(col_bg_panel);
+    draw_rectangle(pan_x, pan_y, pan_x + pan_w, pan_y + pan_h, false);
+    draw_set_color(col_border_out);
+    draw_rectangle(pan_x, pan_y, pan_x + pan_w, pan_y + pan_h, true);
+    draw_set_color(col_gold);
+    draw_rectangle(pan_x + 2, pan_y + 2, pan_x + pan_w - 2, pan_y + pan_h - 2, true);
+    
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    _draw_txt(pan_x + 20, pan_y + 20, _pt ? "RELATORIO DE CAMPO #04" : "FIELD REPORT #04", col_gold);
+    
+    var desc_lore = _pt
+        ? "Laboratorio industrial Gree do Brasil, Setor Sul.\n\n" +
+          "Apos o colapso estrutural, a instalacao foi tomada por mutacoes biologicas agressivas e fauna adaptada a toxinas quimicas.\n\n" +
+          "Equipado apenas com uma lanca de prego improvisada, o protagonista precisa cruzar o complexo industrial, cacar recursos e sobreviver ao predador alfa da floresta."
+        : "Gree do Brasil industrial lab, South Sector.\n\n" +
+          "After the structural collapse, the facility was overrun by aggressive biological mutations and chemical-adapted fauna.\n\n" +
+          "Armed only with an improvised nail spear, our survivor must cross the industrial complex, gather resources, and survive the alpha predator.";
+          
+    draw_set_color(c_black);
+    draw_text_ext(pan_x + 21, pan_y + 53, desc_lore, 18, pan_w - 40);
+    draw_set_color(col_text_off);
+    draw_text_ext(pan_x + 20, pan_y + 52, desc_lore, 18, pan_w - 40);
+}
+// ==========================================
+// TELA 1: SUB-MENU DE OPÃ‡Ã•ES EM TELA INTEIRA (94%)
+// ==========================================
+else if (menu_state == 1) {
+    var pw = round(_gw * 0.92);
+    var ph = round(_gh * 0.86);
+    var px = round((_gw - pw) / 2);
+    var py = round((_gh - ph) / 2) - 6;
+    
+    draw_set_color(col_bg_panel);
+    draw_rectangle(px, py, px + pw, py + ph, false);
+    draw_set_color(col_border_out);
+    draw_rectangle(px, py, px + pw, py + ph, true);
+    draw_set_color(col_gold);
+    draw_rectangle(px + 2, py + 2, px + pw - 2, py + ph - 2, true);
+    
+    // --- ABAS SUPERIORES ---
+    var tab_w = (pw - 4) / 2;
+    var tab_h = 40;
+    var nomes_abas = [
+        _pt ? "[Q] 1. GERAL E VIDEO" : "[Q] 1. GENERAL & VIDEO",
+        _pt ? "2. CONTROLES [E]" : "2. CONTROLS [E]"
+    ];
+    
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    
+    for (var t = 0; t < 2; t++) {
+        var tx1 = px + 2 + (t * tab_w);
+        var tx2 = tx1 + tab_w;
+        var ty1 = py + 2;
+        var ty2 = ty1 + tab_h;
+        
+        if (opcao_aba == t) {
+            draw_set_color(col_highlight);
+            draw_rectangle(tx1, ty1, tx2, ty2, false);
+            draw_set_color(col_gold);
+            draw_rectangle(tx1, ty2 - 3, tx2, ty2, false);
+            _draw_txt((tx1 + tx2) / 2, (ty1 + ty2) / 2, nomes_abas[t], c_white);
+        } else {
+            draw_set_color(col_header);
+            draw_rectangle(tx1, ty1, tx2, ty2, false);
+            draw_set_color(col_border_out);
+            draw_rectangle(tx1, ty1, tx2, ty2, true);
+            _draw_txt((tx1 + tx2) / 2, (ty1 + ty2) / 2, nomes_abas[t], col_text_off);
+        }
+    }
+    
+    var txt_sim     = _pt ? "LIGADO" : "ON";
+    var txt_nao     = _pt ? "DESLIGADO" : "OFF";
+    var txt_espera  = _pt ? "PRESSIONE TECLA..." : "PRESS ANY KEY...";
+    var val_brilho  = clamp(variable_global_exists("brilho") ? global.brilho : 0.5, 0.1, 1.0);
+    var _brilho_pct = string(round(val_brilho * 100)) + "%";
+    
+    // --- ABA 0: GERAL E VÃDEO (COM RESOLUÃ‡ÃƒO) ---
+    if (opcao_aba == 0) {
+        if (!variable_global_exists("res_index")) global.res_index = 0;
+        var _res_nomes = ["1280 x 720 (HD)", "1600 x 900 (HD+)", "1920 x 1080 (FHD)"];
+        var _res_atual = _res_nomes[clamp(global.res_index, 0, 2)];
+        
+        var labels_aba0 = [
+            _pt ? "Idioma do Jogo" : "Game Language",
+            _pt ? "Modo Tela Cheia" : "Fullscreen Mode",
+            _pt ? "Resolucao da Janela" : "Window Resolution",
+            _pt ? "Tremor de Tela (Shake)" : "Screen Shake",
+            _pt ? "Nivel de Brilho" : "Brightness Level",
+            _pt ? "Voltar ao Menu Principal" : "Back to Main Menu"
+        ];
+        
+        var values_aba0 = [
+            "< " + global.idioma + " >",
+            "< " + (window_get_fullscreen() ? txt_sim : txt_nao) + " >",
+            "< " + _res_atual + " >",
+            "< " + (global.tremer_tela ? txt_sim : txt_nao) + " >",
+            "< " + _brilho_pct + " >",
+            ""
+        ];
+        
+        var row_h = (ph - 90) / 6;
+        var list_y = py + 76;
+        
+        for (var idx = 0; idx < array_length(labels_aba0); idx++) {
+            var yy = list_y + (idx * row_h);
+            var rx1 = px + 36;
+            var rx2 = px + pw - 36;
+            var is_sel = (menu_index == idx);
+            
+            if (is_sel) {
+                draw_set_color(col_highlight);
+                draw_rectangle(rx1, yy - 16, rx2, yy + 16, false);
+                draw_set_color(col_gold);
+                draw_rectangle(rx1, yy - 16, rx1 + 5, yy + 16, false);
+            }
+            
+            draw_set_halign(fa_left);
+            _draw_txt(rx1 + 18, yy, labels_aba0[idx], is_sel ? c_white : col_text_off);
+            
+            draw_set_halign(fa_right);
+            if (idx == 4) {
+                var bar_w = 110;
+                var bar_h = 10;
+                var bar_x1 = rx2 - 85 - bar_w;
+                var bar_y1 = yy - (bar_h / 2);
+                draw_set_color(c_dkgray);
+                draw_rectangle(bar_x1, bar_y1, bar_x1 + bar_w, bar_y1 + bar_h, false);
+                draw_set_color(is_sel ? col_gold : c_gray);
+                draw_rectangle(bar_x1, bar_y1, bar_x1 + (bar_w * val_brilho), bar_y1 + bar_h, false);
+                _draw_txt(rx2 - 14, yy, values_aba0[idx], is_sel ? col_gold : c_ltgray);
+            } else if (idx < 5) {
+                _draw_txt(rx2 - 14, yy, values_aba0[idx], is_sel ? col_gold : c_ltgray);
+            }
+        }
+    }
+    // --- ABA 1: CONTROLES ---
+    else if (opcao_aba == 1) {
+        var labels_aba1 = [
+            _pt ? "Pular" : "Jump",
+            _pt ? "Atacar (Lanca)" : "Attack (Spear)",
+            _pt ? "Esquivar (Roll)" : "Dodge (Roll)",
+            _pt ? "Usar Curativo" : "Use Bandage",
+            _pt ? "Arremessar Item" : "Throw Item",
+            _pt ? "Mover Esquerda" : "Move Left",
+            _pt ? "Mover Direita" : "Move Right",
+            _pt ? "Voltar ao Menu Principal" : "Back to Main Menu"
+        ];
+        
+        var keys_array = [global.key_jump, global.key_attack, global.key_roll, global.key_heal, global.key_throw, global.key_left, global.key_right];
+        
+        var row_h = (ph - 85) / 8;
+        var list_y = py + 70;
+        
+        for (var idx = 0; idx < array_length(labels_aba1); idx++) {
+            var yy = list_y + (idx * row_h);
+            var rx1 = px + 36;
+            var rx2 = px + pw - 36;
+            var is_sel = (menu_index == idx);
+            
+            if (is_sel) {
+                draw_set_color(col_highlight);
+                draw_rectangle(rx1, yy - 13, rx2, yy + 13, false);
+                draw_set_color(aguardando_tecla ? c_orange : col_gold);
+                draw_rectangle(rx1, yy - 13, rx1 + 5, yy + 13, false);
+            }
+            
+            draw_set_halign(fa_left);
+            _draw_txt(rx1 + 18, yy, labels_aba1[idx], is_sel ? c_white : col_text_off);
+            
+            draw_set_halign(fa_right);
+            if (idx < 7) {
+                var txt_k = (aguardando_tecla && menu_index == idx) ? txt_espera : "[ " + nome_tecla(keys_array[idx]) + " ]";
+                _draw_txt(rx2 - 14, yy, txt_k, is_sel ? (aguardando_tecla ? c_orange : col_gold) : c_ltgray);
+            }
+        }
+    }
+}
+
+// RodapÃ© de Dicas
+draw_set_halign(fa_center);
+draw_set_valign(fa_middle);
+var dica_menu = _pt 
+    ? "[W/S] Navegar   |   [Q/E] Aba   |   [A/D ou ENTER] Alterar   |   [ESC] Voltar" 
+    : "[W/S] Navigate   |   [Q/E] Tab   |   [A/D or ENTER] Change   |   [ESC] Back";
+_draw_txt(_gw / 2, _gh - 16, dica_menu, col_text_off);
+
+// Brilho Global
+if (variable_global_exists("brilho")) {
+    if (global.brilho < 0.5) {
+        draw_set_color(c_black);
+        draw_set_alpha((0.5 - global.brilho) * 1.4);
+        draw_rectangle(0, 0, _gw, _gh, false);
+        draw_set_alpha(1.0);
+    } else if (global.brilho > 0.5) {
+        gpu_set_blendmode(bm_add);
+        draw_set_color(c_white);
+        draw_set_alpha((global.brilho - 0.5) * 0.6);
+        draw_rectangle(0, 0, _gw, _gh, false);
+        draw_set_alpha(1.0);
+        gpu_set_blendmode(bm_normal);
+    }
+}
+
+draw_set_halign(fa_left);
+draw_set_valign(fa_top);
+draw_set_color(c_white);
+draw_set_font(-1);
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_main_menu\Step_0.gml ===
+// Alternar Tela Cheia no F11
+if (keyboard_check_pressed(vk_f11)) {
+    global.tela_cheia = !window_get_fullscreen();
+    aplicar_resolucao();
+    salvar_configuracoes();
+}
+
+// ==========================================
+// 1. MODO DE REBIND (CAPTURANDO TECLA NOVA)
+// ==========================================
+if (menu_state == 1 && opcao_aba == 1 && aguardando_tecla) {
+    if (keyboard_check_pressed(vk_anykey)) {
+        var nova_tecla = keyboard_lastkey;
+        
+        if (nova_tecla != vk_escape && nova_tecla != vk_f11) {
+            switch (menu_index) {
+                case 0: global.key_jump   = nova_tecla; break;
+                case 1: global.key_attack = nova_tecla; break;
+                case 2: global.key_roll   = nova_tecla; break;
+                case 3: global.key_heal   = nova_tecla; break;
+                case 4: global.key_throw  = nova_tecla; break;
+                case 5: global.key_left   = nova_tecla; break;
+                case 6: global.key_right  = nova_tecla; break;
+            }
+            salvar_configuracoes();
+        }
+        aguardando_tecla = false;
+        keyboard_clear(vk_anykey);
+    }
+    exit;
+}
+
+// ==========================================
+// 2. LEITURA DE NAVEGAÃ‡ÃƒO
+// ==========================================
+var key_up    = keyboard_check_pressed(vk_up)    || keyboard_check_pressed(ord("W")) || gamepad_button_check_pressed(0, gp_padu);
+var key_down  = keyboard_check_pressed(vk_down)  || keyboard_check_pressed(ord("S")) || gamepad_button_check_pressed(0, gp_padd);
+var key_left  = keyboard_check_pressed(vk_left)  || keyboard_check_pressed(ord("A")) || gamepad_button_check_pressed(0, gp_padl);
+var key_right = keyboard_check_pressed(vk_right) || keyboard_check_pressed(ord("D")) || gamepad_button_check_pressed(0, gp_padr);
+var key_enter = keyboard_check_pressed(vk_enter) || keyboard_check_pressed(vk_space) || gamepad_button_check_pressed(0, gp_face1);
+var key_back  = keyboard_check_pressed(vk_escape)|| gamepad_button_check_pressed(0, gp_face2);
+
+// --- ESTADO 0: MENU PRINCIPAL ---
+if (menu_state == 0) {
+    if (key_up) {
+        menu_index--;
+        if (menu_index < 0) menu_index = array_length(options) - 1;
+        if (menu_index == 1 && !has_save) menu_index = 0;
+    }
+    
+    if (key_down) {
+        menu_index++;
+        if (menu_index >= array_length(options)) menu_index = 0;
+        if (menu_index == 1 && !has_save) menu_index = 2;
+    }
+    
+    if (key_enter) {
+        switch (options[menu_index]) {
+            case "new_game":      novo_jogo(1); break;
+            case "continue_game": if (has_save) carregar_jogo(1); break;
+            case "options":       menu_state = 1; opcao_aba = 0; menu_index = 0; break;
+            case "quit":          game_end(); break;
+        }
+    }
+}
+// --- ESTADO 1: SUB-MENU DE OPÃ‡Ã•ES COM ABAS ---
+else if (menu_state == 1) {
+    
+    var tab_l = keyboard_check_pressed(global.key_tab_left)  || gamepad_button_check_pressed(0, gp_shoulderl);
+    var tab_r = keyboard_check_pressed(global.key_tab_right) || gamepad_button_check_pressed(0, gp_shoulderr);
+    
+    if (tab_l) { opcao_aba = 0; menu_index = 0; }
+    if (tab_r) { opcao_aba = 1; menu_index = 0; }
+    
+    var total_opcoes_aba = (opcao_aba == 0) ? 6 : 8; // Aba 0 (6 itens com ResoluÃ§Ã£o) | Aba 1 (8 itens)
+    
+    if (key_up)   { menu_index--; if (menu_index < 0) menu_index = total_opcoes_aba - 1; }
+    if (key_down) { menu_index++; if (menu_index >= total_opcoes_aba) menu_index = 0; }
+    
+    if (key_back) {
+        salvar_configuracoes();
+        menu_state = 0;
+        menu_index = 2;
+        keyboard_clear(vk_escape);
+        exit;
+    }
+    
+    var key_toggle = key_enter || key_left || key_right;
+    
+    // Aba 0: Geral e VÃ­deo
+    if (opcao_aba == 0) {
+        // Item 0 (Idioma), Item 1 (Tela Cheia), Item 3 (Tremor de Tela)
+        if (key_toggle && (menu_index == 0 || menu_index == 1 || menu_index == 3)) {
+            switch (menu_index) {
+                case 0: global.idioma = (global.idioma == "PT") ? "EN" : "PT"; break;
+                case 1:
+                    global.tela_cheia = !window_get_fullscreen();
+                    aplicar_resolucao();
+                    break;
+                case 3: global.tremer_tela = !global.tremer_tela; break;
+            }
+            salvar_configuracoes();
+        }
+        // Item 2: ResoluÃ§Ã£o da Janela (Alterna com Esquerda / Direita ou Enter)
+        else if (menu_index == 2 && (key_left || key_right || key_enter)) {
+            if (!variable_global_exists("res_index")) global.res_index = 0;
+            
+            if (key_left) {
+                global.res_index--;
+            } else {
+                global.res_index++;
+            }
+            
+            if (global.res_index < 0) global.res_index = 2;
+            if (global.res_index > 2) global.res_index = 0;
+            
+            aplicar_resolucao();
+            salvar_configuracoes();
+        }
+        // Item 4: Brilho
+        else if (menu_index == 4 && (key_left || key_right || key_enter)) {
+            if (key_left) global.brilho = clamp(global.brilho - 0.1, 0.1, 1.0);
+            if (key_right || key_enter) {
+                global.brilho += 0.1;
+                if (global.brilho > 1.0) global.brilho = 0.1;
+            }
+            salvar_configuracoes();
+        }
+        // Item 5: Voltar ao Menu Principal
+        else if (key_enter && menu_index == 5) {
+            salvar_configuracoes();
+            menu_state = 0;
+            menu_index = 2;
+        }
+    }
+    // Aba 1: Controles
+    else if (opcao_aba == 1) {
+        if (key_enter) {
+            if (menu_index >= 0 && menu_index <= 6) {
+                aguardando_tecla = true;
+                keyboard_clear(vk_anykey);
+            } else if (menu_index == 7) {
+                salvar_configuracoes();
+                menu_state = 0;
+                menu_index = 2;
+            }
+        }
+    }
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_menu_options\Create_0.gml ===
+// Lista de opÃ§Ãµes disponÃ­veis no menu de configuraÃ§Ãµes
+opcoes = [
+    "volume_master",
+    "tela_cheia",
+    "tremer_tela",
+    "idioma",
+    "voltar"
+];
+
+menu_index = 0;
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_menu_options\Draw_0.gml ===
+draw_set_font(fnt_menu);
+var is_pt = (!variable_global_exists("idioma") || global.idioma == "PT");
+
+var col_bg_panel   = make_color_rgb(18, 20, 26);
+var col_border_out = make_color_rgb(90, 80, 65);
+var col_gold       = make_color_rgb(235, 185, 60);
+var col_highlight  = make_color_rgb(45, 50, 65);
+var col_text_off   = make_color_rgb(150, 155, 165);
+
+// Painel ocupando proporÃ§Ã£o ampla centralizada na tela inteira
+var pw = min(640, room_width * 0.85);
+var ph = min(420, room_height * 0.80);
+var px = (room_width - pw) / 2;
+var py = (room_height - ph) / 2;
+
+// Fundo escuro cobrindo a room toda por trÃ¡s do painel
+draw_set_color(make_color_rgb(10, 12, 16));
+draw_rectangle(0, 0, room_width, room_height, false);
+
+// Desenha a caixa principal do menu de opÃ§Ãµes
+draw_set_color(col_bg_panel);
+draw_rectangle(px, py, px + pw, py + ph, false);
+draw_set_color(col_border_out);
+draw_rectangle(px, py, px + pw, py + ph, true);
+draw_set_color(col_gold);
+draw_rectangle(px + 3, py + 3, px + pw - 3, py + ph - 3, true);
+
+// TÃ­tulo do Menu
+draw_set_halign(fa_center);
+draw_set_valign(fa_middle);
+draw_set_color(col_gold);
+draw_text(room_width / 2, py + 36, is_pt ? "CONFIGURACOES" : "SETTINGS");
+
+// Linha divisÃ³ria abaixo do tÃ­tulo
+draw_set_color(col_border_out);
+draw_line(px + 30, py + 65, px + pw - 30, py + 65);
+
+var start_y = py + 105;
+var espacamento = 52;
+
+for (var i = 0; i < array_length(opcoes); i++) {
+    var nome_opcao = opcoes[i];
+    var texto_exibir = "";
+    var valor_exibir = "";
+    
+    switch (nome_opcao) {
+        case "volume_master":
+            texto_exibir = is_pt ? "Volume Geral" : "Master Volume";
+            valor_exibir = "< " + string(round(global.vol_master * 100)) + "% >";
+            break;
+        case "tela_cheia":
+            texto_exibir = is_pt ? "Tela Cheia" : "Fullscreen";
+            valor_exibir = "< " + (global.tela_cheia ? "ON" : "OFF") + " >";
+            break;
+        case "tremer_tela":
+            texto_exibir = is_pt ? "Tremer Tela" : "Screen Shake";
+            valor_exibir = "< " + (global.tremer_tela ? "ON" : "OFF") + " >";
+            break;
+        case "idioma":
+            texto_exibir = is_pt ? "Idioma" : "Language";
+            valor_exibir = "< " + global.idioma + " >";
+            break;
+        case "voltar":
+            texto_exibir = is_pt ? "VOLTAR" : "BACK";
+            valor_exibir = "";
+            break;
+    }
+    
+    var yy  = start_y + (i * espacamento);
+    var rx1 = px + 35;
+    var rx2 = px + pw - 35;
+    var is_sel = (i == menu_index);
+    
+    if (is_sel) {
+        draw_set_color(col_highlight);
+        draw_rectangle(rx1, yy - 18, rx2, yy + 18, false);
+        draw_set_color(col_gold);
+        draw_rectangle(rx1, yy - 18, rx1 + 6, yy + 18, false);
+        draw_set_color(col_border_out);
+        draw_rectangle(rx1, yy - 18, rx2, yy + 18, true);
+    }
+    
+    if (valor_exibir != "") {
+        draw_set_halign(fa_left);
+        draw_set_color(is_sel ? c_white : col_text_off);
+        draw_text(rx1 + 20, yy, texto_exibir);
+        
+        draw_set_halign(fa_right);
+        draw_set_color(is_sel ? col_gold : c_ltgray);
+        draw_text(rx2 - 20, yy, valor_exibir);
+    } else {
+        draw_set_halign(fa_center);
+        draw_set_color(is_sel ? col_gold : col_text_off);
+        draw_text(room_width / 2, yy, texto_exibir);
+    }
+}
+
+// RodapÃ© de instruÃ§Ãµes
+draw_set_halign(fa_center);
+draw_set_valign(fa_middle);
+draw_set_color(col_text_off);
+draw_text(room_width / 2, py + ph - 25, is_pt ? "[W/S] Navegar   [A/D] Alterar   [ESC] Voltar" : "[W/S] Navigate   [A/D] Change   [ESC] Back");
+
+draw_set_halign(fa_left);
+draw_set_valign(fa_top);
+draw_set_color(c_white);
+draw_set_font(-1);
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_menu_options\Step_0.gml ===
+var key_up    = keyboard_check_pressed(vk_up)    || keyboard_check_pressed(ord("W")) || gamepad_button_check_pressed(0, gp_padu);
+var key_down  = keyboard_check_pressed(vk_down)  || keyboard_check_pressed(ord("S")) || gamepad_button_check_pressed(0, gp_padd);
+var key_left  = keyboard_check_pressed(vk_left)  || keyboard_check_pressed(ord("A")) || gamepad_button_check_pressed(0, gp_padl);
+var key_right = keyboard_check_pressed(vk_right) || keyboard_check_pressed(ord("D")) || gamepad_button_check_pressed(0, gp_padr);
+var key_enter = keyboard_check_pressed(vk_enter) || keyboard_check_pressed(vk_space) || gamepad_button_check_pressed(0, gp_face1);
+var key_back  = keyboard_check_pressed(vk_escape)|| gamepad_button_check_pressed(0, gp_face2);
+
+// NavegaÃ§Ã£o para cima e para baixo
+if (key_up) {
+    menu_index--;
+    if (menu_index < 0) menu_index = array_length(opcoes) - 1;
+}
+if (key_down) {
+    menu_index++;
+    if (menu_index >= array_length(opcoes)) menu_index = 0;
+}
+
+var opcao_atual = opcoes[menu_index];
+
+// InteraÃ§Ã£o com a opÃ§Ã£o selecionada
+switch (opcao_atual) {
+    case "volume_master":
+        if (key_right && global.vol_master < 1.0) global.vol_master += 0.1;
+        if (key_left && global.vol_master > 0.0) global.vol_master -= 0.1;
+        global.vol_master = clamp(global.vol_master, 0, 1);
+        audio_master_gain(global.vol_master); 
+        break;
+        
+    case "tela_cheia":
+        if (key_enter || key_left || key_right) {
+            global.tela_cheia = !global.tela_cheia;
+            window_set_fullscreen(global.tela_cheia);
+        }
+        break;
+        
+    case "tremer_tela":
+        if (key_enter || key_left || key_right) {
+            global.tremer_tela = !global.tremer_tela;
+        }
+        break;
+        
+    case "idioma":
+        if (key_enter || key_left || key_right) {
+            global.idioma = (global.idioma == "PT") ? "EN" : "PT";
+        }
+        break;
+        
+    case "voltar":
+        if (key_enter || key_back) {
+            // Salva as alteraÃ§Ãµes no arquivo INI
+            ini_open("config.ini");
+            ini_write_real("Audio", "Master", global.vol_master);
+            ini_write_real("Video", "Fullscreen", global.tela_cheia);
+            ini_write_real("Video", "TremerTela", global.tremer_tela);
+            ini_write_string("Geral", "Idioma", global.idioma);
+            ini_close();
+            
+            // Volta para o menu principal
+            room_goto(rm_main_menu); 
+        }
+        break;
+}
+
+// Atalho com ESC para voltar direto
+if (key_back && opcao_atual != "voltar") {
+    room_goto(rm_main_menu);
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_molotov\Create_0.gml ===
+hspd = 0;
+vspd = 0;
+grv = 0.25; // Gravidade que vai fazer a curva (a parÃ¡bola) do arremesso cair
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_molotov\Draw_0.gml ===
+if (sprite_index != -1 && sprite_exists(sprite_index)) {
+    draw_self();
+} else {
+    // Corpo da garrafa
+    draw_set_color(c_green);
+    draw_rectangle(x - 3, y - 8, x + 3, y + 6, false);
+    
+    // Pano em chamas
+    draw_set_color(c_orange);
+    draw_rectangle(x - 2, y - 14, x + 2, y - 8, false);
+    
+    draw_set_color(c_white);
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_molotov\Step_0.gml ===
+// Pausa durante o Hitstop
+if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
+    exit;
+}
+
+vspd += grv; // Gravidade da parÃ¡bola
+
+// Giro visual no ar
+image_angle -= sign(hspd) * 15; 
+
+// 1. ColisÃ£o com o ChÃ£o/Parede (Usa cÃ­rculo de 6px para funcionar mesmo sem sprite!)
+if (collision_circle(x + hspd, y + vspd, 6, obj_colisor, false, true) != noone) {
+    if (instance_exists(obj_game_controller)) {
+        obj_game_controller.shake_magnitude = 3;
+    }
+    instance_destroy(); 
+    exit;
+}
+
+// 2. ColisÃ£o com Inimigos (obj_enemy, obj_vespa e obj_boss_centopeia)
+var hit_enemy = collision_circle(x + hspd, y + vspd, 10, obj_enemy, false, true);
+if (hit_enemy == noone && object_exists(obj_vespa)) {
+    hit_enemy = collision_circle(x + hspd, y + vspd, 10, obj_vespa, false, true);
+}
+if (hit_enemy == noone && object_exists(obj_boss_centopeia)) {
+    hit_enemy = collision_circle(x + hspd, y + vspd, 10, obj_boss_centopeia, false, true);
+}
+
+if (hit_enemy != noone) {
+    with (hit_enemy) {
+        // Se for a Centopeia e estiver debaixo da terra, ignora o impacto
+        var pode_acertar = true;
+        if (object_index == obj_boss_centopeia) {
+            if (state == centopeia_state.subterranea || state == centopeia_state.emergindo) {
+                pode_acertar = false;
+            }
+        }
+        
+        if (pode_acertar) {
+            hp -= 3; // Dano explosivo alto (mata Besouro e Vespa na hora e tira bom HP do Boss!)
+            piscar = 12;
+            
+            // Aplica queimadura se o inimigo tiver suporte a fogo
+            if (variable_instance_exists(id, "queimando_timer")) {
+                queimando_timer = 180;
+            }
+            
+            // Pequeno empurrÃ£o
+            hspd = sign(other.hspd) * 5;
+            vspd = -3;
+        }
+    }
+    
+    // Impacto visual na tela
+    if (instance_exists(obj_game_controller)) {
+        obj_game_controller.hitstop_timer = 6;
+        obj_game_controller.shake_magnitude = 5;
+    }
+    
+    instance_destroy(); // Quebra o molotov
+    exit;
+}
+
+// Atualiza a posiÃ§Ã£o
+x += hspd;
+y += vspd;
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_player\Create_0.gml ===
+if (!variable_instance_exists(id, "escala_base")) escala_base = 1.15;
+
+// ==========================================
+// 1. SEGURANÃ‡A DE CONTROLES (FALLBACK)
+// ==========================================
+if (!variable_global_exists("key_right"))     global.key_right     = vk_right;
+if (!variable_global_exists("key_left"))      global.key_left      = vk_left;
+if (!variable_global_exists("key_up"))        global.key_up        = vk_up;
+if (!variable_global_exists("key_down"))      global.key_down      = vk_down;
+if (!variable_global_exists("key_jump"))      global.key_jump      = vk_space;
+if (!variable_global_exists("key_attack"))    global.key_attack    = ord("J");
+if (!variable_global_exists("key_roll"))      global.key_roll      = ord("K");
+if (!variable_global_exists("key_heal"))      global.key_heal      = ord("H");
+if (!variable_global_exists("key_throw"))     global.key_throw     = ord("F");
+if (!variable_global_exists("key_menu"))      global.key_menu      = ord("I");
+if (!variable_global_exists("key_confirm"))   global.key_confirm   = vk_enter;
+if (!variable_global_exists("key_tab_left"))  global.key_tab_left  = ord("Q");
+if (!variable_global_exists("key_tab_right")) global.key_tab_right = ord("E");
+if (!variable_global_exists("idioma"))        global.idioma        = "PT";
+
+// ==========================================
+// 2. ECONOMIA, CONSUMÃVEIS E MATERIAIS
+// ==========================================
+if (!variable_global_exists("scrap")) global.scrap = 0;
+curativo_count = 0; 
+molotov_count  = 0;
+faca_count     = 0;
+
+carne_count    = 0; 
+glandula_count = 0; 
+ferrao_count   = 0; 
+
+global.ataque_base        = 10;  
+global.chance_critico     = 15;  
+global.multiplicador_crit = 2.0; 
+
+// ==========================================
+// 3. SISTEMA DE CRAFTING E ABAS
+// ==========================================
+craft_timer = 0;
+craft_time_max = 90; 
+craft_cost = 5;      
+craft_recipes = ["Curativo", "Molotov", "Faca de Arremesso"];
+craft_cost_array = [3, 5, 8];
+craft_selected_item = -1; 
+menu_index = 0; 
+
+aba_atual = 1; // Inicia direto na aba de Crafting
+
+// ==========================================
+// 4. MOVIMENTO E FÃSICA
+// ==========================================
+hspd = 0;
+vspd = 0;
+walk_sp = 4;
+grv = 0.4;
+jump_spd = -9;
+max_vspd = 10;        
+
+accel = 0.22;        
+fric = 0.15;         
+
+coyote_time_max = 7; 
+coyote_timer = 0;
+jump_buffer_max = 7; 
+jump_buffer_timer = 0;
+
+wall_jump_vspd = -8; 
+wall_jump_hspd = 6;  
+
+scale_x = escala_base;        
+scale_y = escala_base;
+image_xscale = escala_base;
+image_yscale = escala_base;
+
+facing = 1;          
+roll_sp = 6.5;        
+action_timer = 0;    
+slash_frame = 0;
+
+// ==========================================
+// 5. SOBREVIVÃŠNCIA E I-FRAMES
+// ==========================================
+hp_max = 100;
+hp = hp_max;
+is_invulnerable = false;
+iframe_timer = 0;
+
+// ==========================================
+// 6. MAESTRIA E BUFFS
+// ==========================================
+arma_xp = 0;
+arma_xp_max = 10;       
+arma_nivel = 1;         
+combo_count = 0;        
+ataque_buffer = false;  
+buff_fogo_timer = 0;    
+
+// ==========================================
+// 7. MÃQUINA DE ESTADOS (FSM)
+// ==========================================
+enum player_state {
+    idle,
+    run,
+    air,
+    attack,
+    roll,
+    wall_slide,
+    craft,
+    menu
+}
+
+state = player_state.idle;
+
+// Restaurar Save se houver
+if (variable_global_exists("carregando_save") && global.carregando_save == true) {
+    x              = global.load_x;
+    y              = global.load_y;
+    hp             = global.load_hp;
+    curativo_count = global.load_curativos;
+    molotov_count  = global.load_molotovs;
+    arma_nivel     = global.load_arma_nivel;
+    arma_xp        = global.load_arma_xp;
+    carne_count    = global.load_carne;
+    glandula_count = global.load_glandula;
+    ferrao_count   = global.load_ferrao;
+    global.carregando_save = false; 
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_player\Draw_0.gml ===
+if (sprite_index != -1 && sprite_exists(sprite_index)) {
+    var alpha_atual = 1.0;
+    
+    // SÃ³ pisca se estiver invulnerÃ¡vel fora do roll E se nÃ£o for apenas a sobrinha final do roll
+    if (state != player_state.roll && is_invulnerable && iframe_timer > 0) {
+        if ((iframe_timer mod 8) < 4) alpha_atual = 0.2;
+    }
+    
+    // Garante que o image_index nunca tente desenhar um sub-frame invÃ¡lido
+    var frame_seguro = clamp(image_index, 0, sprite_get_number(sprite_index) - 1);
+    
+    draw_sprite_ext(
+        sprite_index,
+        frame_seguro,
+        x,
+        y,
+        scale_x * facing, 
+        scale_y,
+        image_angle,
+        image_blend,
+        alpha_atual       
+    );
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_player\Draw_64.gml ===
+// Escala 800x450 (16:9): deixa a fonte encorpada, nÃ­tida e proporcional aos painÃ©is
+if (display_get_gui_width() != 800) {
+    display_set_gui_size(800, 450);
+}
+
+// NÃ£o desenha HUD nem InventÃ¡rio se o Pause Global (ESC) estiver aberto[cite: 4, 6]
+if (instance_exists(obj_game_controller) && obj_game_controller.is_paused) {
+    exit;
+}
+
+var is_pt = (!variable_global_exists("idioma") || global.idioma == "PT");
+
+// Paleta com maior contraste para leitura
+var col_bg_panel   = make_color_rgb(14, 16, 22);
+var col_header     = make_color_rgb(24, 28, 38);
+var col_card       = make_color_rgb(22, 26, 34);
+var col_border_out = make_color_rgb(85, 75, 60);
+var col_gold       = make_color_rgb(245, 195, 65);
+var col_highlight  = make_color_rgb(42, 48, 66);
+var col_text_sub   = make_color_rgb(185, 190, 205); // Cinza claro bem legÃ­vel
+var col_hp         = make_color_rgb(220, 50, 60);
+var col_ok         = make_color_rgb(80, 215, 105);
+var col_scrap      = make_color_rgb(225, 140, 55);
+
+// FunÃ§Ã£o auxiliar para desenhar texto com sombra nÃ­tida (Drop Shadow)
+var _draw_txt = function(_x, _y, _str, _col) {
+    draw_set_color(c_black);
+    draw_text(round(_x) + 1, round(_y) + 1, _str);
+    draw_set_color(_col);
+    draw_text(round(_x), round(_y), _str);
+};
+
+var _nome_k = function(_k) {
+    if (_k == vk_space) return "SPACE";
+    if (_k == vk_shift) return "SHIFT";
+    if (_k == vk_control) return "CTRL";
+    if (_k == vk_enter) return "ENTER";
+    if (_k == vk_left) return "LEFT";
+    if (_k == vk_right) return "RIGHT";
+    if (_k == vk_up) return "UP";
+    if (_k == vk_down) return "DOWN";
+    if (_k >= 48 && _k <= 90) return chr(_k);
+    return "KEY";
+};
+
+var str_key_heal  = _nome_k(global.key_heal);
+var str_key_throw = _nome_k(global.key_throw);
+
+draw_set_font(fnt_menu);
+
+// =======================================================
+// --- 1. HUD DE SOBREVIVÃŠNCIA (Canto Superior Esquerdo) ---
+// =======================================================
+if (state != player_state.menu && state != player_state.craft) {
+    var gui_x = 18;
+    var gui_y = 18;
+    var hud_w = 185;
+    var hud_h = (buff_fogo_timer > 0) ? 68 : 50;
+
+    draw_set_color(c_black);
+    draw_set_alpha(0.75);
+    draw_rectangle(gui_x - 6, gui_y - 6, gui_x + hud_w, gui_y + hud_h, false);
+    draw_set_alpha(1.0);
+
+    draw_set_color(col_border_out);
+    draw_rectangle(gui_x - 6, gui_y - 6, gui_x + hud_w, gui_y + hud_h, true);
+
+    var bar_width  = 170;
+    var bar_height = 14;
+    var hp_pct     = clamp(hp / hp_max, 0, 1);
+
+    draw_set_color(make_color_rgb(35, 15, 20));
+    draw_rectangle(gui_x, gui_y, gui_x + bar_width, gui_y + bar_height, false);
+    draw_set_color(col_hp);
+    draw_rectangle(gui_x, gui_y, gui_x + (bar_width * hp_pct), gui_y + bar_height, false);
+    draw_set_color(col_gold);
+    draw_rectangle(gui_x, gui_y, gui_x + bar_width, gui_y + bar_height, true);
+
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    _draw_txt(gui_x + (bar_width / 2), gui_y + (bar_height / 2), string(hp) + " / " + string(hp_max), c_white);
+
+    var info_y = gui_y + 28;
+    draw_set_halign(fa_left);
+
+    draw_set_color(col_scrap);
+    draw_circle(gui_x + 5, info_y, 4, false);
+    _draw_txt(gui_x + 13, info_y, "x" + string(global.scrap), c_white);
+
+    _draw_txt(gui_x + 56, info_y, "[" + str_key_heal + "] " + string(curativo_count) + "  [" + str_key_throw + "] " + string(faca_count + molotov_count), col_text_sub);
+
+    if (buff_fogo_timer > 0) {
+        var seg_restantes = ceil(buff_fogo_timer / 60);
+        var txt_buff = is_pt ? "LANCA EM CHAMAS: " : "FLAMING SPEAR: ";
+        _draw_txt(gui_x, info_y + 18, txt_buff + string(seg_restantes) + "s", c_orange);
+    }
+}
+
+// =======================================================
+// --- 2. TELA DEDICADA DO HUB (TIPOGRAFIA REFINADA) ---
+// =======================================================
+if (state == player_state.menu || state == player_state.craft) {
+    var gw = display_get_gui_width();
+    var gh = display_get_gui_height();
+    
+    draw_set_color(c_black);
+    draw_set_alpha(0.90);
+    draw_rectangle(0, 0, gw, gh, false);
+    draw_set_alpha(1.0);
+    
+    var pw = round(gw * 0.92);
+    var ph = round(gh * 0.88);
+    var px = round((gw - pw) / 2);
+    var py = round((gh - ph) / 2);
+    
+    draw_set_color(col_bg_panel);
+    draw_rectangle(px, py, px + pw, py + ph, false);
+    draw_set_color(col_border_out);
+    draw_rectangle(px, py, px + pw, py + ph, true);
+    draw_set_color(col_gold);
+    draw_rectangle(px + 2, py + 2, px + pw - 2, py + ph - 2, true);
+    
+    // --- ABAS SUPERIORES ---
+    var tab_w = (pw - 4) / 3;
+    var tab_h = 36;
+    var nome_abas = is_pt 
+        ? ["[Q] INVENTARIO", "CRAFTING", "MAESTRIA [E]"] 
+        : ["[Q] INVENTORY", "CRAFTING", "MASTERY [E]"];
+    
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    
+    for (var i = 0; i < 3; i++) {
+        var tx1 = px + 2 + (i * tab_w);
+        var tx2 = tx1 + tab_w;
+        var ty1 = py + 2;
+        var ty2 = ty1 + tab_h;
+        
+        if (aba_atual == i) {
+            draw_set_color(col_highlight);
+            draw_rectangle(tx1, ty1, tx2, ty2, false);
+            draw_set_color(col_gold);
+            draw_rectangle(tx1, ty2 - 3, tx2, ty2, false);
+            _draw_txt((tx1 + tx2) / 2, (ty1 + ty2) / 2, nome_abas[i], c_white);
+        } else {
+            draw_set_color(col_header);
+            draw_rectangle(tx1, ty1, tx2, ty2, false);
+            draw_set_color(col_border_out);
+            draw_rectangle(tx1, ty1, tx2, ty2, true);
+            _draw_txt((tx1 + tx2) / 2, (ty1 + ty2) / 2, nome_abas[i], col_text_sub);
+        }
+    }
+    
+    var cx1 = px + 24;
+    var cy1 = py + 52;
+    var cw  = pw - 48;
+    
+    // ---------------------------------------------------
+    // ABA 0: INVENTÃRIO (DIVIDIDO EM 2 COLUNAS LIMPAS)
+    // ---------------------------------------------------
+    if (aba_atual == 0) {
+        var col_w = (cw - 16) / 2;
+        var c2_x  = cx1 + col_w + 16;
+        
+        // TÃ­tulos das Colunas
+        draw_set_halign(fa_left);
+        _draw_txt(cx1 + 4, cy1 + 8, is_pt ? "EQUIPAMENTOS TATICOS" : "TACTICAL GEAR", col_gold);
+        _draw_txt(c2_x + 4, cy1 + 8, is_pt ? "MATERIAIS DE COLETA" : "CRAFTING MATERIALS", col_gold);
+        
+        // Coluna 1: ConsumÃ­veis
+        var gear_names = is_pt ? ["Curativos Medicos", "Coqueteis Molotov", "Facas de Arremesso"] : ["Medical Bandages", "Molotov Cocktails", "Throwing Knives"];
+        var gear_desc  = is_pt ? ["Cura +30 HP", "Dano de fogo em area", "Dano fisico rapido"] : ["Heals +30 HP", "Area fire damage", "Fast physical damage"];
+        var gear_qtd   = [curativo_count, molotov_count, faca_count];
+        
+        for (var k = 0; k < 3; k++) {
+            var iy = cy1 + 28 + (k * 68);
+            draw_set_color(col_card);
+            draw_rectangle(cx1, iy, cx1 + col_w, iy + 58, false);
+            draw_set_color(col_border_out);
+            draw_rectangle(cx1, iy, cx1 + col_w, iy + 58, true);
+            
+            draw_set_halign(fa_left);
+            _draw_txt(cx1 + 14, iy + 18, gear_names[k], c_white);
+            _draw_txt(cx1 + 14, iy + 40, gear_desc[k], col_text_sub);
+            
+            draw_set_halign(fa_right);
+            _draw_txt(cx1 + col_w - 14, iy + 28, "x" + string(gear_qtd[k]), (gear_qtd[k] > 0) ? col_gold : col_hp);
+        }
+        
+        // Coluna 2: Materiais
+        var mat_names = is_pt ? ["Sucata ", "Carne de Besouro", "Glandula Volatil", "Ferrao de Vespa"] : ["Industrial Scrap", "Beetle Meat", "Volatile Gland", "Wasp Stinger"];
+        var mat_qtd   = [global.scrap, carne_count, glandula_count, ferrao_count];
+        
+        for (var m = 0; m < 4; m++) {
+            var my = cy1 + 28 + (m * 50);
+            draw_set_color(col_card);
+            draw_rectangle(c2_x, my, c2_x + col_w, my + 42, false);
+            draw_set_color(col_border_out);
+            draw_rectangle(c2_x, my, c2_x + col_w, my + 42, true);
+            
+            draw_set_halign(fa_left);
+            _draw_txt(c2_x + 14, my + 21, mat_names[m], c_white);
+            
+            draw_set_halign(fa_right);
+            _draw_txt(c2_x + col_w - 14, my + 21, "x" + string(mat_qtd[m]), (mat_qtd[m] > 0) ? col_ok : col_text_sub);
+        }
+    }
+    // ---------------------------------------------------
+    // ABA 1: CRAFTING (CARDS ESPAÃ‡ADOS E LEGÃVEIS)
+    // ---------------------------------------------------
+    else if (aba_atual == 1) {
+        draw_set_color(col_header);
+        draw_rectangle(cx1, cy1, cx1 + cw, cy1 + 32, false);
+        draw_set_color(col_border_out);
+        draw_rectangle(cx1, cy1, cx1 + cw, cy1 + 32, true);
+        
+        var txt_recursos = is_pt
+            ? "Sucata: " + string(global.scrap) + "   |   Carne: " + string(carne_count) + "   |   Glandula: " + string(glandula_count) + "   |   Ferrao: " + string(ferrao_count)
+            : "Scrap: " + string(global.scrap) + "   |   Meat: " + string(carne_count) + "   |   Gland: " + string(glandula_count) + "   |   Stinger: " + string(ferrao_count);
+            
+        draw_set_halign(fa_center);
+        _draw_txt(gw / 2, cy1 + 16, txt_recursos, col_gold);
+        
+        var desc_receitas = is_pt
+            ? ["Restaura +30 de HP (Tecla " + str_key_heal + ")", "Cria poca de fogo continua no chao", "Projetil rapido de dano perfurante"]
+            : ["Restores +30 HP (Key " + str_key_heal + ")", "Creates fire pool on impact", "Fast piercing projectile"];
+            
+        var nome_org = is_pt ? ["1 Carne", "1 Glandula", "1 Ferrao"] : ["1 Meat", "1 Gland", "1 Stinger"];
+        var qtd_org_atual = [carne_count, glandula_count, ferrao_count];
+        var qtd_item_inv  = [curativo_count, molotov_count, faca_count];
+        
+        var card_h = 66;
+        var start_cy = cy1 + 44;
+        
+        for (var j = 0; j < array_length(craft_recipes); j++) {
+            var ry1 = start_cy + (j * (card_h + 10));
+            var ry2 = ry1 + card_h;
+            var is_sel = (menu_index == j);
+            
+            var custo_suc = craft_cost_array[j];
+            var pode_craftar = (global.scrap >= custo_suc && qtd_org_atual[j] >= 1);
+            
+            draw_set_color(is_sel ? col_highlight : col_card);
+            draw_rectangle(cx1, ry1, cx1 + cw, ry2, false);
+            
+            draw_set_color(is_sel ? col_gold : col_border_out);
+            draw_rectangle(cx1, ry1, cx1 + cw, ry2, true);
+            if (is_sel) {
+                draw_rectangle(cx1, ry1, cx1 + 6, ry2, false);
+            }
+            
+            if (state == player_state.craft && craft_selected_item == j) {
+                var pct_c = clamp(craft_timer / craft_time_max, 0, 1);
+                draw_set_color(col_gold);
+                draw_set_alpha(0.30);
+                draw_rectangle(cx1, ry1, cx1 + (cw * pct_c), ry2, false);
+                draw_set_alpha(1.0);
+            }
+            
+            draw_set_halign(fa_left);
+            _draw_txt(cx1 + 18, ry1 + 20, craft_recipes[j] + "  (Estoque: " + string(qtd_item_inv[j]) + ")", is_sel ? col_gold : c_white);
+            _draw_txt(cx1 + 18, ry1 + 45, desc_receitas[j], col_text_sub);
+            
+            draw_set_halign(fa_right);
+            var str_custo = string(custo_suc) + (is_pt ? " Sucatas + " : " Scrap + ") + nome_org[j];
+            _draw_txt(cx1 + cw - 16, ry1 + 20, str_custo, pode_craftar ? col_ok : col_hp);
+            
+            var str_status = (state == player_state.craft && craft_selected_item == j)
+                ? (is_pt ? "[ FABRICANDO... ]" : "[ CRAFTING... ]")
+                : (pode_craftar ? (is_pt ? "[ ENTER: FABRICAR ]" : "[ ENTER: CRAFT ]") : (is_pt ? "[ FALTA MATERIAL ]" : "[ MISSING MATS ]"));
+            _draw_txt(cx1 + cw - 16, ry1 + 45, str_status, pode_craftar ? c_white : col_text_sub);
+        }
+    }
+    // ---------------------------------------------------
+    // ABA 2: MAESTRIA DE COMBATE (COM BARRA DE XP VISUAL)
+    // ---------------------------------------------------
+    else if (aba_atual == 2) {
+        // Card Principal da Arma + Barra de XP
+        draw_set_color(col_header);
+        draw_rectangle(cx1, cy1, cx1 + cw, cy1 + 68, false);
+        draw_set_color(col_gold);
+        draw_rectangle(cx1, cy1, cx1 + cw, cy1 + 68, true);
+        
+        draw_set_halign(fa_left);
+        _draw_txt(cx1 + 18, cy1 + 20, is_pt ? "ARMA: LANCA DE PREGO IMPROVISADA" : "WEAPON: IMPROVISED NAIL SPEAR", col_gold);
+        
+        draw_set_halign(fa_right);
+        _draw_txt(cx1 + cw - 18, cy1 + 20, "NIVEL " + string(arma_nivel), c_white);
+        
+        // Barra de Progresso de XP
+        var xp_x1 = cx1 + 18;
+        var xp_x2 = cx1 + cw - 18;
+        var xp_y1 = cy1 + 40;
+        var xp_pct = clamp(arma_xp / max(1, arma_xp_max), 0, 1);
+        
+        draw_set_color(c_black);
+        draw_rectangle(xp_x1, xp_y1, xp_x2, xp_y1 + 16, false);
+        draw_set_color(col_gold);
+        draw_rectangle(xp_x1, xp_y1, xp_x1 + ((xp_x2 - xp_x1) * xp_pct), xp_y1 + 16, false);
+        draw_set_color(col_border_out);
+        draw_rectangle(xp_x1, xp_y1, xp_x2, xp_y1 + 16, true);
+        
+        draw_set_halign(fa_center);
+        _draw_txt((xp_x1 + xp_x2) / 2, xp_y1 + 8, "XP: " + string(arma_xp) + " / " + string(arma_xp_max), c_white);
+        
+        // Lista de Atributos abaixo da barra
+        var stats_labels = is_pt
+            ? ["Dano Base do Golpe", "Chance de Acerto Critico", "Multiplicador de Critico", "Habilidade de Combo (2o Golpe)"]
+            : ["Base Strike Damage", "Critical Hit Chance", "Critical Multiplier", "Combo Skill (2nd Strike)"];
+            
+        var stats_vals = [
+            string(global.ataque_base) + " DMG",
+            string(global.chance_critico) + "%",
+            string(global.multiplicador_crit) + "x",
+            (arma_nivel >= 2) ? (is_pt ? "DESBLOQUEADO" : "UNLOCKED") : (is_pt ? "Requer Nivel 2" : "Requires Lv. 2")
+        ];
+        
+        for (var s = 0; s < array_length(stats_labels); s++) {
+            var sy = cy1 + 84 + (s * 44);
+            draw_set_color(col_card);
+            draw_rectangle(cx1, sy, cx1 + cw, sy + 36, false);
+            draw_set_color(col_border_out);
+            draw_rectangle(cx1, sy, cx1 + cw, sy + 36, true);
+            
+            draw_set_halign(fa_left);
+            _draw_txt(cx1 + 18, sy + 18, stats_labels[s], c_white);
+            
+            draw_set_halign(fa_right);
+            var _vcol = (s == 3 && arma_nivel < 2) ? col_hp : col_ok;
+            _draw_txt(cx1 + cw - 18, sy + 18, stats_vals[s], _vcol);
+        }
+    }
+    
+    // RodapÃ©
+    var div_y = py + ph - 34;
+    draw_set_color(col_border_out);
+    draw_line(px + 16, div_y, px + pw - 16, div_y);
+    
+    draw_set_halign(fa_center);
+    var dica_hub = is_pt
+        ? "[Q/E] Aba   |   [W/S] Selecionar   |   [ENTER] Fabricar   |   [I / ESC] Fechar"
+        : "[Q/E] Tab   |   [W/S] Select   |   [ENTER] Craft   |   [I / ESC] Close";
+    _draw_txt(gw / 2, py + ph - 17, dica_hub, col_text_sub);
+}
+
+draw_set_halign(fa_left);
+draw_set_valign(fa_top);
+draw_set_color(c_white);
+draw_set_font(-1);
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_player\Step_0.gml ===
+if (!variable_instance_exists(id, "escala_base")) escala_base = 1.15;
+
+// =====================================================================
+// 0. SISTEMA DE HITSTOP (PAUSA O RATO)
+// =====================================================================
+if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
+    image_speed = 0;
+    exit;
+} else {
+    image_speed = 1;
+}
+
+// Se o menu global de Pausa (ESC) estiver aberto, o player nÃ£o processa nada
+if (instance_exists(obj_game_controller) && obj_game_controller.is_paused) {
+    exit;
+}
+
+// =====================================================================
+// 1. LEITURA DE CONTROLES E DIREÃ‡ÃƒO
+// =====================================================================
+var move_dir = keyboard_check(global.key_right) - keyboard_check(global.key_left);
+
+if (move_dir == 0) {
+    var deadzone = 0.2;
+    var axis_h = gamepad_axis_value(0, gp_axislh);
+    if (abs(axis_h) > deadzone) { move_dir = sign(axis_h); }
+}
+
+if (move_dir != 0 && state != player_state.menu && state != player_state.craft && state != player_state.roll) { 
+    if (state != player_state.attack || action_timer >= 18) {
+        facing = move_dir; 
+    }
+}
+
+var key_jump          = keyboard_check_pressed(global.key_jump) || gamepad_button_check_pressed(0, gp_face1);
+var key_jump_released = keyboard_check_released(global.key_jump) || gamepad_button_check_released(0, gp_face1); 
+var key_attack        = keyboard_check_pressed(global.key_attack)  || gamepad_button_check_pressed(0, gp_face3); 
+var key_roll          = keyboard_check_pressed(global.key_roll)  || gamepad_button_check_pressed(0, gp_face2); 
+var key_throw         = keyboard_check_pressed(global.key_throw)  || gamepad_button_check_pressed(0, gp_shoulderr);
+
+var key_menu    = keyboard_check_pressed(global.key_menu) || gamepad_button_check_pressed(0, gp_start);
+var key_heal    = keyboard_check_pressed(global.key_heal) || gamepad_button_check_pressed(0, gp_padl);
+var key_up      = keyboard_check_pressed(global.key_up)    || keyboard_check_pressed(vk_up)    || keyboard_check_pressed(ord("W")) || gamepad_button_check_pressed(0, gp_padu);
+var key_down    = keyboard_check_pressed(global.key_down) || keyboard_check_pressed(vk_down) || keyboard_check_pressed(ord("S")) || gamepad_button_check_pressed(0, gp_padd);
+var key_confirm = keyboard_check_pressed(global.key_confirm) || gamepad_button_check_pressed(0, gp_face1);
+
+var key_tab_left  = keyboard_check_pressed(global.key_tab_left) || gamepad_button_check_pressed(0, gp_shoulderl);
+var key_tab_right = keyboard_check_pressed(global.key_tab_right) || gamepad_button_check_pressed(0, gp_shoulderr);
+
+// =====================================================================
+// 2. USO DE ITENS (CURATIVO) E BUFFS
+// =====================================================================
+if (state != player_state.menu && state != player_state.craft && key_heal && curativo_count > 0 && hp < hp_max) {
+    curativo_count--;
+    hp = min(hp + 30, hp_max);
+}
+
+if (buff_fogo_timer > 0 && state != player_state.menu && state != player_state.craft) {
+    buff_fogo_timer--;
+}
+
+var on_ground = place_meeting(x, y + 1, obj_colisor);
+if (on_ground) { coyote_timer = coyote_time_max; } else { coyote_timer = max(0, coyote_timer - 1); }
+if (key_jump)  { jump_buffer_timer = jump_buffer_max; } else { jump_buffer_timer = max(0, jump_buffer_timer - 1); }
+
+// ==========================================
+// GATILHO DIRETO DO MENU DO PLAYER (TECLA I)
+// ==========================================
+if (key_menu) {
+    if (state != player_state.menu && state != player_state.craft) {
+        state = player_state.menu;
+        hspd = 0;
+        vspd = 0;
+        menu_index = 0;
+        aba_atual = 1; // Abre direto na aba de Crafting
+        
+        instance_deactivate_all(true);
+        instance_activate_object(obj_game_controller);
+        instance_activate_object(obj_camera);
+        instance_activate_object(obj_colisor);
+    } else {
+        state = player_state.idle;
+        instance_activate_all();
+    }
+    keyboard_clear(global.key_menu);
+}
+
+// =====================================================================
+// 3. MÃQUINA DE ESTADOS (FSM)
+// =====================================================================
+switch (state) {
+    
+    // --- PARADO ---
+    case player_state.idle:
+        hspd = lerp(hspd, 0, fric); 
+        if (abs(hspd) < 0.1) hspd = 0;
+        
+        image_blend = c_white;
+        sprite_index = spr_player_idle;
+        
+        if (move_dir != 0) state = player_state.run;
+        if (!on_ground) state = player_state.air; 
+        
+        if (jump_buffer_timer > 0 && coyote_timer > 0) { 
+            vspd = jump_spd; jump_buffer_timer = 0; coyote_timer = 0;
+            scale_x = escala_base * 0.75; scale_y = escala_base * 1.35; 
+            state = player_state.air; 
+        }
+        
+        if (key_attack) {
+            if (move_dir != 0) facing = move_dir;
+            state = player_state.attack;
+            action_timer = 24; 
+            combo_count = 1;        
+            sprite_index = spr_player_attack; 
+            image_index = 0;        
+            ataque_buffer = false; 
+            hspd = facing * 3.0; 
+            scale_x = escala_base * 1.25; scale_y = escala_base * 0.85;
+        }
+        
+        if (key_throw) {
+            if (faca_count > 0 && object_exists(obj_faca_arremesso)) {
+                faca_count--;
+                var faca = instance_create_layer(x + (facing * 12), y - 14, "Instances", obj_faca_arremesso);
+                faca.hspd = facing * 11; faca.vspd = -1;
+            } else if (molotov_count > 0 && object_exists(obj_molotov)) {
+                molotov_count--;
+                var molotov = instance_create_layer(x + (facing * 10), y - 15, "Instances", obj_molotov);
+                molotov.hspd = facing * 6.5; molotov.vspd = -4.5;         
+            }
+        }
+        
+        if (key_roll) {
+            state = player_state.roll; 
+            action_timer = 14; 
+            is_invulnerable = true; 
+            iframe_timer = max(iframe_timer, 14); 
+            sprite_index = spr_player_roll; 
+            image_index = 0;
+        }
+        break;
+        
+    // --- CORRENDO ---
+    case player_state.run:
+        hspd = lerp(hspd, move_dir * walk_sp, accel); 
+        image_blend = c_white;
+        sprite_index = spr_player_walk;
+        
+        if (move_dir == 0) state = player_state.idle;
+        if (!on_ground) state = player_state.air;
+        
+        if (jump_buffer_timer > 0 && coyote_timer > 0) { 
+            vspd = jump_spd; jump_buffer_timer = 0; coyote_timer = 0;
+            scale_x = escala_base * 0.75; scale_y = escala_base * 1.35; 
+            state = player_state.air; 
+        }
+        
+        if (key_attack) {
+            if (move_dir != 0) facing = move_dir;
+            state = player_state.attack;
+            action_timer = 24; 
+            combo_count = 1;        
+            sprite_index = spr_player_attack; 
+            image_index = 0;
+            ataque_buffer = false;
+            
+            hspd = facing * 3.5;
+            scale_x = escala_base * 1.25;
+            scale_y = escala_base * 0.85;
+        }
+
+        if (key_throw) {
+            if (faca_count > 0 && object_exists(obj_faca_arremesso)) {
+                faca_count--;
+                var faca = instance_create_layer(x + (facing * 12), y - 14, "Instances", obj_faca_arremesso);
+                faca.hspd = facing * 12; faca.vspd = -1;
+            } else if (molotov_count > 0 && object_exists(obj_molotov)) {
+                molotov_count--;
+                var molotov = instance_create_layer(x + (facing * 10), y - 15, "Instances", obj_molotov);
+                molotov.hspd = facing * 8; molotov.vspd = -4;         
+            }
+        }
+        
+        if (key_roll) {
+            state = player_state.roll; 
+            action_timer = 14; 
+            is_invulnerable = true; 
+            iframe_timer = max(iframe_timer, 14);
+            sprite_index = spr_player_roll; 
+            image_index = 0;
+        }
+        break;
+        
+    // --- NO AR ---
+    case player_state.air:
+        var touching_wall_right = place_meeting(x + 1, y, obj_colisor);
+        var touching_wall_left  = place_meeting(x - 1, y, obj_colisor);
+        
+        if (vspd > 0 && !place_meeting(x, y - 2, obj_colisor) && ((touching_wall_right && move_dir > 0) || (touching_wall_left && move_dir < 0))) {
+            state = player_state.wall_slide;
+        }
+        
+        if (key_attack) {
+            if (move_dir != 0) facing = move_dir;
+            state = player_state.attack;
+            action_timer = 24; 
+            combo_count = 1;
+            sprite_index = spr_player_attack_jump;
+            image_index = 0;
+            ataque_buffer = false;
+            scale_x = escala_base * 1.25; scale_y = escala_base * 0.85;
+            break;
+        }
+        
+        var taxa_lerp = (move_dir != 0) ? accel : fric;
+        hspd = lerp(hspd, move_dir * walk_sp, taxa_lerp);
+        
+        vspd += grv;
+        if (vspd > max_vspd) vspd = max_vspd;
+        if (key_jump_released && vspd < 0) { vspd *= 0.45; }
+        
+        image_blend = c_white;
+        sprite_index = (vspd < 0) ? spr_player_jump : spr_player_air;
+        
+        if (on_ground && vspd >= 0) {
+            scale_x = escala_base * 1.25; scale_y = escala_base * 0.80;
+            state = (move_dir != 0) ? player_state.run : player_state.idle;
+        }
+        break;
+
+    // --- ATTACK ---
+    case player_state.attack:
+        if (on_ground) {
+            hspd = lerp(hspd, move_dir * (walk_sp * 0.5), 0.2); 
+            vspd = 0;
+        } else {
+            vspd += grv;
+            if (vspd > max_vspd) vspd = max_vspd;
+            hspd = lerp(hspd, move_dir * walk_sp, 0.08); 
+        }
+        
+        var _target_spr;
+        if (!on_ground || sprite_index == spr_player_attack_jump) {
+            _target_spr = spr_player_attack_jump;
+        } else {
+            _target_spr = (combo_count == 1) ? spr_player_attack : spr_player_attack2;
+        }
+        
+        if (sprite_index != _target_spr) {
+            sprite_index = _target_spr;
+            image_index = 0;
+        }
+        image_blend = c_white;
+        
+        image_speed = (combo_count == 2) ? 0.95 : 1.15; 
+        
+        if (image_index >= image_number - 1) {
+            image_index = image_number - 1;
+            image_speed = 0;
+        }
+        
+        if (key_attack && arma_nivel >= 2) {
+            ataque_buffer = true; 
+        }
+        
+        var _frame_hit = (combo_count == 2) ? 12 : 14;
+        if (action_timer == _frame_hit) {
+            var hit = instance_create_layer(x + (facing * 30), y - 12, "Instances", obj_hitbox);
+            hit.image_xscale = facing * 1.5;
+            hit.duracao = 5; 
+            
+            if (buff_fogo_timer > 0) hit.aplica_fogo = true;
+            if (combo_count == 2) {
+                hit.dano = 2; 
+                hit.image_xscale = facing * 1.8;
+            }
+        }
+
+        if (action_timer <= 10 && key_roll) {
+            if (move_dir != 0) facing = move_dir;
+            state = player_state.roll;
+            action_timer = 14;
+            is_invulnerable = true;
+            iframe_timer = max(iframe_timer, 14);
+            sprite_index = spr_player_roll;
+            image_index = 0;
+            image_speed = 1;
+            break;
+        }
+
+        action_timer--;
+        
+        if (action_timer <= 0) {
+            if (ataque_buffer && combo_count == 1 && arma_nivel >= 2) {
+                if (move_dir != 0) facing = move_dir;
+                combo_count = 2;
+                action_timer = 18;
+                sprite_index = on_ground ? spr_player_attack2 : spr_player_attack_jump;
+                image_index = 0;   
+                ataque_buffer = false;
+                if (on_ground) hspd = facing * 4.0;
+                scale_x = escala_base * 1.35; scale_y = escala_base * 0.80;
+            } else {
+                combo_count = 0;
+                image_speed = 1; 
+                state = on_ground ? ((move_dir != 0) ? player_state.run : player_state.idle) : player_state.air;
+            }
+        }
+        break;
+
+    // --- ROLANDO ---
+    case player_state.roll:
+        if (sprite_index != spr_player_roll) {
+            sprite_index = spr_player_roll;
+            image_index = 0;
+        }
+        
+        image_speed = 1.0; 
+        if (image_index >= image_number - 1) {
+            image_index = image_number - 1;
+            image_speed = 0;
+        }
+        
+        hspd = facing * roll_sp; 
+        vspd += grv; 
+        image_blend = c_white;
+        
+        action_timer--;
+        
+        if (action_timer <= 0) { 
+            image_speed = 1.0;
+            if (iframe_timer <= 10) {
+                iframe_timer = 0;
+                is_invulnerable = false;
+            }
+            state = on_ground ? ((move_dir != 0) ? player_state.run : player_state.idle) : player_state.air; 
+        }
+        break;
+
+    // --- WALL SLIDE ---
+    case player_state.wall_slide:
+        vspd = 2; 
+        hspd = 0;
+        image_blend = c_white;
+        sprite_index = spr_player_jump;
+        var wall_dir = place_meeting(x + 1, y, obj_colisor) ? 1 : -1;
+        
+        if (key_jump) {
+            vspd = wall_jump_vspd;
+            hspd = -wall_dir * wall_jump_hspd;
+            facing = -wall_dir;
+            x += -wall_dir * 2; 
+            scale_x = escala_base * 0.80; scale_y = escala_base * 1.25;
+            state = player_state.air;
+            break;
+        }
+        
+        if (move_dir != wall_dir || !place_meeting(x + wall_dir, y, obj_colisor) || on_ground) {
+            state = player_state.air;
+        }
+        break;
+
+    // --- HUB DO PERSONAGEM (TELA DE CRAFTING / INVENTÃRIO) ---
+    case player_state.menu:
+        hspd = 0; vspd = 0; 
+        sprite_index = spr_player_idle;
+        
+        if (key_tab_right || keyboard_check_pressed(vk_right) || keyboard_check_pressed(ord("D"))) { aba_atual++; if (aba_atual > 2) aba_atual = 0; menu_index = 0; }
+        if (key_tab_left  || keyboard_check_pressed(vk_left)  || keyboard_check_pressed(ord("A"))) { aba_atual--; if (aba_atual < 0) aba_atual = 2; menu_index = 0; }
+        
+        if (keyboard_check_pressed(vk_escape) || gamepad_button_check_pressed(0, gp_face2)) {
+            state = player_state.idle;
+            instance_activate_all();
+            keyboard_clear(vk_escape);
+            exit;
+        }
+        
+        if (aba_atual == 1) {
+            if (key_down) { menu_index++; if (menu_index >= array_length(craft_recipes)) menu_index = 0; }
+            if (key_up)   { menu_index--; if (menu_index < 0) menu_index = array_length(craft_recipes) - 1; }
+            
+            if (key_confirm) {
+                var cost = craft_cost_array[menu_index];
+                var tem_material = false;
+                if (menu_index == 0 && carne_count >= 1)    tem_material = true;
+                if (menu_index == 1 && glandula_count >= 1) tem_material = true;
+                if (menu_index == 2 && ferrao_count >= 1)   tem_material = true;
+                
+                if (global.scrap >= cost && tem_material) {
+                    global.scrap -= cost;
+                    if (menu_index == 0) carne_count--;
+                    if (menu_index == 1) glandula_count--;
+                    if (menu_index == 2) ferrao_count--;
+                    
+                    craft_cost = cost;
+                    craft_selected_item = menu_index;
+                    craft_timer = 0;
+                    state = player_state.craft; 
+                }
+            }
+        }
+        exit;
+
+    // --- FABRICANDO ITEM ---
+    case player_state.craft:
+        hspd = 0; vspd = 0; 
+        image_blend = c_white; 
+        sprite_index = spr_player_idle;
+        craft_timer += 2;
+        
+        if (craft_timer >= craft_time_max) {
+            if (craft_selected_item == 0) curativo_count++;
+            else if (craft_selected_item == 1) molotov_count++;
+            else if (craft_selected_item == 2) faca_count++;
+            craft_timer = 0;
+            state = player_state.menu; 
+        }
+        exit;
+}
+
+// =====================================================================
+// 4. DANO E I-FRAMES (BOSS REMOVIDO DAQUI POIS USA OBJ_HITBOX_ENEMY)
+// =====================================================================
+if (is_invulnerable) {
+    iframe_timer--;
+    if (iframe_timer <= 0) is_invulnerable = false;
+}
+
+if (!is_invulnerable && state != player_state.roll) {
+    if (object_exists(obj_acido_centopeia)) {
+        var gota_acido = instance_place(x, y, obj_acido_centopeia);
+        if (gota_acido != noone) {
+            hp -= gota_acido.dano;
+            is_invulnerable = true;
+            iframe_timer = 60; 
+            var dir_acido = (gota_acido.hspd != 0) ? sign(gota_acido.hspd) : -facing;
+            hspd = dir_acido * 5;
+            vspd = -4;
+            state = player_state.air;
+            instance_destroy(gota_acido);
+        }
+    }
+    
+    if (object_exists(obj_espinho) && place_meeting(x, y, obj_espinho)) {
+        hp -= 20; 
+        is_invulnerable = true; 
+        iframe_timer = 65; 
+        vspd = -5; 
+        hspd = -facing * 6; 
+        state = player_state.air; 
+    }
+    
+    // Inimigos comuns: Besouro sÃ³ dÃ¡ dano na investida (charge)
+    var inimigo = instance_place(x, y, obj_enemy);
+    if (inimigo != noone && inimigo.object_index != obj_boss_centopeia) {
+        if (inimigo.state == enemy_state.charge) {
+            hp -= 15;
+            is_invulnerable = true;
+            iframe_timer = 65; 
+            var dir_hit = sign(x - inimigo.x);
+            if (dir_hit == 0) dir_hit = -facing;
+            hspd = dir_hit * 6.5;
+            vspd = -4.5;
+            state = player_state.air;
+            inimigo.hspd = -dir_hit * 5;
+            inimigo.vspd = -2.5;
+            if (instance_exists(obj_game_controller)) {
+                obj_game_controller.hitstop_timer = 5;
+                obj_game_controller.shake_magnitude = 3;
+            }
+        }
+    }
+    
+    // Vespa continua dando dano de contato normal
+    if (object_exists(obj_vespa)) {
+        var vespa = instance_place(x, y, obj_vespa);
+        if (vespa != noone) {
+            hp -= 15;
+            is_invulnerable = true;
+            iframe_timer = 65; 
+            var dir_v = sign(x - vespa.x);
+            if (dir_v == 0) dir_v = -facing;
+            hspd = dir_v * 6.5;
+            vspd = -4.5;
+            state = player_state.air;
+            if (instance_exists(obj_game_controller)) {
+                obj_game_controller.hitstop_timer = 5;
+                obj_game_controller.shake_magnitude = 3;
+            }
+        }
+    }
+}
+
+if (hp <= 0) {
+    hp = 0;
+    instance_activate_all();
+    if (file_exists("save_1.ini")) {
+        carregar_jogo(1);
+    } else {
+        room_restart();
+    }
+}
+
+// =====================================================================
+// 5. APLICAÃ‡ÃƒO FÃSICA
+// =====================================================================
+if (place_meeting(x, y, obj_colisor)) {
+    for (var d = 1; d <= 16; d++) {
+        if (!place_meeting(x + d, y, obj_colisor)) { x += d; break; }
+        if (!place_meeting(x - d, y, obj_colisor)) { x -= d; break; }
+        if (!place_meeting(x, y + d, obj_colisor)) { y += d; break; }
+        if (!place_meeting(x, y - d, obj_colisor)) { y -= d; break; }
+    }
+}
+
+if (place_meeting(x + hspd, y, obj_colisor)) {
+    while (!place_meeting(x + sign(hspd), y, obj_colisor)) { x += sign(hspd); }
+    hspd = 0;
+}
+x += hspd;
+
+if (place_meeting(x, y + vspd, obj_colisor)) {
+    while (!place_meeting(x, y + sign(vspd), obj_colisor)) { y += sign(vspd); }
+    vspd = 0;
+}
+y += vspd;
+
+if (keyboard_check_pressed(ord("U"))) { 
+    repeat(3) { instance_create_layer(x, y - 10, "Instances", obj_scrap); } 
+    carne_count++;
+    glandula_count++;
+    ferrao_count++;
+}
+
+scale_x = lerp(scale_x, escala_base, 0.2);
+scale_y = lerp(scale_y, escala_base, 0.2);
+image_xscale = facing * scale_x;
+image_yscale = scale_y;
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_scrap\Create_0.gml ===
+// FÃ­sica de arremesso e gravidade
+vspd = random_range(-4, -2.5); // Salto para cima
+hspd = random_range(-2.5, 2.5); // Espalha para os lados
+grv = 0.25;
+bounce = 0.5;                   // Coeficiente de ressalto (perde metade da forÃ§a ao quicar)
+bounces_left = 2;               // Quantidade de quiques antes de parar no chÃ£o
+
+// Sistema de Magnetismo
+magnet_radius = 64;             // DistÃ¢ncia em pixels para comeÃ§ar a puxar
+magnet_spd = 0;                 // Velocidade inicial de atraÃ§Ã£o
+magnet_accel = 0.5;             // AceleraÃ§Ã£o em direÃ§Ã£o ao rato
+is_magnetized = false;
+
+value = 1;                      // Quantidade de sucata por unidade
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_scrap\Draw_0.gml ===
+// Se vocÃª atribuir uma sprite no futuro, ele desenha a sprite automaticamente
+if (sprite_index != -1 && sprite_exists(sprite_index)) {
+    draw_self();
+} else {
+    // Marcador visual temporÃ¡rio: porca metÃ¡lica de 4px
+    draw_set_color(make_color_rgb(180, 100, 40)); // Ferrugem/Bronze
+    draw_circle(x, y, 4, false);
+    draw_set_color(c_yellow);                     // Ponto de luz central
+    draw_point(x - 1, y - 1);
+    draw_set_color(c_white);
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_scrap\Step_0.gml ===
+// 1. VerificaÃ§Ã£o de proximidade com o jogador
+if (instance_exists(obj_player)) {
+    var dist = point_distance(x, y, obj_player.x, obj_player.y);
+    if (dist <= magnet_radius) {
+        is_magnetized = true;
+    }
+}
+
+// 2. Comportamento magnÃ©tico
+if (is_magnetized && instance_exists(obj_player)) {
+    // Alvo no centro do rato (peito/cintura)
+    var target_x = obj_player.x;
+    var target_y = obj_player.y - 12;
+    
+    var dir = point_direction(x, y, target_x, target_y);
+    magnet_spd = min(magnet_spd + magnet_accel, 9); // Ganha velocidade gradativa atÃ© o limite
+    
+    x += lengthdir_x(magnet_spd, dir);
+    y += lengthdir_y(magnet_spd, dir);
+    
+    // Coleta por contato
+    if (point_distance(x, y, target_x, target_y) < 10) {
+        global.scrap += value;
+        instance_destroy();
+    }
+} else {
+    // 3. FÃ­sica de gravidade e ressalto com o cenÃ¡rio
+    vspd += grv;
+    
+    // ColisÃ£o Horizontal
+    if (place_meeting(x + hspd, y, obj_colisor)) {
+        while (!place_meeting(x + sign(hspd), y, obj_colisor)) {
+            x += sign(hspd);
+        }
+        hspd = -hspd * bounce;
+    }
+    x += hspd;
+    
+    // ColisÃ£o Vertical (Quique)
+    if (place_meeting(x, y + vspd, obj_colisor)) {
+        while (!place_meeting(x, y + sign(vspd), obj_colisor)) {
+            y += sign(vspd);
+        }
+        
+        if (bounces_left > 0) {
+            vspd = -vspd * bounce;
+            bounces_left--;
+        } else {
+            vspd = 0;
+            hspd = lerp(hspd, 0, 0.15); // Atrito atÃ© parar
+        }
+    }
+    y += vspd;
+} // <-- Faltava esta chave aqui!
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_settings\Create_0.gml ===
+// =====================================================================
+// 1. DICIONÃRIO GLOBAL E VARIÃVEIS DE INICIALIZAÃ‡ÃƒO
+// =====================================================================
+global.idioma = "PT";
+global.brilho = 0.5;
+
+global.textos = {
+    PT: {
+        jogar: "Jogar",
+        opcoes: "Opcoes",
+        sair: "Sair",
+        morte: "VOCE MORREU"
+    },
+    EN: {
+        jogar: "Play",
+        opcoes: "Options",
+        sair: "Quit",
+        morte: "YOU DIED"
+    }
+};
+
+// VÃ­deo e Ãudio PadrÃ£o
+global.tela_cheia  = 0;
+global.res_index   = 0; // 0 = 1280x720 | 1 = 1600x900 | 2 = 1920x1080
+global.tremer_tela = 1;
+global.vol_master  = 1.0;
+global.vol_sfx     = 0.8;
+global.vol_musica  = 0.5;
+
+// Controles PadrÃ£o
+global.key_right     = vk_right;
+global.key_left      = vk_left;
+global.key_up        = vk_up;
+global.key_down      = vk_down;
+
+global.key_jump      = vk_space;
+global.key_attack    = ord("J");
+global.key_roll      = ord("K");
+global.key_heal      = ord("H");
+global.key_throw     = ord("F");
+
+global.key_menu      = ord("I");
+global.key_confirm   = vk_enter;
+global.key_tab_left  = ord("Q");
+global.key_tab_right = ord("E");
+
+// Nitidez de Pixel Art e VSync
+gpu_set_tex_filter(false);
+display_reset(0, true);
+display_set_gui_size(800, 450);
+
+// =====================================================================
+// 2. EXECUÃ‡ÃƒO E TRANSIÃ‡ÃƒO INICIAL (USA AS FUNÃ‡Ã•ES DO SCRIPT DE SAVE)
+// =====================================================================
+carregar_configuracoes();
+room_goto(rm_main_menu);
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_transition\Create_0.gml ===
+alpha = 0;           // ComeÃ§a totalmente transparente
+destino_room = -1;   // Sala para onde vamos
+estado = 0;          // 0 = Inativo, 1 = Escurecendo (Fade Out), 2 = Clareando (Fade In)
+velocidade_fade = 0.05; // Velocidade da transiÃ§Ã£o (quanto maior, mais rÃ¡pido)
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_transition\Draw_64.gml ===
+if (alpha > 0) {
+    var gw = display_get_gui_width();
+    var gh = display_get_gui_height();
+    
+    draw_set_color(c_black);
+    draw_set_alpha(alpha);
+    draw_rectangle(0, 0, gw, gh, false);
+    draw_set_alpha(1.0); // Reseta o alpha padrÃ£o
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_transition\Step_0.gml ===
+if (estado == 1) {
+    // Escurece a tela gradualmente
+    alpha += velocidade_fade;
+    if (alpha >= 1) {
+        alpha = 1;
+        // Quando a tela estiver 100% preta, troca de sala
+        if (room_exists(destino_room)) {
+            room_goto(destino_room);
+        }
+        estado = 2; // ComeÃ§a a clarear na nova sala
+    }
+} 
+else if (estado == 2) {
+    // Clareia a tela gradualmente
+    alpha -= velocidade_fade;
+    if (alpha <= 0) {
+        alpha = 0;
+        estado = 0; // Terminou a transiÃ§Ã£o, destrÃ³i o objeto para nÃ£o pesar
+        instance_destroy();
+    }
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_vespa\Create_0.gml ===
+hp = 2;
+hspd = 0;
+vspd = 0;
+vel_voo = 2;
+
+enum vespa_state {
+    patrulha,
+    perseguicao,
+    preparando,
+    rasante,
+    recuperando
+}
+state = vespa_state.patrulha;
+
+vision_range = 180;
+state_timer = 0;
+alvo_x = x;
+alvo_y = y;
+
+piscar = 0;
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_vespa\Draw_0.gml ===
+if (piscar > 0) {
+    gpu_set_fog(true, c_white, 0, 1);
+    draw_self();
+    gpu_set_fog(false, c_white, 0, 0);
+} else {
+    draw_self();
+}
+=== ARQUIVO: D:\GITHUB\projeto-fpf\objects\obj_vespa\Step_0.gml ===
+// Trava de Hitstop
+if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
+    image_speed = 0;
+    exit;
+} else {
+    image_speed = 1;
+}
+
+if (piscar > 0) piscar--;
+
+switch (state) {
+    
+    // 1. PATRULHA SENOIDAL
+    case vespa_state.patrulha:
+        vspd = sin(current_time / 200) * 1.5;
+        hspd = cos(current_time / 300) * 1.0;
+        
+        if (instance_exists(obj_player)) {
+            if (point_distance(x, y, obj_player.x, obj_player.y) <= vision_range) {
+                state = vespa_state.perseguicao;
+            }
+        }
+        break;
+        
+    // 2. PERSEGUIÃ‡ÃƒO MANTENDO ALTURA
+    case vespa_state.perseguicao:
+        if (instance_exists(obj_player)) {
+            var dir = point_direction(x, y, obj_player.x, obj_player.y - 35);
+            hspd = lengthdir_x(vel_voo, dir);
+            vspd = lengthdir_y(vel_voo, dir);
+            
+            var dist = point_distance(x, y, obj_player.x, obj_player.y);
+            if (dist < 110) {
+                alvo_x = obj_player.x;
+                alvo_y = obj_player.y;
+                state_timer = 25; // 25 frames de aviso antes do bote
+                state = vespa_state.preparando;
+            } else if (dist > vision_range * 1.5) {
+                state = vespa_state.patrulha;
+            }
+        }
+        break;
+        
+    // 3. PREPARANDO O BOTE (Telegraph Visual: Treme no ar mirando)
+    case vespa_state.preparando:
+        hspd = irandom_range(-1, 1);
+        vspd = -0.5; // Sobe levemente antes de mergulhar
+        
+        if (instance_exists(obj_player)) {
+            alvo_x = obj_player.x;
+            alvo_y = obj_player.y;
+            if (obj_player.x != x) image_xscale = sign(obj_player.x - x);
+        }
+        
+        state_timer--;
+        if (state_timer <= 0) {
+            var dir_rasante = point_direction(x, y, alvo_x, alvo_y);
+            hspd = lengthdir_x(vel_voo * 3.8, dir_rasante);
+            vspd = lengthdir_y(vel_voo * 3.8, dir_rasante);
+            state_timer = 25; // DuraÃ§Ã£o do bote
+            state = vespa_state.rasante;
+        }
+        break;
+        
+    // 4. ATAQUE RASANTE
+    case vespa_state.rasante:
+        state_timer--;
+        // Se bater no chÃ£o/parede ou acabar o tempo, entra em recuperaÃ§Ã£o
+        if (place_meeting(x + hspd, y + vspd, obj_colisor) || state_timer <= 0) {
+            hspd = 0;
+            vspd = 0;
+            state_timer = 35; // Pequena janela vulnerÃ¡vel apÃ³s o ataque
+            state = vespa_state.recuperando;
+        }
+        break;
+        
+    // 5. RECUPERANDO O FÃ”LEGO (Janela para o Player contra-atacar)
+    case vespa_state.recuperando:
+        hspd = lerp(hspd, 0, 0.2);
+        vspd = sin(current_time / 150) * 0.8;
+        state_timer--;
+        if (state_timer <= 0) {
+            state = vespa_state.perseguicao;
+        }
+        break;
+}
+
+// AplicaÃ§Ã£o de movimento evitando atravessar paredes
+if (!place_meeting(x + hspd, y, obj_colisor)) x += hspd;
+if (!place_meeting(x, y + vspd, obj_colisor)) y += vspd;
+
+if (hspd != 0 && state != vespa_state.preparando) {
+    image_xscale = sign(hspd);
+}
+
+// Morte da Vespa + Drops (Sucata + Chance de FerrÃ£o)
+// Morte da Vespa + Drops (Sucata + Chance de FerrÃ£o + XP da Arma)
+if (hp <= 0) {
+    if (instance_exists(obj_game_controller)) {
+        obj_game_controller.hitstop_timer = 5;
+        obj_game_controller.shake_magnitude = 3;
+    }
+    
+    // DÃ¡ +5 de XP para a LanÃ§a do Rato ao derrotar a Vespa
+    if (instance_exists(obj_player)) {
+        obj_player.arma_xp += 5;
+    }
+    
+    // Dropa Sucata
+    instance_create_layer(x, y, layer, obj_scrap);
+    
+    // 60% de chance de dropar FerrÃ£o (tipo_item = 2) com trava de seguranÃ§a
+    if (irandom(99) < 60 && object_exists(obj_item_drop)) {
+        var _drop = instance_create_layer(x, y, layer, obj_item_drop);
+        _drop.tipo_item = 2; // FerrÃ£o
+    }
+    
+    instance_destroy();
+}
+    
+
+=== ARQUIVO: D:\GITHUB\projeto-fpf\scripts\scr_save_system\scr_save_system.gml ===
+// =======================================================
+// 0. VERIFICAR SE O SAVE EXISTE E APLICAR RESOLUÃ‡ÃƒO
+// =======================================================
+function save_existe(_slot) {
+    return file_exists("save_" + string(_slot) + ".ini");
+}
+
+function aplicar_resolucao() {
+    if (!variable_global_exists("res_index")) global.res_index = 0;
+    
+    var _larguras = [1280, 1600, 1920];
+    var _alturas  = [720,  900,  1080];
+    
+    var _idx = clamp(global.res_index, 0, 2);
+    var _w = _larguras[_idx];
+    var _h = _alturas[_idx];
+    
+    window_set_fullscreen(global.tela_cheia);
+    
+    // Se estiver em modo janela, altera o tamanho e centraliza no monitor
+    if (!window_get_fullscreen()) {
+        window_set_size(_w, _h);
+        window_center();
+    }
+    
+    // MantÃ©m a superfÃ­cie de renderizaÃ§Ã£o nÃ­tida
+    if (surface_exists(application_surface)) {
+        surface_resize(application_surface, _w, _h);
+    }
+}
+
+// =======================================================
+// 1. SALVAR E CARREGAR CONFIGURAÃ‡Ã•ES (config.ini)
+// =======================================================
+function salvar_configuracoes() {
+    ini_open("config.ini");
+    
+    ini_write_string("Geral", "Idioma", global.idioma);
+    ini_write_real("Video", "Brilho", global.brilho);
+    ini_write_real("Video", "Fullscreen", global.tela_cheia);
+    ini_write_real("Video", "ResolucaoIndex", variable_global_exists("res_index") ? global.res_index : 0);
+    ini_write_real("Video", "TremerTela", global.tremer_tela);
+    ini_write_real("Audio", "Master", variable_global_exists("vol_master") ? global.vol_master : 1.0);
+    
+    ini_write_real("Controles", "Direita", global.key_right);
+    ini_write_real("Controles", "Esquerda", global.key_left);
+    ini_write_real("Controles", "Cima", global.key_up);
+    ini_write_real("Controles", "Baixo", global.key_down);
+    
+    ini_write_real("Controles", "Pulo", global.key_jump);
+    ini_write_real("Controles", "Ataque", global.key_attack);
+    ini_write_real("Controles", "Esquiva", global.key_roll);
+    ini_write_real("Controles", "Cura", global.key_heal);
+    ini_write_real("Controles", "Arremesso", global.key_throw);
+    ini_write_real("Controles", "Confirmar", global.key_confirm);
+    
+    ini_close();
+    show_debug_message("Configuracoes salvas no config.ini!");
+}
+
+function carregar_configuracoes() {
+    if (file_exists("config.ini")) {
+        ini_open("config.ini");
+        
+        global.idioma      = ini_read_string("Geral", "Idioma", "PT");
+        global.brilho      = ini_read_real("Video", "Brilho", 0.5);
+        global.tela_cheia  = ini_read_real("Video", "Fullscreen", 0);
+        global.res_index   = ini_read_real("Video", "ResolucaoIndex", 0);
+        global.tremer_tela = ini_read_real("Video", "TremerTela", 1);
+        global.vol_master  = ini_read_real("Audio", "Master", 1.0);
+        
+        global.key_right   = ini_read_real("Controles", "Direita", vk_right);
+        global.key_left    = ini_read_real("Controles", "Esquerda", vk_left);
+        global.key_up      = ini_read_real("Controles", "Cima", vk_up);
+        global.key_down    = ini_read_real("Controles", "Baixo", vk_down);
+        
+        global.key_jump    = ini_read_real("Controles", "Pulo", vk_space);
+        global.key_attack  = ini_read_real("Controles", "Ataque", ord("J"));
+        global.key_roll    = ini_read_real("Controles", "Esquiva", ord("K"));
+        global.key_heal    = ini_read_real("Controles", "Cura", ord("H"));
+        global.key_throw   = ini_read_real("Controles", "Arremesso", ord("F"));
+        global.key_confirm = ini_read_real("Controles", "Confirmar", vk_enter);
+        
+        ini_close();
+    }
+    
+    aplicar_resolucao();
+    if (variable_global_exists("vol_master")) {
+        audio_master_gain(global.vol_master);
+    }
+}
+
+function restaurar_padroes() {
+    global.brilho      = 0.5;
+    global.idioma      = "PT";
+    global.tela_cheia  = 0;
+    global.res_index   = 0;
+    global.tremer_tela = 1;
+    global.vol_master  = 1.0;
+    
+    global.key_right   = vk_right;
+    global.key_left    = vk_left;
+    global.key_up      = vk_up;
+    global.key_down    = vk_down;
+    
+    global.key_jump    = vk_space;
+    global.key_attack  = ord("J");
+    global.key_roll    = ord("K");
+    global.key_heal    = ord("H");
+    global.key_throw   = ord("F");
+    global.key_confirm = vk_enter;
+    
+    aplicar_resolucao();
+    salvar_configuracoes();
+    show_debug_message("Configuracoes restauradas para o padrao!");
+}
+
+// =======================================================
+// 2. SALVAR O PROGRESSO (Fogueira e Pause)
+// =======================================================
+function salvar_jogo(_slot) {
+    var _arquivo = "save_" + string(_slot) + ".ini";
+    
+    var _reativar_pause = false;
+    if (!instance_exists(obj_player)) {
+        instance_activate_object(obj_player);
+        _reativar_pause = true;
+    }
+    
+    ini_open(_arquivo);
+    
+    ini_write_string("Mundo", "Sala", room_get_name(room));
+    ini_write_real("Economia", "Sucata", global.scrap);
+    
+    if (instance_exists(obj_player)) {
+        ini_write_real("Player", "X", obj_player.x);
+        ini_write_real("Player", "Y", obj_player.y);
+        ini_write_real("Player", "HP", obj_player.hp);
+        ini_write_real("Player", "Curativos", obj_player.curativo_count);
+        ini_write_real("Player", "Molotovs", obj_player.molotov_count);
+        ini_write_real("Player", "Facas", obj_player.faca_count);
+        ini_write_real("Player", "ArmaNivel", obj_player.arma_nivel);
+        ini_write_real("Player", "ArmaXP", obj_player.arma_xp);
+        
+        // Materiais OrgÃ¢nicos
+        ini_write_real("Player", "carne", obj_player.carne_count);
+        ini_write_real("Player", "glandula", obj_player.glandula_count);
+        ini_write_real("Player", "ferrao", obj_player.ferrao_count);
+    }
+    
+    ini_close();
+    
+    if (_reativar_pause && instance_exists(obj_game_controller) && obj_game_controller.is_paused) {
+        instance_deactivate_object(obj_player);
+    }
+    
+    show_debug_message("Jogo salvo com sucesso no " + _arquivo);
+}
+
+// =======================================================
+// 3. CARREGAR O PROGRESSO (Menu Inicial e Morte)
+// =======================================================
+function carregar_jogo(_slot) {
+    var _arquivo = "save_" + string(_slot) + ".ini";
+    
+    if (file_exists(_arquivo)) {
+        ini_open(_arquivo);
+        
+        var _nome_sala = ini_read_string("Mundo", "Sala", "");
+        global.scrap   = ini_read_real("Economia", "Sucata", 0);
+        
+        global.carregando_save = true;
+        global.load_x          = ini_read_real("Player", "X", 0);
+        global.load_y          = ini_read_real("Player", "Y", 0);
+        global.load_hp         = ini_read_real("Player", "HP", 100);
+        global.load_curativos  = ini_read_real("Player", "Curativos", 0);
+        global.load_molotovs   = ini_read_real("Player", "Molotovs", 0);
+        global.load_facas      = ini_read_real("Player", "Facas", 0);
+        global.load_arma_nivel = ini_read_real("Player", "ArmaNivel", 1);
+        global.load_arma_xp    = ini_read_real("Player", "ArmaXP", 0);
+        
+        // Materiais OrgÃ¢nicos Carregados
+        global.load_carne      = ini_read_real("Player", "carne", 0);
+        global.load_glandula   = ini_read_real("Player", "glandula", 0);
+        global.load_ferrao     = ini_read_real("Player", "ferrao", 0);
+        
+        ini_close();
+        
+        var _id_sala = asset_get_index(_nome_sala);
+        if (_id_sala > -1) {
+            // TRANSIÃ‡ÃƒO SUAVE AO CARREGAR SAVE (USANDO OBJ_TRANSITION)
+            if (asset_get_index("obj_transition") != -1 && !instance_exists(obj_transition)) {
+                var t = instance_create_layer(0, 0, layer, obj_transition);
+                t.destino_room = _id_sala;
+                t.estado = 1;
+            } else {
+                room_goto(_id_sala);
+            }
+        } else {
+            novo_jogo(_slot);
+        }
+    } else {
+        novo_jogo(_slot);
+    }
+}
+
+// =======================================================
+// 4. INICIAR NOVO JOGO DO ZERO (COM TRANSIÃ‡ÃƒO SUAVE)
+// =======================================================
+function novo_jogo(_slot) {
+    var _arquivo = "save_" + string(_slot) + ".ini";
+    if (file_exists(_arquivo)) {
+        file_delete(_arquivo);
+    }
+    
+    global.scrap = 0;
+    global.carregando_save = false;
+    
+    // TRANSIÃ‡ÃƒO SUAVE PARA A PRIMEIRA FASE (USANDO OBJ_TRANSITION)
+    if (asset_get_index("obj_transition") != -1 && !instance_exists(obj_transition)) {
+        var t = instance_create_layer(0, 0, layer, obj_transition);
+        t.destino_room = rm_forest_1;
+        t.estado = 1;
+    } else {
+        room_goto(rm_forest_1);
+    }
+}
