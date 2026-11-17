@@ -1,7 +1,7 @@
 // Alternar Tela Cheia no F11
 if (keyboard_check_pressed(vk_f11)) {
     global.tela_cheia = !window_get_fullscreen();
-    window_set_fullscreen(global.tela_cheia);
+    aplicar_resolucao();
     salvar_configuracoes();
 }
 
@@ -66,11 +66,13 @@ if (menu_state == 0) {
 // --- ESTADO 1: SUB-MENU DE OPÇÕES COM ABAS ---
 else if (menu_state == 1) {
     
-    // Alternar Abas com Q e E
-    if (keyboard_check_pressed(global.key_tab_left))  { opcao_aba = 0; menu_index = 0; }
-    if (keyboard_check_pressed(global.key_tab_right)) { opcao_aba = 1; menu_index = 0; }
+    var tab_l = keyboard_check_pressed(global.key_tab_left)  || gamepad_button_check_pressed(0, gp_shoulderl);
+    var tab_r = keyboard_check_pressed(global.key_tab_right) || gamepad_button_check_pressed(0, gp_shoulderr);
     
-    var total_opcoes_aba = (opcao_aba == 0) ? 5 : 8; // Aba 0 (5 itens) | Aba 1 (8 itens)
+    if (tab_l) { opcao_aba = 0; menu_index = 0; }
+    if (tab_r) { opcao_aba = 1; menu_index = 0; }
+    
+    var total_opcoes_aba = (opcao_aba == 0) ? 6 : 8; // Aba 0 (6 itens com Resolução) | Aba 1 (8 itens)
     
     if (key_up)   { menu_index--; if (menu_index < 0) menu_index = total_opcoes_aba - 1; }
     if (key_down) { menu_index++; if (menu_index >= total_opcoes_aba) menu_index = 0; }
@@ -79,24 +81,44 @@ else if (menu_state == 1) {
         salvar_configuracoes();
         menu_state = 0;
         menu_index = 2;
+        keyboard_clear(vk_escape);
+        exit;
     }
     
     var key_toggle = key_enter || key_left || key_right;
     
     // Aba 0: Geral e Vídeo
     if (opcao_aba == 0) {
-        if (key_toggle && menu_index <= 2) {
+        // Item 0 (Idioma), Item 1 (Tela Cheia), Item 3 (Tremor de Tela)
+        if (key_toggle && (menu_index == 0 || menu_index == 1 || menu_index == 3)) {
             switch (menu_index) {
                 case 0: global.idioma = (global.idioma == "PT") ? "EN" : "PT"; break;
                 case 1:
                     global.tela_cheia = !window_get_fullscreen();
-                    window_set_fullscreen(global.tela_cheia);
+                    aplicar_resolucao();
                     break;
-                case 2: global.tremer_tela = !global.tremer_tela; break;
+                case 3: global.tremer_tela = !global.tremer_tela; break;
             }
             salvar_configuracoes();
         }
-        else if (menu_index == 3 && (key_left || key_right || key_enter)) {
+        // Item 2: Resolução da Janela (Alterna com Esquerda / Direita ou Enter)
+        else if (menu_index == 2 && (key_left || key_right || key_enter)) {
+            if (!variable_global_exists("res_index")) global.res_index = 0;
+            
+            if (key_left) {
+                global.res_index--;
+            } else {
+                global.res_index++;
+            }
+            
+            if (global.res_index < 0) global.res_index = 2;
+            if (global.res_index > 2) global.res_index = 0;
+            
+            aplicar_resolucao();
+            salvar_configuracoes();
+        }
+        // Item 4: Brilho
+        else if (menu_index == 4 && (key_left || key_right || key_enter)) {
             if (key_left) global.brilho = clamp(global.brilho - 0.1, 0.1, 1.0);
             if (key_right || key_enter) {
                 global.brilho += 0.1;
@@ -104,7 +126,8 @@ else if (menu_state == 1) {
             }
             salvar_configuracoes();
         }
-        else if (key_enter && menu_index == 4) {
+        // Item 5: Voltar ao Menu Principal
+        else if (key_enter && menu_index == 5) {
             salvar_configuracoes();
             menu_state = 0;
             menu_index = 2;

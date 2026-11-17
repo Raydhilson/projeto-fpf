@@ -1,3 +1,7 @@
+// Garante escala HD padrão para a interface
+if (display_get_gui_width() != 800) {
+    display_set_gui_size(800, 450);
+}
 if (!variable_global_exists("brilho"))        global.brilho        = 0.5;
 if (!variable_global_exists("idioma"))        global.idioma        = "PT";
 if (!variable_global_exists("tremer_tela"))   global.tremer_tela   = 1;
@@ -12,6 +16,8 @@ if (!variable_global_exists("key_left"))      global.key_left      = vk_left;
 if (!variable_global_exists("key_up"))        global.key_up        = vk_up;
 if (!variable_global_exists("key_down"))      global.key_down      = vk_down;
 if (!variable_global_exists("key_confirm"))   global.key_confirm   = vk_enter;
+if (!variable_global_exists("key_tab_left"))  global.key_tab_left  = ord("Q");
+if (!variable_global_exists("key_tab_right")) global.key_tab_right = ord("E");
 
 menu_state = 0; // 0 = Menu Principal | 1 = Opções e Controles
 opcao_aba  = 0; // 0 = Geral & Vídeo | 1 = Controles

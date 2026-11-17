@@ -10,6 +10,11 @@ if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 
     image_speed = 1;
 }
 
+// Se o menu global de Pausa (ESC) estiver aberto, o player não processa nada
+if (instance_exists(obj_game_controller) && obj_game_controller.is_paused) {
+    exit;
+}
+
 // =====================================================================
 // 1. LEITURA DE CONTROLES E DIREÇÃO
 // =====================================================================
@@ -45,12 +50,12 @@ var key_tab_right = keyboard_check_pressed(global.key_tab_right) || gamepad_butt
 // =====================================================================
 // 2. USO DE ITENS (CURATIVO) E BUFFS
 // =====================================================================
-if (state != player_state.menu && key_heal && curativo_count > 0 && hp < hp_max) {
+if (state != player_state.menu && state != player_state.craft && key_heal && curativo_count > 0 && hp < hp_max) {
     curativo_count--;
     hp = min(hp + 30, hp_max);
 }
 
-if (buff_fogo_timer > 0 && state != player_state.menu) {
+if (buff_fogo_timer > 0 && state != player_state.menu && state != player_state.craft) {
     buff_fogo_timer--;
 }
 
@@ -68,9 +73,17 @@ if (key_menu) {
         vspd = 0;
         menu_index = 0;
         aba_atual = 1; // Abre direto na aba de Crafting
+        
+        // Pausa todos os inimigos e projéteis, mas mantém os controladores vivos
+        instance_deactivate_all(true);
+        instance_activate_object(obj_game_controller);
+        instance_activate_object(obj_camera);
+        instance_activate_object(obj_colisor);
     } else {
         state = player_state.idle;
+        instance_activate_all();
     }
+    keyboard_clear(global.key_menu);
 }
 
 // =====================================================================
@@ -336,12 +349,15 @@ switch (state) {
         hspd = 0; vspd = 0; 
         sprite_index = spr_player_idle;
         
-        if (key_tab_right || keyboard_check_pressed(vk_right)) { aba_atual++; if (aba_atual > 2) aba_atual = 0; menu_index = 0; }
-        if (key_tab_left || keyboard_check_pressed(vk_left))   { aba_atual--; if (aba_atual < 0) aba_atual = 2; menu_index = 0; }
+        if (key_tab_right || keyboard_check_pressed(vk_right) || keyboard_check_pressed(ord("D"))) { aba_atual++; if (aba_atual > 2) aba_atual = 0; menu_index = 0; }
+        if (key_tab_left  || keyboard_check_pressed(vk_left)  || keyboard_check_pressed(ord("A"))) { aba_atual--; if (aba_atual < 0) aba_atual = 2; menu_index = 0; }
         
-        if (keyboard_check_pressed(vk_escape)) {
+        // Fechar com ESC consome a tecla na hora para NÃO abrir o Pause Global!
+        if (keyboard_check_pressed(vk_escape) || gamepad_button_check_pressed(0, gp_face2)) {
             state = player_state.idle;
-            break;
+            instance_activate_all();
+            keyboard_clear(vk_escape);
+            exit;
         }
         
         if (aba_atual == 1) {
@@ -368,14 +384,15 @@ switch (state) {
                 }
             }
         }
-        break;
+        exit; // Não aplica física nem dano enquanto está com o menu aberto
 
     // --- FABRICANDO ITEM ---
     case player_state.craft:
         hspd = 0; vspd = 0; 
         image_blend = c_white; 
         sprite_index = spr_player_idle;
-        craft_timer++; 
+        craft_timer += 2; // Progresso ágil na tela de craft
+        
         if (craft_timer >= craft_time_max) {
             if (craft_selected_item == 0) curativo_count++;
             else if (craft_selected_item == 1) molotov_count++;
@@ -383,7 +400,7 @@ switch (state) {
             craft_timer = 0;
             state = player_state.menu; 
         }
-        break;
+        exit;
 }
 
 // =====================================================================
@@ -462,6 +479,7 @@ if (!is_invulnerable && state != player_state.roll) {
 
 if (hp <= 0) {
     hp = 0;
+    instance_activate_all();
     if (file_exists("save_1.ini")) {
         carregar_jogo(1);
     } else {

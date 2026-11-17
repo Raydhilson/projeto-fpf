@@ -1,14 +1,14 @@
 // Alternar entre Tela Cheia e Modo Janela no F11
 if (keyboard_check_pressed(vk_f11)) {
     global.tela_cheia = !window_get_fullscreen();
-    window_set_fullscreen(global.tela_cheia);
+    aplicar_resolucao();
     salvar_configuracoes();
 }
 
 // ==========================================
 // 1. MODO DE REBIND (CAPTURANDO TECLA NOVA)
 // ==========================================
-if (is_paused && pause_state == 1 && aguardando_tecla) {
+if (is_paused && pause_state == 1 && opcao_aba == 1 && aguardando_tecla) {
     if (keyboard_check_pressed(vk_anykey)) {
         var nova_tecla = keyboard_lastkey;
         
@@ -31,11 +31,16 @@ if (is_paused && pause_state == 1 && aguardando_tecla) {
 }
 
 // ==========================================
-// 2. GATILHO DO PAUSE (Botão ESC ou Start)
+// 2. GATILHO DO PAUSE (Botão ESC ou Select)
 // ==========================================
 var key_pause = keyboard_check_pressed(vk_escape) || gamepad_button_check_pressed(0, gp_select);
 
 if (key_pause) {
+    // Blindagem: Se o player estiver no Inventário ou Craftando, deixa o obj_player fechar o menu dele!
+    if (instance_exists(obj_player) && (obj_player.state == player_state.menu || obj_player.state == player_state.craft)) {
+        exit; 
+    }
+
     if (!is_paused) {
         is_paused = true;
         pause_state = 0;
@@ -52,6 +57,7 @@ if (key_pause) {
             instance_activate_all();
         }
     }
+    keyboard_clear(vk_escape);
     exit; 
 }
 
@@ -77,6 +83,7 @@ if (is_paused) {
                 instance_activate_all();
             } else if (pause_index == 1) {
                 pause_state = 1;
+                opcao_aba = 0;
                 pause_index = 0;
             } else if (pause_index == 2) {
                 salvar_jogo(1);
@@ -84,7 +91,15 @@ if (is_paused) {
                 
                 is_paused = false;
                 instance_activate_all();
-                room_goto(rm_main_menu); 
+                
+                // TRANSIÇÃO SUAVE PARA O MENU PRINCIPAL (USANDO OBJ_TRANSITION)
+                if (asset_get_index("obj_transition") != -1 && !instance_exists(obj_transition)) {
+                    var t = instance_create_layer(0, 0, layer, obj_transition);
+                    t.destino_room = rm_main_menu;
+                    t.estado = 1;
+                } else {
+                    room_goto(rm_main_menu);
+                }
             }
         }
     }
@@ -92,16 +107,13 @@ if (is_paused) {
     else if (pause_state == 1) {
         if (!variable_instance_exists(id, "opcao_aba")) opcao_aba = 0;
         
-        if (keyboard_check_pressed(global.key_tab_left) || (keyboard_check_pressed(ord("A")) && pause_index == 0)) {
-            opcao_aba = 0;
-            pause_index = 0;
-        }
-        if (keyboard_check_pressed(global.key_tab_right) || (keyboard_check_pressed(ord("D")) && pause_index == 0)) {
-            opcao_aba = 1;
-            pause_index = 0;
-        }
+        var tab_l = keyboard_check_pressed(global.key_tab_left)  || gamepad_button_check_pressed(0, gp_shoulderl);
+        var tab_r = keyboard_check_pressed(global.key_tab_right) || gamepad_button_check_pressed(0, gp_shoulderr);
         
-        var total_opcoes_aba = (opcao_aba == 0) ? 5 : 8;
+        if (tab_l) { opcao_aba = 0; pause_index = 0; }
+        if (tab_r) { opcao_aba = 1; pause_index = 0; }
+        
+        var total_opcoes_aba = (opcao_aba == 0) ? 6 : 8; // Aba 0 (6 itens com Resolução) | Aba 1 (8 itens)
         
         if (key_up) {
             pause_index--;
@@ -114,20 +126,35 @@ if (is_paused) {
         
         var key_toggle = key_confirm || key_left || key_right;
         
-        // Aba 0: Geral e Vídeo
+        // Aba 0: Geral e Vídeo (Com Resolução no índice 2)
         if (opcao_aba == 0) {
-            if (key_toggle && pause_index <= 2) {
+            if (key_toggle && (pause_index == 0 || pause_index == 1 || pause_index == 3)) {
                 switch (pause_index) {
                     case 0: global.idioma = (global.idioma == "PT") ? "EN" : "PT"; break;
                     case 1:
                         global.tela_cheia = !window_get_fullscreen();
-                        window_set_fullscreen(global.tela_cheia);
+                        aplicar_resolucao();
                         break;
-                    case 2: global.tremer_tela = !global.tremer_tela; break;
+                    case 3: global.tremer_tela = !global.tremer_tela; break;
                 }
                 salvar_configuracoes();
             }
-            else if (pause_index == 3 && (key_left || key_right || key_confirm)) {
+            else if (pause_index == 2 && (key_left || key_right || key_confirm)) {
+                if (!variable_global_exists("res_index")) global.res_index = 0;
+                
+                if (key_left) {
+                    global.res_index--;
+                } else {
+                    global.res_index++;
+                }
+                
+                if (global.res_index < 0) global.res_index = 2;
+                if (global.res_index > 2) global.res_index = 0;
+                
+                aplicar_resolucao();
+                salvar_configuracoes();
+            }
+            else if (pause_index == 4 && (key_left || key_right || key_confirm)) {
                 if (key_left) global.brilho = clamp(global.brilho - 0.1, 0.1, 1.0);
                 if (key_right || key_confirm) {
                     global.brilho += 0.1;
@@ -135,7 +162,7 @@ if (is_paused) {
                 }
                 salvar_configuracoes();
             }
-            else if (key_confirm && pause_index == 4) {
+            else if (key_confirm && pause_index == 5) {
                 salvar_configuracoes();
                 pause_state = 0;
                 pause_index = 1;
@@ -155,43 +182,4 @@ if (is_paused) {
             }
         }
     }
-}
-
-if (is_paused) exit;
-
-// ==========================================
-// SISTEMA DE HITSTOP
-// ==========================================
-if (hitstop_timer > 0) {
-    hitstop_timer--;
-    with (all) {
-        if (variable_instance_exists(id, "hspd") && variable_instance_exists(id, "vspd")) {
-            if (!variable_instance_exists(id, "hspd_save") || is_undefined(hspd_save)) {
-                hspd_save = hspd;
-                vspd_save = vspd;
-                image_speed_save = image_speed;
-            }
-            hspd = 0;
-            vspd = 0;
-            image_speed = 0;
-        }
-    }
-} else {
-    with (all) {
-        if (variable_instance_exists(id, "hspd_save") && !is_undefined(hspd_save)) {
-            hspd = hspd_save;
-            vspd = vspd_save;
-            image_speed = image_speed_save;
-            hspd_save = undefined;
-        }
-    }
-}
-
-if (variable_global_exists("tremer_tela") && !global.tremer_tela) {
-    shake_magnitude = 0;
-}
-
-if (shake_magnitude > 0) {
-    shake_magnitude -= shake_fade;
-    if (shake_magnitude < 0) shake_magnitude = 0;
 }

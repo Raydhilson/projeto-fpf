@@ -1,9 +1,12 @@
+display_set_gui_size(800, 450);
+
 // ==========================================
 // DECLARAÇÃO OBRIGATÓRIA DE PAUSE E CÂMERA
 // ==========================================
 is_paused = false;
 pause_state = 0; // 0 = Pause Principal | 1 = Opções e Controles
 pause_index = 0;
+opcao_aba = 0;
 aguardando_tecla = false;
 hitstop_timer = 0;
 shake_magnitude = 0;
@@ -18,6 +21,8 @@ if (!variable_global_exists("brilho"))        global.brilho        = 0.5;
 if (!variable_global_exists("idioma"))        global.idioma        = "PT";
 if (!variable_global_exists("tremer_tela"))   global.tremer_tela   = 1;
 if (!variable_global_exists("tela_cheia"))    global.tela_cheia    = window_get_fullscreen();
+if (!variable_global_exists("res_index"))     global.res_index     = 0;
+
 if (!variable_global_exists("key_jump"))      global.key_jump      = vk_space;
 if (!variable_global_exists("key_attack"))    global.key_attack    = ord("J");
 if (!variable_global_exists("key_roll"))      global.key_roll      = ord("K");
@@ -28,6 +33,9 @@ if (!variable_global_exists("key_left"))      global.key_left      = vk_left;
 if (!variable_global_exists("key_up"))        global.key_up        = vk_up;
 if (!variable_global_exists("key_down"))      global.key_down      = vk_down;
 if (!variable_global_exists("key_confirm"))   global.key_confirm   = vk_enter;
+if (!variable_global_exists("key_menu"))      global.key_menu      = ord("I");
+if (!variable_global_exists("key_tab_left"))  global.key_tab_left  = ord("Q");
+if (!variable_global_exists("key_tab_right")) global.key_tab_right = ord("E");
 
 gpu_set_tex_filter(false);
 
