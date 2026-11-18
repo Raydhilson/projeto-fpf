@@ -1,7 +1,20 @@
-if (!variable_instance_exists(id, "is_paused"))        is_paused = false;
-if (!variable_instance_exists(id, "is_dead"))          is_dead = false;
-if (!variable_instance_exists(id, "escolhendo_carta")) escolhendo_carta = false;
-if (!variable_instance_exists(id, "portao_hp"))        portao_hp = 200;
+if (!variable_instance_exists(id, "is_paused"))          is_paused = false;
+if (!variable_instance_exists(id, "is_dead"))            is_dead = false;
+if (!variable_instance_exists(id, "escolhendo_carta"))   escolhendo_carta = false;
+if (!variable_instance_exists(id, "portao_hp"))          portao_hp = 200;
+if (!variable_instance_exists(id, "aguardando_ok_wave")) aguardando_ok_wave = true;
+
+if (room != rm_main_menu && room != rm_options) {
+    view_enabled = true;
+    view_visible[0] = true;
+    if (!instance_exists(obj_camera) && instance_exists(obj_player)) {
+        instance_create_depth(obj_player.x, obj_player.y, 0, obj_camera);
+    }
+    var _bg_id = layer_background_get_id(layer_get_id("Background"));
+    if (_bg_id != -1) {
+        layer_background_blend(_bg_id, make_color_rgb(22, 28, 34));
+    }
+}
 
 if (keyboard_check_pressed(vk_f11)) {
     global.tela_cheia = !window_get_fullscreen();
@@ -11,6 +24,12 @@ if (keyboard_check_pressed(vk_f11)) {
 
 // ATALHOS DE APRESENTAÇÃO (F2 = Abrir Cartas | F3 = Chamar Wave do Boss)
 if (keyboard_check_pressed(vk_f2) && !is_dead) {
+    var _pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    for (var c = 0; c < 3; c++) {
+        var _r = irandom(array_length(_pool) - 1);
+        cartas_opcoes[c] = _pool[_r];
+        array_delete(_pool, _r, 1);
+    }
     escolhendo_carta = true;
     carta_index = 1;
     tocar_sfx("snd_save_shrine");
@@ -22,11 +41,12 @@ if (keyboard_check_pressed(vk_f3) && !is_dead) {
     with (obj_vespa) instance_destroy();
     wave_atual = 4;
     wave_timer = 0;
+    aguardando_ok_wave = false;
     wave_cooldown = 10;
 }
 
 // =======================================================
-// 0. TELA DE FIM DE JOGO (MORTE / PORTÃO DESTRUÍDO / TIME OUT)
+// 0. TELA DE FIM DE JOGO
 // =======================================================
 if (is_dead) {
     registrar_no_ranking();
@@ -51,10 +71,12 @@ if (is_dead) {
         
         wave_atual = 0;
         wave_timer = 0;
-        wave_cooldown = 180;
+        wave_cooldown = 60;
+        aguardando_ok_wave = true; // Volta para a preparação com câmera próxima!
         tempo_sobrevivido_frames = 0;
         portao_hp_max = 200;
         portao_hp = portao_hp_max;
+        portao_espinhos = 0;
         global.score_atual = 0;
         global.scrap = 0;
         
@@ -68,7 +90,7 @@ if (is_dead) {
 }
 
 // =======================================================
-// 0.5 ESCOLHA DE CARTAS ROGUELIKE (ESTILO ARENA LOL)
+// 0.5 ESCOLHA DE CARTAS ROGUELIKE (12 OPÇÕES)
 // =======================================================
 if (escolhendo_carta) {
     var key_left    = keyboard_check_pressed(vk_left)  || keyboard_check_pressed(ord("A")) || keyboard_check_pressed(global.key_left)  || gamepad_button_check_pressed(0, gp_padl);
@@ -87,13 +109,13 @@ if (escolhendo_carta) {
             switch (_id_escolhido) {
                 case 0: // Sede de Sangue
                     global.ataque_base += 5;
-                    obj_player.hp = min(obj_player.hp_max, obj_player.hp + 20);
+                    obj_player.hp = min(obj_player.hp_max, obj_player.hp + 25);
                     break;
-                case 1: // Turbilhão Afiado (Melhora o Golpe Giratório)
-                    obj_player.spin_cooldown_max = max(90, obj_player.spin_cooldown_max - 180);
-                    obj_player.spin_dano_bonus += 1;
+                case 1: // Turbilhão Afiado
+                    obj_player.spin_cooldown_max = max(90, obj_player.spin_cooldown_max - 90);
+                    obj_player.spin_dano_bonus += 2;
                     break;
-                case 2: // Barricada Reforçada (Melhora o Portão)
+                case 2: // Barricada Reforçada
                     portao_hp_max += 80;
                     portao_hp = min(portao_hp_max, portao_hp + 100);
                     break;
@@ -102,7 +124,7 @@ if (escolhendo_carta) {
                     obj_player.hp = min(obj_player.hp_max, obj_player.hp + 50);
                     break;
                 case 4: // Pirotecnia da Estufa
-                    obj_player.buff_fogo_timer += 1800;
+                    obj_player.buff_fogo_timer += 2100;
                     obj_player.molotov_count += 2;
                     break;
                 case 5: // Contrabando de Sucata
@@ -110,26 +132,58 @@ if (escolhendo_carta) {
                     obj_player.faca_count += 3;
                     obj_player.curativo_count += 1;
                     break;
+                case 6: // Golpe Cirúrgico
+                    global.chance_critico = min(100, global.chance_critico + 20);
+                    global.multiplicador_crit += 0.5;
+                    break;
+                case 7: // Pés Ligeiros
+                    obj_player.walk_sp += 1.0;
+                    obj_player.roll_sp += 1.5;
+                    break;
+                case 8: // Lança Vampírica
+                    obj_player.vampirismo_hp += 4;
+                    global.ataque_base += 3;
+                    break;
+                case 9: // Portão Espinhoso
+                    portao_espinhos += 2;
+                    portao_hp = min(portao_hp_max, portao_hp + 60);
+                    break;
+                case 10: // Chuva de Lâminas
+                    obj_player.faca_count += 6;
+                    global.chance_critico = min(100, global.chance_critico + 15);
+                    break;
+                case 11: // Kit de Emergência
+                    obj_player.hp = obj_player.hp_max;
+                    obj_player.curativo_count += 3;
+                    global.scrap += 5;
+                    break;
             }
         }
         
         escolhendo_carta = false;
-        wave_cooldown = 240; // 4s para comprar no Rato Mercador!
+        
+        // A CADA 2 WAVES (Wave 2, 4, 6...), ENTRA EM INTERVALO ATÉ O JOGADOR DAR OK [ENTER]!
+        if (wave_atual mod 2 == 0) {
+            aguardando_ok_wave = true;
+        } else {
+            aguardando_ok_wave = false;
+            wave_cooldown = 120; // 2 segundinhos entre a Wave 1 e a 2!
+        }
+        keyboard_clear(vk_enter);
     }
     exit;
 }
 
 // =======================================================
-// GERENCIAMENTO DE WAVES E DEFESA DO PORTÃO (SEM MEXER NA SALA!)
+// GERENCIAMENTO DE WAVES E PAUSA TÁTICA
 // =======================================================
 if (room != rm_main_menu && room != rm_options) {
     if (portao_piscar > 0) portao_piscar--;
     
-    // Verifica se o Portão do Laboratório quebrou!
     if (portao_hp <= 0 && !is_dead) {
         portao_hp = 0;
         is_dead = true;
-        motivo_derrota = 2; // 2 = Portão Destruído!
+        motivo_derrota = 2;
         death_index = 0;
         death_alpha = 0;
         tocar_sfx("snd_centipede_roar", 0.8, 0.9);
@@ -141,18 +195,16 @@ if (room != rm_main_menu && room != rm_options) {
     var _player_em_menu = (instance_exists(obj_player) && (obj_player.state == player_state.menu || obj_player.state == player_state.craft));
     
     if (!_player_em_menu && !is_paused) {
-        tempo_sobrevivido_frames++;
-        
         var _inimigos_vivos = instance_number(obj_enemy) + instance_number(obj_vespa) + instance_number(obj_boss_centopeia);
         
         if (_inimigos_vivos == 0) {
-            // Se acabou de derrotar todos os inimigos da Wave atual:
+            // Se acabou de limpar uma wave, sorteia 3 cartas dentre as 12!
             if (wave_atual > 0 && wave_timer > 0) {
                 var _bonus_tempo = ceil(wave_timer / 60) * 15;
                 global.score_atual += (wave_atual * 150) + _bonus_tempo;
                 wave_timer = 0;
                 
-                var _pool = [0, 1, 2, 3, 4, 5];
+                var _pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
                 for (var c = 0; c < 3; c++) {
                     var _r = irandom(array_length(_pool) - 1);
                     cartas_opcoes[c] = _pool[_r];
@@ -167,7 +219,15 @@ if (room != rm_main_menu && room != rm_options) {
                 exit;
             }
             
-            if (wave_cooldown > 0) {
+            // INTERVALO TÁTICO: Espera o jogador apertar [ENTER] para liberar a Wave e afastar a câmera!
+            if (aguardando_ok_wave) {
+                if (keyboard_check_pressed(vk_enter) || gamepad_button_check_pressed(0, gp_start)) {
+                    aguardando_ok_wave = false;
+                    wave_cooldown = 45;
+                    tocar_sfx("snd_ui_confirm", 0.9, 1.1);
+                }
+            }
+            else if (wave_cooldown > 0) {
                 wave_cooldown--;
             } else {
                 // INICIA NOVA WAVE!
@@ -176,10 +236,9 @@ if (room != rm_main_menu && room != rm_options) {
                 wave_timer = wave_timer_max;
                 shake_magnitude = 5;
                 
-                // Wave 1 = 4 inimigos | +2 a cada wave
-                var _qtd_total = 4 + ((wave_atual - 1) * 2);
+                // Wave 1 = 4 inimigos | Sobe +1 por wave para ficar equilibrado
+                var _qtd_total = 3 + wave_atual;
                 
-                // Pega a posição base de spawn à direita do Player/Arena
                 var _base_y = instance_exists(obj_player) ? (obj_player.y - 40) : 450;
                 var _spawn_min_x = instance_exists(obj_player) ? max(650, obj_player.x + 280) : 750;
                 var _spawn_max_x = max(_spawn_min_x + 250, room_width - 120);
@@ -195,29 +254,29 @@ if (room != rm_main_menu && room != rm_options) {
                 
                 for (var s = 0; s < _qtd_total; s++) {
                     var _sx = random_range(_spawn_min_x, _spawn_max_x) + (s * 45);
-                    _sx = clamp(_sx, 400, room_width - 64);
+                    _sx = clamp(_sx, 420, room_width - 64);
                     
                     if (wave_atual >= 2 && irandom(99) < 35) {
-                        var _v = instance_create_depth(_sx, _base_y - random_range(50, 90), 0, obj_vespa);
-                        _v.hp = 2 + floor(wave_atual * 0.6);
+                        var _v = instance_create_depth(_sx, _base_y - random_range(40, 75), 0, obj_vespa);
+                        _v.hp = 2 + floor(wave_atual * 0.5);
                         _v.spawn_alpha = 0;
                         _v.spawn_scale = 0.1;
                     } else {
                         var _e = instance_create_depth(_sx, _base_y, 0, obj_enemy);
-                        _e.hp = 3 + floor(wave_atual * 0.8);
+                        _e.hp = 3 + floor(wave_atual * 0.7);
                         _e.spawn_alpha = 0;
                         _e.spawn_scale = 0.1;
                     }
                 }
             }
         } else {
-            // Conta o Timer da Wave; se zerar, dá TIME OUT!
+            tempo_sobrevivido_frames++;
             if (wave_timer > 0) {
                 wave_timer--;
                 if (wave_timer <= 0) {
                     wave_timer = 0;
                     is_dead = true;
-                    motivo_derrota = 3; // 3 = Time Out!
+                    motivo_derrota = 3;
                     death_index = 0;
                     death_alpha = 0;
                     tocar_sfx("snd_centipede_roar", 0.7, 0.8);
@@ -404,9 +463,6 @@ if (is_paused) {
 
 if (is_paused) exit;
 
-// =======================================================
-// SISTEMA DE HITSTOP
-// =======================================================
 if (hitstop_timer > 0) {
     hitstop_timer--;
     with (all) {

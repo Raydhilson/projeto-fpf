@@ -49,7 +49,9 @@ if (room != rm_main_menu && room != rm_options && !is_paused && !is_dead && !esc
         draw_set_halign(fa_center);
         draw_set_valign(fa_middle);
         
-        if (_inimigos == 0 && wave_cooldown > 0) {
+        if (_inimigos == 0 && variable_instance_exists(id, "aguardando_ok_wave") && aguardando_ok_wave) {
+            _draw_txt(gw / 2, _py + 14, is_pt ? "INTERVALO - APERTE [ENTER] P/ WAVE " + string(wave_atual + 1) : "BREAK - PRESS [ENTER] FOR WAVE " + string(wave_atual + 1), make_color_rgb(80, 215, 105));
+        } else if (_inimigos == 0 && wave_cooldown > 0) {
             var _seg_prep = ceil(wave_cooldown / 60);
             _draw_txt(gw / 2, _py + 14, is_pt ? "PROXIMA WAVE EM " + string(_seg_prep) + "s" : "NEXT WAVE IN " + string(_seg_prep) + "s", _col_gold);
         } else {

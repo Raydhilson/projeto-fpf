@@ -7,19 +7,19 @@ pause_index = 0;
 opcao_aba = 0;
 aguardando_tecla = false;
 
-// Estado de Fim de Jogo e Motivo (0 = Vivo, 1 = Morreu, 2 = Portão Quebrou, 3 = Time Out)
 is_dead = false;
 motivo_derrota = 0;
 death_index = 0;
 death_alpha = 0;
 
 // =======================================================
-// PORTÃO DO LABORATÓRIO, WAVES E PLACAR TOP 5 DA MOSTRA
+// PORTÃO DO LABORATÓRIO, WAVES E INTERVALO A CADA 2 WAVES
 // =======================================================
-portao_x = 120; // Posição X do Portão na esquerda da sua room (ajuste se quiser!)
+portao_x = 120;
 portao_hp_max = 200;
 portao_hp = portao_hp_max;
 portao_piscar = 0;
+portao_espinhos = 0; // Dano refletido quando batem no portão!
 
 if (!variable_global_exists("score_atual")) global.score_atual = 0;
 tempo_sobrevivido_frames = 0;
@@ -27,9 +27,9 @@ tempo_sobrevivido_frames = 0;
 wave_atual = 0;
 wave_timer = 0;
 wave_timer_max = 45 * 60;
-wave_cooldown = 180; // 3s antes da primeira wave
+wave_cooldown = 90;
+aguardando_ok_wave = true; // Começa esperando o [ENTER] do jogador!
 
-// Carrega Top 5 da Mostra
 top_scores = [0, 0, 0, 0, 0];
 top_tempos = [0, 0, 0, 0, 0];
 top_waves  = [0, 0, 0, 0, 0];
@@ -45,18 +45,26 @@ if (file_exists("ranking_mostra.ini")) {
     ini_close();
 }
 
-// Cartas estilo Arena LoL
+// =======================================================
+// DECK EXPANDIDO COM 12 CARTAS DE UPGRADE (ESTILO ARENA LOL)
+// =======================================================
 escolhendo_carta = false;
 carta_index = 1;
 cartas_opcoes = [0, 1, 2];
 
 catalogo_cartas = [
-    { nome_pt: "SEDE DE SANGUE",        nome_en: "BLOODLUST",        desc_pt: "+5 Dano Base na Lanca\n+20 HP no Rato",               desc_en: "+5 Base Spear DMG\n+20 Player HP",         cor: make_color_rgb(220, 55, 65) },
-    { nome_pt: "TURBILHAO AFIADO",      nome_en: "SHARP WHIRLWIND",  desc_pt: "-3s Cooldown no Giro\n+50% Dano no Golpe Giratorio",  desc_en: "-3s Spin Cooldown\n+50% Spin Attack DMG",  cor: make_color_rgb(245, 195, 65) },
-    { nome_pt: "BARRICADA REFORCADA",   nome_en: "REINFORCED GATE",  desc_pt: "+80 HP Max no Portao\nConserta +100 HP do Portao",    desc_en: "+80 Gate Max HP\nRepairs +100 Gate HP",    cor: make_color_rgb(65, 185, 245) },
-    { nome_pt: "CARAPACA DE RATO",      nome_en: "RAT CARAPACE",     desc_pt: "+35 HP Maximo no Player\nCura +50 HP agora",          desc_en: "+35 Max HP\nHeals +50 HP now",             cor: make_color_rgb(80, 215, 105) },
-    { nome_pt: "PIROTECNIA DA ESTUFA",  nome_en: "GREENHOUSE PYRO",  desc_pt: "Lanca em Chamas por 30s\n+2 Coqueteis Molotov",       desc_en: "Flaming Spear 30s\n+2 Molotovs",           cor: make_color_rgb(255, 130, 40) },
-    { nome_pt: "CONTRABANDO DE SUCATA", nome_en: "SCRAP SMUGGLING",  desc_pt: "+8 Sucatas Imediatas\n+3 Facas e +1 Curativo",        desc_en: "+8 Instant Scrap\n+3 Knives & +1 Bandage", cor: make_color_rgb(180, 110, 245) }
+    { nome_pt: "SEDE DE SANGUE",        nome_en: "BLOODLUST",        desc_pt: "+5 Dano Base na Lanca\n+25 HP Imediato no Rato",         desc_en: "+5 Base Spear DMG\n+25 Instant HP",        cor: make_color_rgb(220, 55, 65) },
+    { nome_pt: "TURBILHAO AFIADO",      nome_en: "SHARP WHIRLWIND",  desc_pt: "-1.5s Cooldown no Giro [L]\n+50% Dano no Golpe Giratorio", desc_en: "-1.5s Spin Cooldown\n+50% Spin DMG",      cor: make_color_rgb(245, 195, 65) },
+    { nome_pt: "BARRICADA REFORCADA",   nome_en: "REINFORCED GATE",  desc_pt: "+80 HP Max no Portao\nConserta +100 HP do Portao",      desc_en: "+80 Gate Max HP\nRepairs +100 Gate HP",   cor: make_color_rgb(65, 185, 245) },
+    { nome_pt: "CARAPACA DE RATO",      nome_en: "RAT CARAPACE",     desc_pt: "+35 HP Maximo no Player\nCura +50 HP agora",            desc_en: "+35 Player Max HP\nHeals +50 HP now",     cor: make_color_rgb(80, 215, 105) },
+    { nome_pt: "PIROTECNIA DA ESTUFA",  nome_en: "GREENHOUSE PYRO",  desc_pt: "Lanca em Chamas por 35s\n+2 Coqueteis Molotov",         desc_en: "Flaming Spear 35s\n+2 Molotovs",          cor: make_color_rgb(255, 130, 40) },
+    { nome_pt: "CONTRABANDO DE SUCATA", nome_en: "SCRAP SMUGGLING",  desc_pt: "+8 Sucatas Imediatas\n+3 Facas e +1 Curativo",          desc_en: "+8 Instant Scrap\n+3 Knives & +1 Bandage",cor: make_color_rgb(180, 110, 245) },
+    { nome_pt: "GOLPE CIRURGICO",       nome_en: "SURGICAL STRIKE",  desc_pt: "+20% Chance de Critico\nMultiplicador Critico +0.5x",   desc_en: "+20% Crit Chance\nCrit Multiplier +0.5x", cor: make_color_rgb(255, 95, 145) },
+    { nome_pt: "PES LIGEIROS",          nome_en: "FLEET FOOTWORK",   desc_pt: "+1.0 Velocidade de Corrida\n+1.5 Impulso de Esquiva",   desc_en: "+1.0 Move Speed\n+1.5 Dodge Roll Speed",  cor: make_color_rgb(55, 220, 210) },
+    { nome_pt: "LANCA VAMPIRICA",       nome_en: "VAMPIRIC SPEAR",   desc_pt: "Cura +4 HP por golpe certeiro\n+3 Dano Base na Lanca", desc_en: "Heals +4 HP on hit\n+3 Base Spear DMG",   cor: make_color_rgb(190, 35, 75) },
+    { nome_pt: "PORTAO ESPINHOSO",      nome_en: "THORNED GATE",     desc_pt: "Inimigos que batem no Portao\nlevam dano de retorno!", desc_en: "Attackers take thorn DMG\n+60 Gate HP",   cor: make_color_rgb(130, 220, 70) },
+    { nome_pt: "CHUVA DE LAMINAS",      nome_en: "BLADE RAIN",       desc_pt: "+6 Facas de Arremesso\n+15% Chance de Critico",         desc_en: "+6 Throwing Knives\n+15% Crit Chance",    cor: make_color_rgb(210, 215, 230) },
+    { nome_pt: "KIT DE EMERGENCIA",     nome_en: "EMERGENCY KIT",    desc_pt: "Cura 100% do HP do Rato\n+3 Curativos +5 Sucatas",     desc_en: "Full Player Heal\n+3 Bandages & +5 Scrap",cor: make_color_rgb(90, 240, 150) }
 ];
 
 hitstop_timer = 0;

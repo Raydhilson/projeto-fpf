@@ -2,6 +2,7 @@ if (!variable_instance_exists(id, "escala_base"))       escala_base = 1.15;
 if (!variable_instance_exists(id, "spin_cooldown"))     spin_cooldown = 0;
 if (!variable_instance_exists(id, "spin_cooldown_max")) spin_cooldown_max = 300;
 if (!variable_instance_exists(id, "spin_dano_bonus"))   spin_dano_bonus = 0;
+if (!variable_instance_exists(id, "vampirismo_hp"))     vampirismo_hp = 0;
 
 // =====================================================================
 // 0. SISTEMA DE HITSTOP E BLOQUEIO DE PAUSE / MORTE / CARTAS
@@ -318,17 +319,20 @@ switch (state) {
             ataque_buffer = true; 
         }
         
+        // HITBOX COM ALCANCE VERTICAL AMPLIADO NO AR (ANTI-VESPA!)
         var _frame_hit = (combo_count == 2) ? 12 : 14;
         if (action_timer == _frame_hit) {
             tocar_sfx("snd_spear_thrust", (combo_count == 2) ? 1.1 : 0.94, (combo_count == 2) ? 1.2 : 1.04);
-            var hit = instance_create_depth(x + (facing * 30), y - 12, 0, obj_hitbox);
-            hit.image_xscale = facing * 1.5;
-            hit.duracao = 5; 
+            var _offset_y = on_ground ? -12 : -24;
+            var hit = instance_create_depth(x + (facing * 30), y + _offset_y, 0, obj_hitbox);
+            hit.image_xscale = facing * (on_ground ? 1.5 : 1.9);
+            hit.image_yscale = on_ground ? 1.0 : 2.4;
+            hit.duracao = 6; 
             
             if (buff_fogo_timer > 0) hit.aplica_fogo = true;
             if (combo_count == 2) {
                 hit.dano = 2; 
-                hit.image_xscale = facing * 1.8;
+                hit.image_xscale = facing * 2.0;
             }
         }
 
