@@ -1,51 +1,30 @@
-// Se for o Boss Centopeia escondido debaixo da terra, não aplica dano
-if (other.object_index == obj_boss_centopeia) {
-    if (other.state == centopeia_state.subterranea || other.state == centopeia_state.emergindo) {
-        exit;
+if (!variable_instance_exists(id, "ja_acertou")) ja_acertou = false;
+if (ja_acertou) exit;
+
+var _dano_base = variable_global_exists("ataque_base") ? global.ataque_base : 10;
+var _crit_chance = variable_global_exists("chance_critico") ? global.chance_critico : 15;
+var _crit_mult = variable_global_exists("multiplicador_crit") ? global.multiplicador_crit : 2.0;
+
+var _eh_critico = (irandom(99) < _crit_chance);
+var _multiplicador_final = _eh_critico ? _crit_mult : 1.0;
+var _dano_calculado = max(1, round((_dano_base / 10) * dano * _multiplicador_final));
+
+other.hp -= _dano_calculado;
+other.piscar = 4;
+if (variable_instance_exists(id, "aplica_fogo") && aplica_fogo) {
+    other.queimando_timer = 180;
+}
+
+ja_acertou = true;
+
+// Bônus de Arma Nível 3 (Seguro contra erros)
+if (instance_exists(obj_player) && variable_instance_exists(obj_player, "arma_nivel")) {
+    if (obj_player.arma_nivel >= 3) {
+        other.hp -= 1; // Dano extra por nível alto
     }
 }
 
-if (other.piscar <= 0) {
-    var dano_final = dano;
-    var foi_critico = false;
-    
-    // 1. CÁLCULO DE ACERTO CRÍTICO (15% base, ou 30% no Nível 3 de Maestria)
-    var chance = variable_global_exists("chance_critico") ? global.chance_critico : 15;
-    if (instance_exists(obj_player) && obj_player.arma_nivel >= 3) {
-        chance = 30; // Bônus do Nível 3 de Maestria
-    }
-    
-    if (random(100) < chance) {
-        foi_critico = true;
-        var mult = variable_global_exists("multiplicador_crit") ? global.multiplicador_crit : 2.0;
-        dano_final = dano * mult;
-    }
-    
-    // 2. APLICA DANO E EFEITO DE QUEIMADURA (BUFF DO BESOURO)
-    other.hp -= dano_final;
-    other.piscar = 10; 
-    
-    if (aplica_fogo && variable_instance_exists(other, "queimando_timer")) {
-        other.queimando_timer = 180; // Queima o inimigo por 3 segundos (180 frames)
-    }
-    
-    // 3. KNOCKBACK (Apenas em inimigos comuns; o Boss Centopeia não toma empurrão da lança)
-    if (other.object_index != obj_boss_centopeia) {
-        var kb_forca = foi_critico ? 9 : 6;
-        other.hspd = sign(image_xscale) * kb_forca; 
-        other.vspd = -4;                     
-    }
-    
-    // 4. HITSTOP E SCREEN SHAKE
-    if (instance_exists(obj_game_controller)) {
-        if (foi_critico) {
-            obj_game_controller.hitstop_timer = 10;
-            obj_game_controller.shake_magnitude = 5;
-            show_debug_message("CRITICO BRUTAL! Dano: " + string(dano_final) + " | Vida do Inimigo: " + string(other.hp));
-        } else {
-            obj_game_controller.hitstop_timer = 4;
-            obj_game_controller.shake_magnitude = 1.5;
-            show_debug_message("BATEU! Vida do Inimigo: " + string(other.hp));
-        }
-    }
+if (instance_exists(obj_game_controller)) {
+    obj_game_controller.hitstop_timer = _eh_critico ? 6 : 3;
+    obj_game_controller.shake_magnitude = _eh_critico ? 5 : 2;
 }
