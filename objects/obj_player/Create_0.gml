@@ -1,7 +1,7 @@
 if (!variable_instance_exists(id, "escala_base")) escala_base = 1.15;
 
 // ==========================================
-// 1. SEGURANÇA DE CONTROLES (FALLBACK)
+// 1. SEGURANÇA DE CONTROLES (TECLADO + GAMEPAD)
 // ==========================================
 if (!variable_global_exists("slot_atual"))    global.slot_atual    = 1;
 if (!variable_global_exists("key_right"))     global.key_right     = vk_right;
@@ -16,41 +16,22 @@ if (!variable_global_exists("key_throw"))     global.key_throw     = ord("F");
 if (!variable_global_exists("key_spin"))      global.key_spin      = ord("L");
 if (!variable_global_exists("key_menu"))      global.key_menu      = ord("I");
 if (!variable_global_exists("key_confirm"))   global.key_confirm   = vk_enter;
-if (!variable_global_exists("key_tab_left"))  global.key_tab_left  = ord("Q");
-if (!variable_global_exists("key_tab_right")) global.key_tab_right = ord("E");
 if (!variable_global_exists("idioma"))        global.idioma        = "PT";
 
 // ==========================================
-// 2. ECONOMIA, CONSUMÍVEIS E MATERIAIS
+// 2. ECONOMIA (SUCATA COMO MOEDA) E INVENTÁRIO
 // ==========================================
-if (!variable_global_exists("scrap")) global.scrap = 0;
+if (!variable_global_exists("scrap")) global.scrap = 5; // Começa com 5 sucatas
 curativo_count = 1; 
 molotov_count  = 1;
 faca_count     = 2;
-
-carne_count    = 0; 
-glandula_count = 0; 
-ferrao_count   = 0; 
 
 global.ataque_base        = 10;  
 global.chance_critico     = 15;  
 global.multiplicador_crit = 2.0; 
 
 // ==========================================
-// 3. SISTEMA DE CRAFTING E ABAS
-// ==========================================
-craft_timer = 0;
-craft_time_max = 45; 
-craft_cost = 1;      
-craft_recipes = ["Curativo", "Molotov", "Faca de Arremesso"];
-craft_cost_array = [1, 2, 2];
-craft_selected_item = -1; 
-menu_index = 0; 
-
-aba_atual = 1; // Inicia direto na aba de Crafting
-
-// ==========================================
-// 4. MOVIMENTO E FÍSICA
+// 3. MOVIMENTO E FÍSICA
 // ==========================================
 hspd = 0;
 vspd = 0;
@@ -78,32 +59,26 @@ image_yscale = escala_base;
 facing = 1;          
 roll_sp = 6.5;        
 action_timer = 0;    
-slash_frame = 0;
 
 // ==========================================
-// 5. SOBREVIVÊNCIA E I-FRAMES
+// 4. SOBREVIVÊNCIA, COMBATE E HABILIDADE [L]
 // ==========================================
 hp_max = 100;
 hp = hp_max;
 is_invulnerable = false;
 iframe_timer = 0;
 
-// ==========================================
-// 6. HABILIDADE ESPECIAL (GOLPE GIRATÓRIO) E BUFFS
-// ==========================================
-arma_xp = 0;
-arma_xp_max = 10;       
-arma_nivel = 1;         
 combo_count = 0;        
 ataque_buffer = false;  
 buff_fogo_timer = 0;    
 
 spin_cooldown = 0;
-spin_cooldown_max = 300; // 5 segundos (300 frames)
+spin_cooldown_max = 300;
 spin_dano_bonus = 0;
+vampirismo_hp = 0;
 
 // ==========================================
-// 7. MÁQUINA DE ESTADOS (FSM)
+// 5. MÁQUINA DE ESTADOS (SEM CRAFT)
 // ==========================================
 enum player_state {
     idle,
@@ -112,7 +87,6 @@ enum player_state {
     attack,
     roll,
     wall_slide,
-    craft,
     menu
 }
 

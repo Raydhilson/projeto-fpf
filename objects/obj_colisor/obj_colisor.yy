@@ -8,8 +8,8 @@
   "name":"obj_colisor",
   "overriddenProperties":[],
   "parent":{
-    "name":"OBJETOS",
-    "path":"folders/OBJETOS.yy",
+    "name":"FISICOS",
+    "path":"folders/OBJETOS/FISICOS.yy",
   },
   "parentObjectId":null,
   "persistent":false,

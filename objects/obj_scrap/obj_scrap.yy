@@ -10,8 +10,8 @@
   "name":"obj_scrap",
   "overriddenProperties":[],
   "parent":{
-    "name":"Projeto FPF",
-    "path":"Projeto FPF.yyp",
+    "name":"FISICOS",
+    "path":"folders/OBJETOS/FISICOS.yy",
   },
   "parentObjectId":null,
   "persistent":false,

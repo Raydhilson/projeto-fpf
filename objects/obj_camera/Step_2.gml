@@ -1,6 +1,12 @@
+if (!variable_instance_exists(id, "target") || !instance_exists(target)) {
+    target = instance_exists(obj_player) ? obj_player : noone;
+}
+if (!variable_instance_exists(id, "cam_w")) cam_w = 683;
+if (!variable_instance_exists(id, "cam_h")) cam_h = 384;
+
 if (instance_exists(target)) {
     // 1. ZOOM DINÂMICO: Pertinho no intervalo (683x384) | Afastado na Wave (840x472)
-    var _em_combate = (instance_exists(obj_game_controller) && !obj_game_controller.aguardando_ok_wave && obj_game_controller.wave_atual > 0);
+    var _em_combate = (instance_exists(obj_game_controller) && variable_instance_exists(obj_game_controller, "aguardando_ok_wave") && !obj_game_controller.aguardando_ok_wave && obj_game_controller.wave_atual > 0);
     var _target_w = _em_combate ? 840 : 683;
     var _target_h = _em_combate ? 472 : 384;
     

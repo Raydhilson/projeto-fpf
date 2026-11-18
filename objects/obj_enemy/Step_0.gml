@@ -1,7 +1,6 @@
 sprite_index = spr_enemy_box;
 mask_index   = spr_enemy_box;
 
-// Ajusta automaticamente o tamanho da Box para 44x40 pixels (proporcional ao Rato!)
 var _escala_x = 44 / max(1, sprite_get_width(spr_enemy_box));
 var _escala_y = 40 / max(1, sprite_get_height(spr_enemy_box));
 
@@ -29,7 +28,6 @@ vspd += grv;
 if (piscar > 0) piscar--;
 if (attack_cooldown > 0) attack_cooldown--;
 
-// Knockback quando leva hit do player (dá sensação real de impacto!)
 if (piscar == 3 && instance_exists(obj_player)) {
     hspd = sign(x - obj_player.x) * 4.5;
     vspd = -2.0;
@@ -46,6 +44,7 @@ if (queimando_timer > 0) {
 var on_ground = place_meeting(x, y + 1, obj_colisor);
 var _portao_x = instance_exists(obj_game_controller) ? obj_game_controller.portao_x : 120;
 
+// IA SIMPLES DO BESOURO COMUM: Marcha e dá Charge (Investida)
 if (instance_exists(obj_player)) {
     var dist_player = point_distance(x, y, obj_player.x, obj_player.y);
     var focar_player = (dist_player <= 160);
@@ -54,7 +53,7 @@ if (instance_exists(obj_player)) {
     if (dir_alvo == 0) dir_alvo = -1;
     
     switch (state) {
-        case enemy_state.patrol:
+        // 1. Anda até o alvo
         case enemy_state.chase:
             anim_walk += 0.22;
             image_blend = (queimando_timer > 0) ? c_orange : make_color_rgb(70, 130, 230);
@@ -65,13 +64,14 @@ if (instance_exists(obj_player)) {
             
             var _perto_portao = (abs(x - _portao_x) <= 42);
             if (((focar_player && dist_player <= 80) || _perto_portao) && on_ground && attack_cooldown <= 0) {
-                state = enemy_state.chemical_prep;
+                state = enemy_state.prep_charge;
                 hspd = 0;
-                state_timer = 38;
+                state_timer = 35;
             }
             break;
             
-        case enemy_state.chemical_prep:
+        // 2. Prepara a investida (Fica amarelo)
+        case enemy_state.prep_charge:
             hspd = lerp(hspd, 0, 0.3);
             image_blend = c_yellow;
             facing = dir_alvo;
@@ -83,6 +83,7 @@ if (instance_exists(obj_player)) {
             }
             break;
             
+        // 3. Executa o Charge (Investida física)
         case enemy_state.charge:
             image_blend = make_color_rgb(235, 65, 65);
             state_timer--;
@@ -92,6 +93,10 @@ if (instance_exists(obj_player)) {
                 obj_game_controller.portao_hp -= 15;
                 obj_game_controller.portao_piscar = 20;
                 obj_game_controller.shake_magnitude = 5;
+                if (variable_instance_exists(obj_game_controller, "portao_espinhos") && obj_game_controller.portao_espinhos > 0) {
+                    hp -= obj_game_controller.portao_espinhos;
+                    piscar = 4;
+                }
                 tocar_sfx("snd_craft_hammer", 0.7, 0.85);
                 hspd = 4;
                 state = enemy_state.cooldown;
@@ -108,6 +113,7 @@ if (instance_exists(obj_player)) {
             }
             break;
             
+        // 4. Descansa pós-charge
         case enemy_state.cooldown:
             hspd = lerp(hspd, 0, 0.2);
             image_blend = c_ltgray;
@@ -119,10 +125,9 @@ if (instance_exists(obj_player)) {
     }
 }
 
-// Squash & Stretch (achata no preparo e balança ao andar)
 var _wobble = (state == enemy_state.chase) ? sin(anim_walk) * 0.08 : 0;
-var _prep_squash = (state == enemy_state.chemical_prep) ? -0.22 : 0;
-if (piscar > 0) _prep_squash = 0.25; // Estica ao levar dano!
+var _prep_squash = (state == enemy_state.prep_charge) ? -0.22 : 0;
+if (piscar > 0) _prep_squash = 0.25;
 
 image_xscale = facing * _escala_x * (1.0 - _prep_squash + _wobble);
 image_yscale = _escala_y * (1.0 + _prep_squash - _wobble);
@@ -139,15 +144,12 @@ if (place_meeting(x, y + vspd, obj_colisor)) {
 }
 y += vspd;
 
+// MORTE: Dropa apenas Sucata (Moeda do Mercador) e dá Score!
 if (hp <= 0) {
     tocar_sfx("snd_beetle_carapace", 0.9, 1.1);
     global.score_atual += 100;
     
     instance_create_depth(x, y - 6, 0, obj_scrap);
-    if (object_exists(obj_item_drop)) {
-        var _drop = instance_create_depth(x, y - 10, 0, obj_item_drop);
-        _drop.tipo_item = (irandom(99) < 65) ? 0 : 1;
-    }
     
     if (instance_exists(obj_game_controller)) {
         obj_game_controller.hitstop_timer = 4;

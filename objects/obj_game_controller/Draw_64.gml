@@ -1,5 +1,6 @@
-if (display_get_gui_width() != 800) {
-    display_set_gui_size(800, 450);
+// Escala 1024x576: Dá muito mais espaço livre na tela e impede que a fonte saia das caixas!
+if (display_get_gui_width() != 1024) {
+    display_set_gui_size(1024, 576);
 }
 
 var gw = display_get_gui_width();
@@ -13,7 +14,6 @@ var _draw_txt = function(_x, _y, _str, _col) {
     draw_text(round(_x), round(_y), _str);
 };
 
-// Função para formatar segundos em MM:SS
 var _formatar_tempo = function(_seg_total) {
     var _m = floor(_seg_total / 60);
     var _s = _seg_total mod 60;
@@ -23,48 +23,48 @@ var _formatar_tempo = function(_seg_total) {
 };
 
 // ==========================================
-// 0. HUD DA ARENA (PORTÃO DO LAB, WAVE, TIMER E SCORE)
+// 0. HUD DA ARENA (LIMPA, COMPACTA E SEM VAZAR TEXTO)
 // ==========================================
 if (room != rm_main_menu && room != rm_options && !is_paused && !is_dead && !escolhendo_carta) {
-    var _player_menu = (instance_exists(obj_player) && (obj_player.state == player_state.menu || obj_player.state == player_state.craft));
+    var _player_menu = (instance_exists(obj_player) && obj_player.state == player_state.menu);
     if (!_player_menu) {
         draw_set_font(fnt_menu);
-        var _inimigos = instance_number(obj_enemy) + instance_number(obj_vespa) + instance_number(obj_boss_centopeia);
+        var _inimigos = instance_number(obj_enemy);
+        var _col_gold = make_color_rgb(245, 195, 65);
         
-        // Painel Central Superior (Wave + Timer + Barra de HP do Portão do Laboratório)
-        var _pw = 290;
-        var _ph = 66;
+        // Painel Central Superior (Mais largo: 340px e apenas 2 linhas limpas)
+        var _pw = 340;
+        var _ph = 52;
         var _px = round((gw - _pw) / 2);
-        var _py = 10;
+        var _py = 12;
         
         draw_set_color(make_color_rgb(14, 16, 22));
         draw_set_alpha(0.85);
         draw_rectangle(_px, _py, _px + _pw, _py + _ph, false);
         draw_set_alpha(1.0);
         
-        var _col_gold = make_color_rgb(245, 195, 65);
-        draw_set_color((portao_piscar > 0) ? c_red : _col_gold);
+        draw_set_color((portao_piscar > 0) ? c_red : make_color_rgb(85, 75, 60));
         draw_rectangle(_px, _py, _px + _pw, _py + _ph, true);
         
         draw_set_halign(fa_center);
         draw_set_valign(fa_middle);
         
         if (_inimigos == 0 && variable_instance_exists(id, "aguardando_ok_wave") && aguardando_ok_wave) {
-            _draw_txt(gw / 2, _py + 14, is_pt ? "INTERVALO - APERTE [ENTER] P/ WAVE " + string(wave_atual + 1) : "BREAK - PRESS [ENTER] FOR WAVE " + string(wave_atual + 1), make_color_rgb(80, 215, 105));
+            _draw_txt(gw / 2, _py + 14, is_pt ? "[ENTER / START] INICIAR WAVE " + string(wave_atual + 1) : "[ENTER / START] START WAVE " + string(wave_atual + 1), make_color_rgb(80, 215, 105));
         } else if (_inimigos == 0 && wave_cooldown > 0) {
             var _seg_prep = ceil(wave_cooldown / 60);
-            _draw_txt(gw / 2, _py + 14, is_pt ? "PROXIMA WAVE EM " + string(_seg_prep) + "s" : "NEXT WAVE IN " + string(_seg_prep) + "s", _col_gold);
+            _draw_txt(gw / 2, _py + 14, (is_pt ? "WAVE " : "WAVE ") + string(wave_atual + 1) + (is_pt ? " EM " : " IN ") + string(_seg_prep) + "s...", _col_gold);
         } else {
             var _seg_rest = ceil(wave_timer / 60);
             var _cor_t = (_seg_rest <= 10) ? make_color_rgb(235, 65, 65) : c_white;
-            _draw_txt(gw / 2, _py + 14, "WAVE " + string(wave_atual) + "  |  " + (is_pt ? "TEMPO: " : "TIME: ") + string(_seg_rest) + "s  |  " + (is_pt ? "VIVOS: " : "ALIVE: ") + string(_inimigos), _cor_t);
+            _draw_txt(gw / 2, _py + 14, "WAVE " + string(wave_atual) + "   |   " + string(_seg_rest) + "s   |   " + (is_pt ? "INIMIGOS: " : "FOES: ") + string(_inimigos), _cor_t);
         }
         
         // Barra de Vida do Portão do Laboratório
         var _bx = _px + 14;
         var _by = _py + 28;
         var _bw = _pw - 28;
-        var _bh = 14;
+        var _bh = 16;
         var _pct_portao = clamp(portao_hp / max(1, portao_hp_max), 0, 1);
         
         draw_set_color(make_color_rgb(30, 15, 20));
@@ -74,29 +74,28 @@ if (room != rm_main_menu && room != rm_options && !is_paused && !is_dead && !esc
         draw_set_color(make_color_rgb(85, 75, 60));
         draw_rectangle(_bx, _by, _bx + _bw, _by + _bh, true);
         
-        _draw_txt(gw / 2, _by + 7, (is_pt ? "PORTAO DO LAB: " : "LAB GATE: ") + string(portao_hp) + " / " + string(portao_hp_max), c_white);
-        _draw_txt(gw / 2, _py + 54, (is_pt ? "Defenda o Portao a Esquerda! (X=" : "Defend Left Gate! (X=") + string(portao_x) + ")", make_color_rgb(175, 180, 195));
+        _draw_txt(gw / 2, _by + 8, (is_pt ? "PORTAO: " : "GATE: ") + string(portao_hp) + " / " + string(portao_hp_max), c_white);
         
-        // Painel Canto Superior Direito (Score, Tempo Total e Recorde)
-        var _sx = gw - 195;
-        var _sy = 10;
+        // Painel Canto Superior Direito (Compacto: 180x52)
+        var _sw = 180;
+        var _sx = gw - _sw - 16;
+        var _sy = 12;
         draw_set_color(make_color_rgb(14, 16, 22));
         draw_set_alpha(0.85);
-        draw_rectangle(_sx, _sy, gw - 12, _sy + 64, false);
+        draw_rectangle(_sx, _sy, _sx + _sw, _sy + 52, false);
         draw_set_alpha(1.0);
         draw_set_color(make_color_rgb(85, 75, 60));
-        draw_rectangle(_sx, _sy, gw - 12, _sy + 64, true);
+        draw_rectangle(_sx, _sy, _sx + _sw, _sy + 52, true);
         
         draw_set_halign(fa_right);
         var _t_str = _formatar_tempo(floor(tempo_sobrevivido_frames / 60));
-        _draw_txt(gw - 20, _sy + 14, "SCORE: " + string(global.score_atual), _col_gold);
-        _draw_txt(gw - 20, _sy + 32, (is_pt ? "DURACAO: " : "TIME: ") + _t_str, c_white);
-        _draw_txt(gw - 20, _sy + 50, "TOP 1: " + string(top_scores[0]), make_color_rgb(80, 215, 105));
+        _draw_txt(_sx + _sw - 12, _sy + 16, "SCORE: " + string(global.score_atual), _col_gold);
+        _draw_txt(_sx + _sw - 12, _sy + 36, (is_pt ? "TEMPO: " : "TIME: ") + _t_str, c_white);
     }
 }
 
 // ==========================================
-// 0.5 TELA DE ESCOLHA DE CARTAS (ESTILO ARENA LOL)
+// 0.5 TELA DE ESCOLHA DE CARTAS (AJUSTADA PARA 1024x576)
 // ==========================================
 if (variable_instance_exists(id, "escolhendo_carta") && escolhendo_carta) {
     draw_set_font(fnt_menu);
@@ -113,19 +112,19 @@ if (variable_instance_exists(id, "escolhendo_carta") && escolhendo_carta) {
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
     
-    _draw_txt(gw / 2, 42, is_pt ? "WAVE " + string(wave_atual) + " DEFENDIDA! ESCOLHA UM BUFF:" : "WAVE " + string(wave_atual) + " CLEARED! CHOOSE A BUFF:", col_gold);
-    _draw_txt(gw / 2, 68, is_pt ? "Use [A / D] ou Setas para escolher e [ENTER / ESPACO] para confirmar" : "Use [A / D] or Arrows to select and [ENTER / SPACE] to confirm", make_color_rgb(180, 185, 200));
+    _draw_txt(gw / 2, 55, is_pt ? "WAVE " + string(wave_atual) + " CONCLUIDA! ESCOLHA UM BUFF:" : "WAVE " + string(wave_atual) + " CLEARED! CHOOSE A BUFF:", col_gold);
+    _draw_txt(gw / 2, 85, is_pt ? "[A / D / Setas] Escolher   |   [ENTER / Botao A] Confirmar" : "[A / D / Arrows] Select   |   [ENTER / Button A] Confirm", make_color_rgb(180, 185, 200));
     
-    var card_w = 220;
-    var card_h = 260;
-    var gap    = 24;
+    var card_w = 270;
+    var card_h = 310;
+    var gap    = 30;
     var total_w = (card_w * 3) + (gap * 2);
     var start_x = round((gw - total_w) / 2);
-    var card_y  = 105;
+    var card_y  = 135;
     
     for (var c = 0; c < 3; c++) {
         var cx1 = start_x + c * (card_w + gap);
-        var cy1 = card_y - ((carta_index == c) ? 10 : 0);
+        var cy1 = card_y - ((carta_index == c) ? 12 : 0);
         var cx2 = cx1 + card_w;
         var cy2 = cy1 + card_h;
         
@@ -137,7 +136,7 @@ if (variable_instance_exists(id, "escolhendo_carta") && escolhendo_carta) {
         
         draw_set_color(_dados.cor);
         draw_set_alpha((carta_index == c) ? 0.9 : 0.45);
-        draw_rectangle(cx1, cy1, cx2, cy1 + 48, false);
+        draw_rectangle(cx1, cy1, cx2, cy1 + 52, false);
         draw_set_alpha(1.0);
         
         draw_set_color(_cor_borda);
@@ -147,22 +146,22 @@ if (variable_instance_exists(id, "escolhendo_carta") && escolhendo_carta) {
         }
         
         var _titulo = is_pt ? _dados.nome_pt : _dados.nome_en;
-        _draw_txt((cx1 + cx2) / 2, cy1 + 24, _titulo, c_white);
+        _draw_txt((cx1 + cx2) / 2, cy1 + 26, _titulo, c_white);
         
         draw_set_color(_dados.cor);
-        draw_circle((cx1 + cx2) / 2, cy1 + 100, 22, false);
+        draw_circle((cx1 + cx2) / 2, cy1 + 115, 24, false);
         draw_set_color(c_white);
-        draw_circle((cx1 + cx2) / 2, cy1 + 100, 22, true);
-        _draw_txt((cx1 + cx2) / 2, cy1 + 100, "+" + string(c + 1), c_black);
+        draw_circle((cx1 + cx2) / 2, cy1 + 115, 24, true);
+        _draw_txt((cx1 + cx2) / 2, cy1 + 115, "+" + string(c + 1), c_black);
         
         var _desc = is_pt ? _dados.desc_pt : _dados.desc_en;
         draw_set_color(c_black);
-        draw_text_ext(round((cx1 + cx2) / 2) + 1, cy1 + 166, _desc, 20, card_w - 24);
+        draw_text_ext(round((cx1 + cx2) / 2) + 1, cy1 + 191, _desc, 22, card_w - 28);
         draw_set_color(c_white);
-        draw_text_ext(round((cx1 + cx2) / 2), cy1 + 165, _desc, 20, card_w - 24);
+        draw_text_ext(round((cx1 + cx2) / 2), cy1 + 190, _desc, 22, card_w - 28);
         
         if (carta_index == c) {
-            _draw_txt((cx1 + cx2) / 2, cy2 - 22, is_pt ? "[ ENTER: ESCOLHER ]" : "[ ENTER: SELECT ]", col_gold);
+            _draw_txt((cx1 + cx2) / 2, cy2 - 26, is_pt ? "[ ENTER / A: ESCOLHER ]" : "[ ENTER / A: SELECT ]", col_gold);
         }
     }
     
@@ -193,7 +192,7 @@ if (variable_global_exists("brilho")) {
 }
 
 // ==========================================
-// 1.5 TELA DE FIM DE JOGO + TABELA DE RECORDES DA MOSTRA (TOP 5)
+// 1.5 TELA DE FIM DE JOGO + TABELA TOP 5
 // ==========================================
 if (variable_instance_exists(id, "is_dead") && is_dead) {
     draw_set_font(fnt_menu);
@@ -211,8 +210,8 @@ if (variable_instance_exists(id, "is_dead") && is_dead) {
     draw_rectangle(0, 0, gw, gh, false);
     draw_set_alpha(1.0);
     
-    var pw = 620;
-    var ph = 390;
+    var pw = 680;
+    var ph = 420;
     var px = round((gw - pw) / 2);
     var py = round((gh - ph) / 2);
     
@@ -224,9 +223,9 @@ if (variable_instance_exists(id, "is_dead") && is_dead) {
     draw_rectangle(px + 2, py + 2, px + pw - 2, py + ph - 2, true);
     
     draw_set_color(col_header);
-    draw_rectangle(px + 3, py + 3, px + pw - 3, py + 46, false);
+    draw_rectangle(px + 3, py + 3, px + pw - 3, py + 48, false);
     draw_set_color(col_crimson);
-    draw_line(px + 2, py + 46, px + pw - 2, py + 46);
+    draw_line(px + 2, py + 48, px + pw - 2, py + 48);
     
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
@@ -234,54 +233,53 @@ if (variable_instance_exists(id, "is_dead") && is_dead) {
     var _titulo_fim = "VOCE MORREU!";
     if (motivo_derrota == 2) _titulo_fim = is_pt ? "O PORTAO DO LABORATORIO FOI DESTRUIDO!" : "THE LAB GATE WAS DESTROYED!";
     if (motivo_derrota == 3) _titulo_fim = is_pt ? "TEMPO ESGOTADO (TIME OUT)!" : "TIME OUT!";
-    _draw_txt(gw / 2, py + 24, _titulo_fim, col_crimson);
+    _draw_txt(gw / 2, py + 25, _titulo_fim, col_crimson);
     
     var _duracao_str = _formatar_tempo(floor(tempo_sobrevivido_frames / 60));
-    var _resumo = "SCORE FINAL: " + string(global.score_atual) +
+    var _resumo = "SCORE: " + string(global.score_atual) +
                   "   |   TEMPO: " + _duracao_str +
-                  "   |   WAVE ALCANCADA: " + string(wave_atual);
-    _draw_txt(gw / 2, py + 68, _resumo, col_gold);
+                  "   |   WAVE: " + string(wave_atual);
+    _draw_txt(gw / 2, py + 72, _resumo, col_gold);
     
-    // TABELA TOP 5 RECORDES DA MOSTRA
-    var tab_x1 = px + 36;
-    var tab_x2 = px + pw - 36;
-    var tab_y1 = py + 94;
+    var tab_x1 = px + 40;
+    var tab_x2 = px + pw - 40;
+    var tab_y1 = py + 100;
     
     draw_set_color(make_color_rgb(24, 28, 38));
-    draw_rectangle(tab_x1, tab_y1, tab_x2, tab_y1 + 28, false);
+    draw_rectangle(tab_x1, tab_y1, tab_x2, tab_y1 + 30, false);
     draw_set_color(col_gold);
-    draw_rectangle(tab_x1, tab_y1, tab_x2, tab_y1 + 28, true);
-    _draw_txt(gw / 2, tab_y1 + 14, is_pt ? "RANKING DA MOSTRA - TOP 5 DEFENSORES DO RATLAB" : "SHOWCASE LEADERBOARD - TOP 5 DEFENDERS", col_gold);
+    draw_rectangle(tab_x1, tab_y1, tab_x2, tab_y1 + 30, true);
+    _draw_txt(gw / 2, tab_y1 + 15, is_pt ? "RANKING DA MOSTRA - TOP 5 DEFENSORES" : "SHOWCASE LEADERBOARD - TOP 5", col_gold);
     
     for (var r = 0; r < 5; r++) {
-        var ry = tab_y1 + 30 + (r * 30);
+        var ry = tab_y1 + 32 + (r * 32);
         var _eh_atual = (top_scores[r] == global.score_atual && global.score_atual > 0);
         
         draw_set_color(_eh_atual ? make_color_rgb(45, 55, 35) : make_color_rgb(20, 22, 30));
-        draw_rectangle(tab_x1, ry, tab_x2, ry + 28, false);
+        draw_rectangle(tab_x1, ry, tab_x2, ry + 30, false);
         draw_set_color(col_border_out);
-        draw_rectangle(tab_x1, ry, tab_x2, ry + 28, true);
+        draw_rectangle(tab_x1, ry, tab_x2, ry + 30, true);
         
         var _cor_linha = _eh_atual ? make_color_rgb(80, 215, 105) : ((r == 0) ? col_gold : c_white);
         
         draw_set_halign(fa_left);
-        _draw_txt(tab_x1 + 16, ry + 14, "#" + string(r + 1) + "  -  " + string(top_scores[r]) + " PTS", _cor_linha);
+        _draw_txt(tab_x1 + 18, ry + 15, "#" + string(r + 1) + "  -  " + string(top_scores[r]) + " PTS", _cor_linha);
         
         draw_set_halign(fa_center);
-        _draw_txt(gw / 2 + 20, ry + 14, "WAVE " + string(top_waves[r]), _cor_linha);
+        _draw_txt(gw / 2 + 20, ry + 15, "WAVE " + string(top_waves[r]), _cor_linha);
         
         draw_set_halign(fa_right);
-        _draw_txt(tab_x2 - 16, ry + 14, (is_pt ? "TEMPO: " : "TIME: ") + _formatar_tempo(top_tempos[r]), _cor_linha);
+        _draw_txt(tab_x2 - 18, ry + 15, (is_pt ? "TEMPO: " : "TIME: ") + _formatar_tempo(top_tempos[r]), _cor_linha);
     }
     
     draw_set_halign(fa_center);
     var opcoes_morte = [
-        is_pt ? "JOGAR NOVAMENTE (TENTAR BATER O RECORDE)" : "PLAY AGAIN (BEAT THE HIGHSCORE)",
+        is_pt ? "JOGAR NOVAMENTE" : "PLAY AGAIN",
         is_pt ? "VOLTAR AO MENU PRINCIPAL" : "RETURN TO MAIN MENU"
     ];
     
-    var start_y = py + 312;
-    var row_h   = 42;
+    var start_y = py + 335;
+    var row_h   = 44;
     var btn_w   = 440;
     var bx1     = round((gw - btn_w) / 2);
     var bx2     = bx1 + btn_w;
@@ -290,17 +288,17 @@ if (variable_instance_exists(id, "is_dead") && is_dead) {
         var yy = start_y + (i * row_h);
         if (death_index == i) {
             draw_set_color(col_highlight);
-            draw_rectangle(bx1, yy - 15, bx2, yy + 15, false);
+            draw_rectangle(bx1, yy - 16, bx2, yy + 16, false);
             draw_set_color(col_gold);
-            draw_rectangle(bx1, yy - 15, bx1 + 6, yy + 15, false);
+            draw_rectangle(bx1, yy - 16, bx1 + 6, yy + 16, false);
             draw_set_color(col_crimson);
-            draw_rectangle(bx1, yy - 15, bx2, yy + 15, true);
+            draw_rectangle(bx1, yy - 16, bx2, yy + 16, true);
             _draw_txt(gw / 2, yy, opcoes_morte[i], c_white);
         } else {
             draw_set_color(col_header);
-            draw_rectangle(bx1, yy - 15, bx2, yy + 15, false);
+            draw_rectangle(bx1, yy - 16, bx2, yy + 16, false);
             draw_set_color(col_border_out);
-            draw_rectangle(bx1, yy - 15, bx2, yy + 15, true);
+            draw_rectangle(bx1, yy - 16, bx2, yy + 16, true);
             _draw_txt(gw / 2, yy, opcoes_morte[i], col_text_off);
         }
     }
@@ -313,7 +311,7 @@ if (variable_instance_exists(id, "is_dead") && is_dead) {
 }
 
 // ==========================================
-// 2. MENU DE PAUSA EM TELA INTEIRA
+// 2. MENU DE PAUSA
 // ==========================================
 if (is_paused) {
     draw_set_font(fnt_menu);
@@ -330,8 +328,8 @@ if (is_paused) {
     draw_rectangle(0, 0, gw, gh, false);
     draw_set_alpha(1.0);
     
-    var pw = round(gw * 0.92);
-    var ph = round(gh * 0.86);
+    var pw = 760;
+    var ph = 460;
     var px = round((gw - pw) / 2);
     var py = round((gh - ph) / 2) - 6;
     
@@ -344,9 +342,9 @@ if (is_paused) {
     
     if (pause_state == 0) {
         draw_set_color(col_header);
-        draw_rectangle(px + 3, py + 3, px + pw - 3, py + 44, false);
+        draw_rectangle(px + 3, py + 3, px + pw - 3, py + 46, false);
         draw_set_color(col_gold);
-        draw_line(px + 2, py + 44, px + pw - 2, py + 44);
+        draw_line(px + 2, py + 46, px + pw - 2, py + 46);
         
         draw_set_halign(fa_center);
         draw_set_valign(fa_middle);
@@ -356,9 +354,9 @@ if (is_paused) {
         pause_opcoes[1] = is_pt ? "OPCOES E CONTROLES" : "OPTIONS & CONTROLS";
         pause_opcoes[2] = is_pt ? "SALVAR RECORDE E SAIR" : "SAVE HIGHSCORE & QUIT";
         
-        var start_y = py + round(ph * 0.36);
-        var row_h   = 56;
-        var btn_w   = min(380, round(pw * 0.60));
+        var start_y = py + 170;
+        var row_h   = 60;
+        var btn_w   = 400;
         var bx1     = round((gw - btn_w) / 2);
         var bx2     = bx1 + btn_w;
         
@@ -367,18 +365,17 @@ if (is_paused) {
             
             if (pause_index == i) {
                 draw_set_color(col_highlight);
-                draw_rectangle(bx1, yy - 18, bx2, yy + 18, false);
+                draw_rectangle(bx1, yy - 20, bx2, yy + 20, false);
                 draw_set_color(col_gold);
-                draw_rectangle(bx1, yy - 18, bx1 + 6, yy + 18, false);
+                draw_rectangle(bx1, yy - 20, bx1 + 6, yy + 20, false);
                 draw_set_color(col_border_out);
-                draw_rectangle(bx1, yy - 18, bx2, yy + 18, true);
-                
+                draw_rectangle(bx1, yy - 20, bx2, yy + 20, true);
                 _draw_txt(gw / 2, yy, pause_opcoes[i], c_white);
             } else {
                 draw_set_color(col_header);
-                draw_rectangle(bx1, yy - 18, bx2, yy + 18, false);
+                draw_rectangle(bx1, yy - 20, bx2, yy + 20, false);
                 draw_set_color(col_border_out);
-                draw_rectangle(bx1, yy - 18, bx2, yy + 18, true);
+                draw_rectangle(bx1, yy - 20, bx2, yy + 20, true);
                 _draw_txt(gw / 2, yy, pause_opcoes[i], col_text_off);
             }
         }
@@ -387,7 +384,7 @@ if (is_paused) {
         if (!variable_instance_exists(id, "opcao_aba")) opcao_aba = 0;
         
         var tab_w = (pw - 4) / 2;
-        var tab_h = 38;
+        var tab_h = 40;
         var nomes_abas = [
             is_pt ? "[Q] 1. GERAL E VIDEO" : "[Q] 1. GENERAL & VIDEO",
             is_pt ? "2. CONTROLES [E]" : "2. CONTROLS [E]"
@@ -450,13 +447,13 @@ if (is_paused) {
                 ""
             ];
             
-            var row_h = (ph - 90) / 7;
-            var list_y = py + 72;
+            var row_h = (ph - 95) / 7;
+            var list_y = py + 76;
             
             for (var idx = 0; idx < array_length(labels_aba0); idx++) {
                 var yy = list_y + (idx * row_h);
-                var rx1 = px + 32;
-                var rx2 = px + pw - 32;
+                var rx1 = px + 36;
+                var rx2 = px + pw - 36;
                 var is_sel = (pause_index == idx);
                 
                 if (is_sel) {
@@ -473,7 +470,7 @@ if (is_paused) {
                 if (idx == 0) {
                     var bar_w = 100;
                     var bar_h = 10;
-                    var bar_x1 = rx2 - 80 - bar_w;
+                    var bar_x1 = rx2 - 85 - bar_w;
                     var bar_y1 = yy - (bar_h / 2);
                     draw_set_color(c_dkgray);
                     draw_rectangle(bar_x1, bar_y1, bar_x1 + bar_w, bar_y1 + bar_h, false);
@@ -484,7 +481,7 @@ if (is_paused) {
                 else if (idx == 5) {
                     var bar_w = 100;
                     var bar_h = 10;
-                    var bar_x1 = rx2 - 80 - bar_w;
+                    var bar_x1 = rx2 - 85 - bar_w;
                     var bar_y1 = yy - (bar_h / 2);
                     draw_set_color(c_dkgray);
                     draw_rectangle(bar_x1, bar_y1, bar_x1 + bar_w, bar_y1 + bar_h, false);
@@ -510,13 +507,13 @@ if (is_paused) {
             
             var keys_array = [global.key_jump, global.key_attack, global.key_roll, global.key_heal, global.key_throw, global.key_left, global.key_right];
             
-            var row_h = (ph - 80) / 8;
-            var list_y = py + 66;
+            var row_h = (ph - 85) / 8;
+            var list_y = py + 70;
             
             for (var idx = 0; idx < array_length(labels_aba1); idx++) {
                 var yy = list_y + (idx * row_h);
-                var rx1 = px + 32;
-                var rx2 = px + pw - 32;
+                var rx1 = px + 36;
+                var rx2 = px + pw - 36;
                 var is_sel = (pause_index == idx);
                 
                 if (is_sel) {
@@ -543,7 +540,7 @@ if (is_paused) {
     var dica_rodape = is_pt 
         ? "[W/S] Navegar   |   [Q/E] Aba   |   [A/D ou ENTER] Alterar   |   [ESC] Voltar" 
         : "[W/S] Navigate   |   [Q/E] Tab   |   [A/D or ENTER] Change   |   [ESC] Back";
-    _draw_txt(gw / 2, gh - 15, dica_rodape, col_text_off);
+    _draw_txt(gw / 2, gh - 18, dica_rodape, col_text_off);
     
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
