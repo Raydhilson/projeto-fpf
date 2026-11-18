@@ -1,28 +1,27 @@
-// Escala 800x450 (16:9): deixa a fonte encorpada, nítida e proporcional aos painéis
 if (display_get_gui_width() != 800) {
     display_set_gui_size(800, 450);
 }
 
-// Não desenha HUD nem Inventário se o Pause Global (ESC) estiver aberto[cite: 4, 6]
-if (instance_exists(obj_game_controller) && obj_game_controller.is_paused) {
-    exit;
+// Não desenha HUD nem Inventário se Pause, Tela de Morte ou Cartas estiverem abertas!
+if (instance_exists(obj_game_controller)) {
+    if (obj_game_controller.is_paused || obj_game_controller.is_dead || obj_game_controller.escolhendo_carta) {
+        exit;
+    }
 }
 
 var is_pt = (!variable_global_exists("idioma") || global.idioma == "PT");
 
-// Paleta com maior contraste para leitura
 var col_bg_panel   = make_color_rgb(14, 16, 22);
 var col_header     = make_color_rgb(24, 28, 38);
 var col_card       = make_color_rgb(22, 26, 34);
 var col_border_out = make_color_rgb(85, 75, 60);
 var col_gold       = make_color_rgb(245, 195, 65);
 var col_highlight  = make_color_rgb(42, 48, 66);
-var col_text_sub   = make_color_rgb(185, 190, 205); // Cinza claro bem legível
+var col_text_sub   = make_color_rgb(185, 190, 205);
 var col_hp         = make_color_rgb(220, 50, 60);
 var col_ok         = make_color_rgb(80, 215, 105);
 var col_scrap      = make_color_rgb(225, 140, 55);
 
-// Função auxiliar para desenhar texto com sombra nítida (Drop Shadow)
 var _draw_txt = function(_x, _y, _str, _col) {
     draw_set_color(c_black);
     draw_text(round(_x) + 1, round(_y) + 1, _str);
@@ -55,7 +54,7 @@ if (state != player_state.menu && state != player_state.craft) {
     var gui_x = 18;
     var gui_y = 18;
     var hud_w = 185;
-    var hud_h = (buff_fogo_timer > 0) ? 68 : 50;
+    var hud_h = (buff_fogo_timer > 0) ? 84 : 66;
 
     draw_set_color(c_black);
     draw_set_alpha(0.75);
@@ -89,15 +88,21 @@ if (state != player_state.menu && state != player_state.craft) {
 
     _draw_txt(gui_x + 56, info_y, "[" + str_key_heal + "] " + string(curativo_count) + "  [" + str_key_throw + "] " + string(faca_count + molotov_count), col_text_sub);
 
+    // Cooldown do Golpe Giratório [L]
+    var _txt_spin = (spin_cooldown <= 0) 
+        ? (is_pt ? "[L] GIRO 360: PRONTO!" : "[L] SPIN: READY!") 
+        : (is_pt ? "[L] GIRO 360: " : "[L] SPIN: ") + string(ceil(spin_cooldown / 60)) + "s";
+    _draw_txt(gui_x, info_y + 18, _txt_spin, (spin_cooldown <= 0) ? col_ok : col_text_sub);
+
     if (buff_fogo_timer > 0) {
         var seg_restantes = ceil(buff_fogo_timer / 60);
         var txt_buff = is_pt ? "LANCA EM CHAMAS: " : "FLAMING SPEAR: ";
-        _draw_txt(gui_x, info_y + 18, txt_buff + string(seg_restantes) + "s", c_orange);
+        _draw_txt(gui_x, info_y + 34, txt_buff + string(seg_restantes) + "s", c_orange);
     }
 }
 
 // =======================================================
-// --- 2. TELA DEDICADA DO HUB (TIPOGRAFIA REFINADA) ---
+// --- 2. TELA DEDICADA DO HUB (TECLA I) ---
 // =======================================================
 if (state == player_state.menu || state == player_state.craft) {
     var gw = display_get_gui_width();
@@ -120,12 +125,11 @@ if (state == player_state.menu || state == player_state.craft) {
     draw_set_color(col_gold);
     draw_rectangle(px + 2, py + 2, px + pw - 2, py + ph - 2, true);
     
-    // --- ABAS SUPERIORES ---
     var tab_w = (pw - 4) / 3;
     var tab_h = 36;
     var nome_abas = is_pt 
-        ? ["[Q] INVENTARIO", "CRAFTING", "MAESTRIA [E]"] 
-        : ["[Q] INVENTORY", "CRAFTING", "MASTERY [E]"];
+        ? ["[Q] INVENTARIO", "CRAFTING", "HABILIDADE [E]"] 
+        : ["[Q] INVENTORY", "CRAFTING", "SKILL [E]"];
     
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
@@ -155,19 +159,15 @@ if (state == player_state.menu || state == player_state.craft) {
     var cy1 = py + 52;
     var cw  = pw - 48;
     
-    // ---------------------------------------------------
-    // ABA 0: INVENTÁRIO (DIVIDIDO EM 2 COLUNAS LIMPAS)
-    // ---------------------------------------------------
+    // ABA 0: INVENTÁRIO
     if (aba_atual == 0) {
         var col_w = (cw - 16) / 2;
         var c2_x  = cx1 + col_w + 16;
         
-        // Títulos das Colunas
         draw_set_halign(fa_left);
         _draw_txt(cx1 + 4, cy1 + 8, is_pt ? "EQUIPAMENTOS TATICOS" : "TACTICAL GEAR", col_gold);
         _draw_txt(c2_x + 4, cy1 + 8, is_pt ? "MATERIAIS DE COLETA" : "CRAFTING MATERIALS", col_gold);
         
-        // Coluna 1: Consumíveis
         var gear_names = is_pt ? ["Curativos Medicos", "Coqueteis Molotov", "Facas de Arremesso"] : ["Medical Bandages", "Molotov Cocktails", "Throwing Knives"];
         var gear_desc  = is_pt ? ["Cura +30 HP", "Dano de fogo em area", "Dano fisico rapido"] : ["Heals +30 HP", "Area fire damage", "Fast physical damage"];
         var gear_qtd   = [curativo_count, molotov_count, faca_count];
@@ -187,8 +187,7 @@ if (state == player_state.menu || state == player_state.craft) {
             _draw_txt(cx1 + col_w - 14, iy + 28, "x" + string(gear_qtd[k]), (gear_qtd[k] > 0) ? col_gold : col_hp);
         }
         
-        // Coluna 2: Materiais
-        var mat_names = is_pt ? ["Sucata ", "Carne de Besouro", "Glandula Volatil", "Ferrao de Vespa"] : ["Industrial Scrap", "Beetle Meat", "Volatile Gland", "Wasp Stinger"];
+        var mat_names = is_pt ? ["Sucata", "Carne de Besouro", "Glandula Volatil", "Ferrao de Vespa"] : ["Scrap", "Beetle Meat", "Volatile Gland", "Wasp Stinger"];
         var mat_qtd   = [global.scrap, carne_count, glandula_count, ferrao_count];
         
         for (var m = 0; m < 4; m++) {
@@ -205,9 +204,7 @@ if (state == player_state.menu || state == player_state.craft) {
             _draw_txt(c2_x + col_w - 14, my + 21, "x" + string(mat_qtd[m]), (mat_qtd[m] > 0) ? col_ok : col_text_sub);
         }
     }
-    // ---------------------------------------------------
-    // ABA 1: CRAFTING (CARDS ESPAÇADOS E LEGÍVEIS)
-    // ---------------------------------------------------
+    // ABA 1: CRAFTING
     else if (aba_atual == 1) {
         draw_set_color(col_header);
         draw_rectangle(cx1, cy1, cx1 + cw, cy1 + 32, false);
@@ -262,7 +259,7 @@ if (state == player_state.menu || state == player_state.craft) {
             _draw_txt(cx1 + 18, ry1 + 45, desc_receitas[j], col_text_sub);
             
             draw_set_halign(fa_right);
-            var str_custo = string(custo_suc) + (is_pt ? " Sucatas + " : " Scrap + ") + nome_org[j];
+            var str_custo = string(custo_suc) + (is_pt ? " Sucata + " : " Scrap + ") + nome_org[j];
             _draw_txt(cx1 + cw - 16, ry1 + 20, str_custo, pode_craftar ? col_ok : col_hp);
             
             var str_status = (state == player_state.craft && craft_selected_item == j)
@@ -271,48 +268,26 @@ if (state == player_state.menu || state == player_state.craft) {
             _draw_txt(cx1 + cw - 16, ry1 + 45, str_status, pode_craftar ? c_white : col_text_sub);
         }
     }
-    // ---------------------------------------------------
-    // ABA 2: MAESTRIA DE COMBATE (COM BARRA DE XP VISUAL)
-    // ---------------------------------------------------
+    // ABA 2: HABILIDADE ESPECIAL (GOLPE GIRATÓRIO DE 360°)
     else if (aba_atual == 2) {
-        // Card Principal da Arma + Barra de XP
         draw_set_color(col_header);
         draw_rectangle(cx1, cy1, cx1 + cw, cy1 + 68, false);
         draw_set_color(col_gold);
         draw_rectangle(cx1, cy1, cx1 + cw, cy1 + 68, true);
         
         draw_set_halign(fa_left);
-        _draw_txt(cx1 + 18, cy1 + 20, is_pt ? "ARMA: LANCA DE PREGO IMPROVISADA" : "WEAPON: IMPROVISED NAIL SPEAR", col_gold);
+        _draw_txt(cx1 + 18, cy1 + 22, is_pt ? "TECNICA ESPECIAL: GOLPE GIRATORIO DE 360 GRAUS [TECLA L]" : "SPECIAL SKILL: 360 SPIN SLASH [KEY L]", col_gold);
+        _draw_txt(cx1 + 18, cy1 + 46, is_pt ? "Gira a lanca atingindo todos os inimigos ao redor e empurrando-os para longe do Portao!" : "Spins the spear hitting all surrounding enemies and knocking them back!", c_white);
         
-        draw_set_halign(fa_right);
-        _draw_txt(cx1 + cw - 18, cy1 + 20, "NIVEL " + string(arma_nivel), c_white);
-        
-        // Barra de Progresso de XP
-        var xp_x1 = cx1 + 18;
-        var xp_x2 = cx1 + cw - 18;
-        var xp_y1 = cy1 + 40;
-        var xp_pct = clamp(arma_xp / max(1, arma_xp_max), 0, 1);
-        
-        draw_set_color(c_black);
-        draw_rectangle(xp_x1, xp_y1, xp_x2, xp_y1 + 16, false);
-        draw_set_color(col_gold);
-        draw_rectangle(xp_x1, xp_y1, xp_x1 + ((xp_x2 - xp_x1) * xp_pct), xp_y1 + 16, false);
-        draw_set_color(col_border_out);
-        draw_rectangle(xp_x1, xp_y1, xp_x2, xp_y1 + 16, true);
-        
-        draw_set_halign(fa_center);
-        _draw_txt((xp_x1 + xp_x2) / 2, xp_y1 + 8, "XP: " + string(arma_xp) + " / " + string(arma_xp_max), c_white);
-        
-        // Lista de Atributos abaixo da barra
         var stats_labels = is_pt
-            ? ["Dano Base do Golpe", "Chance de Acerto Critico", "Multiplicador de Critico", "Habilidade de Combo (2o Golpe)"]
-            : ["Base Strike Damage", "Critical Hit Chance", "Critical Multiplier", "Combo Skill (2nd Strike)"];
+            ? ["Atalho de Ativacao", "Dano do Turbilhao (360 Graus)", "Tempo de Recarga (Cooldown)", "Dano Base da Lanca / Chance Critica"]
+            : ["Activation Shortcut", "Whirlwind Damage (360 Deg)", "Cooldown Time", "Base Spear DMG / Crit Chance"];
             
         var stats_vals = [
-            string(global.ataque_base) + " DMG",
-            string(global.chance_critico) + "%",
-            string(global.multiplicador_crit) + "x",
-            (arma_nivel >= 2) ? (is_pt ? "DESBLOQUEADO" : "UNLOCKED") : (is_pt ? "Requer Nivel 2" : "Requires Lv. 2")
+            "TECLA [ L ]",
+            string((3 + spin_dano_bonus) * global.ataque_base) + " DMG + Knockback",
+            string(spin_cooldown_max / 60) + "s",
+            string(global.ataque_base) + " DMG  (" + string(global.chance_critico) + "% Crit)"
         ];
         
         for (var s = 0; s < array_length(stats_labels); s++) {
@@ -326,12 +301,10 @@ if (state == player_state.menu || state == player_state.craft) {
             _draw_txt(cx1 + 18, sy + 18, stats_labels[s], c_white);
             
             draw_set_halign(fa_right);
-            var _vcol = (s == 3 && arma_nivel < 2) ? col_hp : col_ok;
-            _draw_txt(cx1 + cw - 18, sy + 18, stats_vals[s], _vcol);
+            _draw_txt(cx1 + cw - 18, sy + 18, stats_vals[s], col_ok);
         }
     }
     
-    // Rodapé
     var div_y = py + ph - 34;
     draw_set_color(col_border_out);
     draw_line(px + 16, div_y, px + pw - 16, div_y);

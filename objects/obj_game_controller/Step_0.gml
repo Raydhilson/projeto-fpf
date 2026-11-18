@@ -1,119 +1,233 @@
-// =======================================================
-// ATALHOS DE APRESENTAÇÃO (F1 = Sala 1 | F2 = Sala 2 | F3 = Sala 3)
-// =======================================================
-if (keyboard_check_pressed(vk_f1)) { sala_montada = -1; room_goto(rm_forest_1); exit; }
-if (keyboard_check_pressed(vk_f2)) { sala_montada = -1; room_goto(rm_forest_2); exit; }
-if (keyboard_check_pressed(vk_f3)) { sala_montada = -1; room_goto(rm_forest_3); exit; }
-
-// =======================================================
-// GERADOR AUTOMÁTICO DAS 3 SALAS PLANAS + TRAVA ANTI-TERRA
-// =======================================================
-if (room == rm_forest_1 || room == rm_forest_2 || room == rm_forest_3) {
-    if (!variable_instance_exists(id, "sala_montada") || sala_montada != room) {
-        sala_montada = room;
-        onda_spawnada = false;
-        
-        // 1. Limpa qualquer bloco ou espinho antigo da room
-        with (obj_colisor) instance_destroy();
-        with (obj_espinho) instance_destroy();
-        
-        // 2. Cria um chão único, largo e plano na altura Y = 620
-        var _chao = instance_create_depth(-200, 620, 0, obj_colisor);
-        _chao.image_xscale = 120;
-        _chao.image_yscale = 10;
-        
-        var _p_esq = instance_create_depth(-32, 0, 0, obj_colisor);
-        _p_esq.image_yscale = 30;
-        
-        var _p_dir = instance_create_depth(1366, 0, 0, obj_colisor);
-        _p_dir.image_yscale = 30;
-        
-        // 3. Desativa coordenadas antigas de save e posiciona o Player no alto (Y = 480)
-        global.carregando_save = false;
-        if (!instance_exists(obj_player)) {
-            instance_create_depth(160, 480, 0, obj_player);
-        } else {
-            obj_player.x = 160;
-            obj_player.y = 480;
-            obj_player.hspd = 0;
-            obj_player.vspd = 0;
-        }
-        
-        if (!instance_exists(obj_camera)) {
-            instance_create_depth(obj_player.x, obj_player.y, 0, obj_camera);
-        }
-        
-        // 4. Limpa entidades da sala anterior
-        with (obj_enemy) instance_destroy();
-        with (obj_vespa) instance_destroy();
-        with (obj_boss_centopeia) instance_destroy();
-        with (obj_dummy) instance_destroy();
-        with (obj_fogueira) instance_destroy();
-        
-        if (room == rm_forest_1) {
-            instance_create_depth(450, 520, 0, obj_dummy);
-            instance_create_depth(650, 550, 0, obj_scrap);
-            instance_create_depth(1150, 588, 0, obj_fogueira);
-            onda_spawnada = true;
-        }
-        else if (room == rm_forest_2) {
-            instance_create_depth(1200, 588, 0, obj_fogueira);
-        }
-    }
-    
-    // 5. TRAVA ANTI-TERRA CONTÍNUA: Empurra imediatamente para a superfície se entrar 1px no chão
-    if (instance_exists(obj_player)) {
-        with (obj_player) {
-            while (place_meeting(x, y, obj_colisor)) {
-                y -= 1;
-                vspd = 0;
-            }
-        }
-    }
-    with (obj_enemy) {
-        while (place_meeting(x, y, obj_colisor)) {
-            y -= 1;
-        }
-    }
-    with (obj_dummy) {
-        while (place_meeting(x, y, obj_colisor)) {
-            y -= 1;
-        }
-    }
-    with (obj_boss_centopeia) {
-        while (place_meeting(x, y, obj_colisor)) {
-            y -= 1;
-        }
-    }
-    
-    // 6. ÁREA DE SPAWN: Quando o player avança além do X = 320, os inimigos surgem no alto (Y = 480)
-    if (!onda_spawnada && instance_exists(obj_player) && obj_player.x >= 320) {
-        onda_spawnada = true;
-        shake_magnitude = 6;
-        
-        if (room == rm_forest_2) {
-            tocar_sfx("snd_beetle_charge");
-            var _e1 = instance_create_depth(650, 480, 0, obj_enemy);
-            _e1.spawn_alpha = 0; _e1.spawn_scale = 0.1;
-            
-            var _e2 = instance_create_depth(950, 480, 0, obj_enemy);
-            _e2.spawn_alpha = 0; _e2.spawn_scale = 0.1;
-            
-            var _v1 = instance_create_depth(800, 420, 0, obj_vespa);
-            _v1.spawn_alpha = 0; _v1.spawn_scale = 0.1;
-        }
-        else if (room == rm_forest_3) {
-            tocar_sfx("snd_centipede_roar");
-            var _boss = instance_create_depth(900, 460, 0, obj_boss_centopeia);
-            _boss.spawn_alpha = 0; _boss.spawn_scale = 0.1;
-        }
-    }
-}
+if (!variable_instance_exists(id, "is_paused"))        is_paused = false;
+if (!variable_instance_exists(id, "is_dead"))          is_dead = false;
+if (!variable_instance_exists(id, "escolhendo_carta")) escolhendo_carta = false;
+if (!variable_instance_exists(id, "portao_hp"))        portao_hp = 200;
 
 if (keyboard_check_pressed(vk_f11)) {
     global.tela_cheia = !window_get_fullscreen();
     aplicar_resolucao();
     salvar_configuracoes();
+}
+
+// ATALHOS DE APRESENTAÇÃO (F2 = Abrir Cartas | F3 = Chamar Wave do Boss)
+if (keyboard_check_pressed(vk_f2) && !is_dead) {
+    escolhendo_carta = true;
+    carta_index = 1;
+    tocar_sfx("snd_save_shrine");
+    instance_deactivate_all(true);
+    instance_activate_object(obj_game_controller);
+}
+if (keyboard_check_pressed(vk_f3) && !is_dead) {
+    with (obj_enemy) instance_destroy();
+    with (obj_vespa) instance_destroy();
+    wave_atual = 4;
+    wave_timer = 0;
+    wave_cooldown = 10;
+}
+
+// =======================================================
+// 0. TELA DE FIM DE JOGO (MORTE / PORTÃO DESTRUÍDO / TIME OUT)
+// =======================================================
+if (is_dead) {
+    registrar_no_ranking();
+    death_alpha = min(1.0, death_alpha + 0.04);
+    
+    var key_up      = keyboard_check_pressed(vk_up)    || keyboard_check_pressed(ord("W")) || keyboard_check_pressed(global.key_up)    || gamepad_button_check_pressed(0, gp_padu);
+    var key_down    = keyboard_check_pressed(vk_down)  || keyboard_check_pressed(ord("S")) || keyboard_check_pressed(global.key_down)  || gamepad_button_check_pressed(0, gp_padd);
+    var key_confirm = keyboard_check_pressed(vk_enter) || keyboard_check_pressed(vk_space) || keyboard_check_pressed(global.key_confirm) || gamepad_button_check_pressed(0, gp_face1);
+    
+    if (key_up || key_down) {
+        death_index = (death_index == 0) ? 1 : 0;
+        tocar_sfx("snd_ui_move");
+    }
+    
+    if (key_confirm) {
+        tocar_sfx("snd_ui_confirm");
+        is_dead = false;
+        score_registrado = false;
+        death_alpha = 0;
+        escolhendo_carta = false;
+        instance_activate_all();
+        
+        wave_atual = 0;
+        wave_timer = 0;
+        wave_cooldown = 180;
+        tempo_sobrevivido_frames = 0;
+        portao_hp_max = 200;
+        portao_hp = portao_hp_max;
+        global.score_atual = 0;
+        global.scrap = 0;
+        
+        if (death_index == 0) {
+            room_restart();
+        } else {
+            room_goto(rm_main_menu);
+        }
+    }
+    exit;
+}
+
+// =======================================================
+// 0.5 ESCOLHA DE CARTAS ROGUELIKE (ESTILO ARENA LOL)
+// =======================================================
+if (escolhendo_carta) {
+    var key_left    = keyboard_check_pressed(vk_left)  || keyboard_check_pressed(ord("A")) || keyboard_check_pressed(global.key_left)  || gamepad_button_check_pressed(0, gp_padl);
+    var key_right   = keyboard_check_pressed(vk_right) || keyboard_check_pressed(ord("D")) || keyboard_check_pressed(global.key_right) || gamepad_button_check_pressed(0, gp_padr);
+    var key_confirm = keyboard_check_pressed(vk_enter) || keyboard_check_pressed(vk_space) || keyboard_check_pressed(global.key_confirm) || gamepad_button_check_pressed(0, gp_face1);
+    
+    if (key_left)  { carta_index--; if (carta_index < 0) carta_index = 2; tocar_sfx("snd_ui_move"); }
+    if (key_right) { carta_index++; if (carta_index > 2) carta_index = 0; tocar_sfx("snd_ui_move"); }
+    
+    if (key_confirm) {
+        tocar_sfx("snd_craft_success", 0.95, 1.1);
+        instance_activate_all();
+        
+        var _id_escolhido = cartas_opcoes[carta_index];
+        if (instance_exists(obj_player)) {
+            switch (_id_escolhido) {
+                case 0: // Sede de Sangue
+                    global.ataque_base += 5;
+                    obj_player.hp = min(obj_player.hp_max, obj_player.hp + 20);
+                    break;
+                case 1: // Turbilhão Afiado (Melhora o Golpe Giratório)
+                    obj_player.spin_cooldown_max = max(90, obj_player.spin_cooldown_max - 180);
+                    obj_player.spin_dano_bonus += 1;
+                    break;
+                case 2: // Barricada Reforçada (Melhora o Portão)
+                    portao_hp_max += 80;
+                    portao_hp = min(portao_hp_max, portao_hp + 100);
+                    break;
+                case 3: // Carapaça de Rato
+                    obj_player.hp_max += 35;
+                    obj_player.hp = min(obj_player.hp_max, obj_player.hp + 50);
+                    break;
+                case 4: // Pirotecnia da Estufa
+                    obj_player.buff_fogo_timer += 1800;
+                    obj_player.molotov_count += 2;
+                    break;
+                case 5: // Contrabando de Sucata
+                    global.scrap += 8;
+                    obj_player.faca_count += 3;
+                    obj_player.curativo_count += 1;
+                    break;
+            }
+        }
+        
+        escolhendo_carta = false;
+        wave_cooldown = 240; // 4s para comprar no Rato Mercador!
+    }
+    exit;
+}
+
+// =======================================================
+// GERENCIAMENTO DE WAVES E DEFESA DO PORTÃO (SEM MEXER NA SALA!)
+// =======================================================
+if (room != rm_main_menu && room != rm_options) {
+    if (portao_piscar > 0) portao_piscar--;
+    
+    // Verifica se o Portão do Laboratório quebrou!
+    if (portao_hp <= 0 && !is_dead) {
+        portao_hp = 0;
+        is_dead = true;
+        motivo_derrota = 2; // 2 = Portão Destruído!
+        death_index = 0;
+        death_alpha = 0;
+        tocar_sfx("snd_centipede_roar", 0.8, 0.9);
+        instance_deactivate_all(true);
+        instance_activate_object(obj_game_controller);
+        exit;
+    }
+    
+    var _player_em_menu = (instance_exists(obj_player) && (obj_player.state == player_state.menu || obj_player.state == player_state.craft));
+    
+    if (!_player_em_menu && !is_paused) {
+        tempo_sobrevivido_frames++;
+        
+        var _inimigos_vivos = instance_number(obj_enemy) + instance_number(obj_vespa) + instance_number(obj_boss_centopeia);
+        
+        if (_inimigos_vivos == 0) {
+            // Se acabou de derrotar todos os inimigos da Wave atual:
+            if (wave_atual > 0 && wave_timer > 0) {
+                var _bonus_tempo = ceil(wave_timer / 60) * 15;
+                global.score_atual += (wave_atual * 150) + _bonus_tempo;
+                wave_timer = 0;
+                
+                var _pool = [0, 1, 2, 3, 4, 5];
+                for (var c = 0; c < 3; c++) {
+                    var _r = irandom(array_length(_pool) - 1);
+                    cartas_opcoes[c] = _pool[_r];
+                    array_delete(_pool, _r, 1);
+                }
+                
+                carta_index = 1;
+                escolhendo_carta = true;
+                tocar_sfx("snd_save_shrine", 1.0, 1.1);
+                instance_deactivate_all(true);
+                instance_activate_object(obj_game_controller);
+                exit;
+            }
+            
+            if (wave_cooldown > 0) {
+                wave_cooldown--;
+            } else {
+                // INICIA NOVA WAVE!
+                wave_atual++;
+                wave_timer_max = (45 + (wave_atual * 5)) * 60;
+                wave_timer = wave_timer_max;
+                shake_magnitude = 5;
+                
+                // Wave 1 = 4 inimigos | +2 a cada wave
+                var _qtd_total = 4 + ((wave_atual - 1) * 2);
+                
+                // Pega a posição base de spawn à direita do Player/Arena
+                var _base_y = instance_exists(obj_player) ? (obj_player.y - 40) : 450;
+                var _spawn_min_x = instance_exists(obj_player) ? max(650, obj_player.x + 280) : 750;
+                var _spawn_max_x = max(_spawn_min_x + 250, room_width - 120);
+                
+                if (wave_atual mod 5 == 0) {
+                    tocar_sfx("snd_centipede_roar");
+                    var _boss = instance_create_depth(_spawn_max_x - 80, _base_y - 20, 0, obj_boss_centopeia);
+                    _boss.spawn_alpha = 0;
+                    _boss.spawn_scale = 0.1;
+                } else {
+                    tocar_sfx("snd_beetle_charge");
+                }
+                
+                for (var s = 0; s < _qtd_total; s++) {
+                    var _sx = random_range(_spawn_min_x, _spawn_max_x) + (s * 45);
+                    _sx = clamp(_sx, 400, room_width - 64);
+                    
+                    if (wave_atual >= 2 && irandom(99) < 35) {
+                        var _v = instance_create_depth(_sx, _base_y - random_range(50, 90), 0, obj_vespa);
+                        _v.hp = 2 + floor(wave_atual * 0.6);
+                        _v.spawn_alpha = 0;
+                        _v.spawn_scale = 0.1;
+                    } else {
+                        var _e = instance_create_depth(_sx, _base_y, 0, obj_enemy);
+                        _e.hp = 3 + floor(wave_atual * 0.8);
+                        _e.spawn_alpha = 0;
+                        _e.spawn_scale = 0.1;
+                    }
+                }
+            }
+        } else {
+            // Conta o Timer da Wave; se zerar, dá TIME OUT!
+            if (wave_timer > 0) {
+                wave_timer--;
+                if (wave_timer <= 0) {
+                    wave_timer = 0;
+                    is_dead = true;
+                    motivo_derrota = 3; // 3 = Time Out!
+                    death_index = 0;
+                    death_alpha = 0;
+                    tocar_sfx("snd_centipede_roar", 0.7, 0.8);
+                    instance_deactivate_all(true);
+                    instance_activate_object(obj_game_controller);
+                    exit;
+                }
+            }
+        }
+    }
 }
 
 // =======================================================
@@ -146,7 +260,7 @@ if (is_paused && pause_state == 1 && opcao_aba == 1 && aguardando_tecla) {
 // =======================================================
 var key_pause = keyboard_check_pressed(vk_escape) || gamepad_button_check_pressed(0, gp_select);
 
-if (key_pause) {
+if (key_pause && room != rm_main_menu) {
     if (instance_exists(obj_player) && (obj_player.state == player_state.menu || obj_player.state == player_state.craft)) {
         exit; 
     }
@@ -199,22 +313,11 @@ if (is_paused) {
                 opcao_aba = 0;
                 pause_index = 0;
             } else if (pause_index == 2) {
-                var _slot = variable_global_exists("slot_atual") ? global.slot_atual : 1;
-                salvar_jogo(_slot);
+                registrar_no_ranking();
                 salvar_configuracoes();
-                
                 is_paused = false;
                 instance_activate_all();
-                sala_montada = -1;
-                
-                if (asset_get_index("obj_transition") != -1 && !instance_exists(obj_transition)) {
-                    var t = instance_create_layer(0, 0, layer, obj_transition);
-                    t.persistent = true;
-                    t.destino_room = rm_main_menu;
-                    t.estado = 1;
-                } else {
-                    room_goto(rm_main_menu);
-                }
+                room_goto(rm_main_menu);
             }
         }
     }

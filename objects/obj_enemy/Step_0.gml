@@ -1,35 +1,40 @@
 sprite_index = spr_enemy_box;
 mask_index   = spr_enemy_box;
-escala_base  = 1.0;
 
+// Ajusta automaticamente o tamanho da Box para 44x40 pixels (proporcional ao Rato!)
+var _escala_x = 44 / max(1, sprite_get_width(spr_enemy_box));
+var _escala_y = 40 / max(1, sprite_get_height(spr_enemy_box));
+
+if (!variable_instance_exists(id, "hp_max"))      hp_max = hp;
 if (!variable_instance_exists(id, "spawn_alpha")) spawn_alpha = 1.0;
 if (!variable_instance_exists(id, "spawn_scale")) spawn_scale = 1.0;
+if (!variable_instance_exists(id, "anim_walk"))   anim_walk = random(10);
+
 if (spawn_alpha < 1.0) {
-    spawn_alpha = min(1.0, spawn_alpha + 0.03);
-    spawn_scale = lerp(spawn_scale, 1.0, 0.12);
+    spawn_alpha = min(1.0, spawn_alpha + 0.04);
+    spawn_scale = lerp(spawn_scale, 1.0, 0.15);
     image_alpha = spawn_alpha;
-    image_xscale = sign(image_xscale == 0 ? 1 : image_xscale) * spawn_scale;
-    image_yscale = spawn_scale;
+    image_xscale = sign(facing == 0 ? 1 : facing) * _escala_x * spawn_scale;
+    image_yscale = _escala_y * spawn_scale;
     hspd = 0;
     exit;
 }
 image_alpha = 1.0;
-// ==========================================
-// 0. SISTEMA DE HITSTOP (PAUSA O INIMIGO)
-// ==========================================
-if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
-    image_speed = 0;
+
+if (instance_exists(obj_game_controller) && (obj_game_controller.hitstop_timer > 0 || obj_game_controller.escolhendo_carta || obj_game_controller.is_dead)) {
     exit;
 }
 
-// ==========================================
-// 1. GRAVIDADE, TIMERS E QUEIMADURA
-// ==========================================
 vspd += grv;
 if (piscar > 0) piscar--;
 if (attack_cooldown > 0) attack_cooldown--;
 
-// Lógica de dano contínuo de Fogo (Queimadura)
+// Knockback quando leva hit do player (dá sensação real de impacto!)
+if (piscar == 3 && instance_exists(obj_player)) {
+    hspd = sign(x - obj_player.x) * 4.5;
+    vspd = -2.0;
+}
+
 if (queimando_timer > 0) {
     queimando_timer--;
     if (queimando_timer mod 60 == 0) {
@@ -39,207 +44,114 @@ if (queimando_timer > 0) {
 }
 
 var on_ground = place_meeting(x, y + 1, obj_colisor);
+var _portao_x = instance_exists(obj_game_controller) ? obj_game_controller.portao_x : 120;
 
-// ==========================================
-// MÁQUINA DE ESTADOS DA IA (BESOURO TÁTICO)
-// ==========================================
-switch (state) {
+if (instance_exists(obj_player)) {
+    var dist_player = point_distance(x, y, obj_player.x, obj_player.y);
+    var focar_player = (dist_player <= 160);
+    var alvo_x = focar_player ? obj_player.x : _portao_x;
+    var dir_alvo = sign(alvo_x - x);
+    if (dir_alvo == 0) dir_alvo = -1;
     
-    // --- ESTADO 1: PATRULHA ---
-    case enemy_state.patrol:
-        if (sprite_index != spr_walk) {
-            sprite_index = spr_walk;
-            image_index = 0;
-        }
-        image_speed = 1;
-        
-        if (piscar <= 0) {
-            hspd = lerp(hspd, walk_spd * facing, 0.1);
-        }
-        image_blend = (queimando_timer > 0) ? c_orange : c_white; 
-        
-        var hit_wall = place_meeting(x + (facing * 2), y, obj_colisor);
-        var no_ledge = !place_meeting(x + (20 * facing), y + 2, obj_colisor); 
-        
-        if ((hit_wall || no_ledge) && on_ground) {
-            facing = -facing; 
-        }
-        
-        if (instance_exists(obj_player)) {
-            if (point_distance(x, y, obj_player.x, obj_player.y) <= vision_range && abs(y - obj_player.y) < 48) {
-                state = enemy_state.chase; 
-            }
-        }
-        break;
-        
-    // --- ESTADO 2: PERSEGUIÇÃO (Tenta alcançar o range de bote) ---
-    case enemy_state.chase:
-        if (sprite_index != spr_walk) {
-            sprite_index = spr_walk;
-            image_index = 0;
-        }
-        image_speed = 1.25;
-        image_blend = (queimando_timer > 0) ? c_orange : c_white; 
-        
-        if (instance_exists(obj_player)) {
-            var dist = point_distance(x, y, obj_player.x, obj_player.y);
-            var dir_to_player = sign(obj_player.x - x);
-            
-            if (dir_to_player != 0 && piscar <= 0) {
-                facing = dir_to_player;
-            }
-            
-            var no_ledge = !place_meeting(x + (20 * facing), y + 2, obj_colisor);
-            var hit_wall = place_meeting(x + (facing * 2), y, obj_colisor);
-            
-            if ((no_ledge || hit_wall) && on_ground) {
-                hspd = 0; 
-            } else if (piscar <= 0) {
+    switch (state) {
+        case enemy_state.patrol:
+        case enemy_state.chase:
+            anim_walk += 0.22;
+            image_blend = (queimando_timer > 0) ? c_orange : make_color_rgb(70, 130, 230);
+            if (piscar <= 0) {
+                facing = dir_alvo;
                 hspd = lerp(hspd, chase_spd * facing, 0.12);
             }
             
-            // QUANDO CHEGA NO RANGE DE BOTE (Ex: 95 pixels) E O COOLDOWN ACABOU:
-            // Ele entra na preparação de 1 segundo (60 frames) antes de dar o charge!
-            if (dist <= 95 && on_ground && attack_cooldown <= 0) {
+            var _perto_portao = (abs(x - _portao_x) <= 42);
+            if (((focar_player && dist_player <= 80) || _perto_portao) && on_ground && attack_cooldown <= 0) {
                 state = enemy_state.chemical_prep;
                 hspd = 0;
-                tipo_ataque_atual = 0; // 0 = Investida
-                sprite_index = spr_atk_charge;
-                image_index = 0;
-                state_timer = 60; // EXATAMENTE 1 SEGUNDO DE PREPARAÇÃO (60 steps)
+                state_timer = 38;
+            }
+            break;
+            
+        case enemy_state.chemical_prep:
+            hspd = lerp(hspd, 0, 0.3);
+            image_blend = c_yellow;
+            facing = dir_alvo;
+            state_timer--;
+            if (state_timer <= 0) {
+                state = enemy_state.charge;
+                state_timer = 18;
+                tocar_sfx("snd_beetle_charge", 0.95, 1.05);
+            }
+            break;
+            
+        case enemy_state.charge:
+            image_blend = make_color_rgb(235, 65, 65);
+            state_timer--;
+            hspd = facing * charge_spd;
+            
+            if (abs(x - _portao_x) <= 38 && instance_exists(obj_game_controller)) {
+                obj_game_controller.portao_hp -= 15;
+                obj_game_controller.portao_piscar = 20;
+                obj_game_controller.shake_magnitude = 5;
+                tocar_sfx("snd_craft_hammer", 0.7, 0.85);
+                hspd = 4;
+                state = enemy_state.cooldown;
+                state_timer = 50;
+                attack_cooldown = 90;
+                break;
             }
             
-            if (dist > lose_interest_range) {
-                state = enemy_state.patrol;
+            if (place_meeting(x + facing, y, obj_colisor) || state_timer <= 0) {
+                hspd = 0;
+                state = enemy_state.cooldown;
+                state_timer = 40;
+                attack_cooldown = 90;
             }
-        } else {
-            state = enemy_state.patrol;
-        }
-        break;
-        
-    // --- ESTADO 3: PREPARAÇÃO DE 1 SEGUNDO (Janela de Reação do Player) ---
-    case enemy_state.chemical_prep:
-        hspd = lerp(hspd, 0, 0.3); // Para totalmente para focar no bote
-        image_speed = 0.5; // Animação mais lenta tensionando o corpo
-        image_blend = c_white;
-        
-        // Mantém olhando para o player durante a preparação
-        if (instance_exists(obj_player) && obj_player.x != x) {
-            facing = sign(obj_player.x - x);
-        }
-        
-        state_timer--; // Conta os 60 frames (1 segundo)
-        
-       if (state_timer <= 0) {
-            state = enemy_state.charge; // Libera o avanço!
-            image_index = 0;
-            image_speed = 1.3;
-            state_timer = 24;
-            tocar_sfx("snd_beetle_charge", 0.95, 1.05);
+            break;
             
-            if (instance_exists(obj_game_controller)) {
-                obj_game_controller.shake_magnitude = 3;
+        case enemy_state.cooldown:
+            hspd = lerp(hspd, 0, 0.2);
+            image_blend = c_ltgray;
+            state_timer--;
+            if (state_timer <= 0) {
+                state = enemy_state.chase;
             }
-        }
-        break;
-        
-    // --- ESTADO 4: EXECUÇÃO DO CHARGE (O Avanço) ---
-    case enemy_state.charge:
-        sprite_index = spr_atk_charge;
-        image_blend = c_white;
-        state_timer--;
-        
-        // Aqui ele acelera com força para a frente
-        hspd = facing * charge_spd;
-        
-        if (image_index >= image_number - 1) {
-            image_index = image_number - 1;
-            image_speed = 0;
-        }
-        
-        var bateu_parede = place_meeting(x + facing, y, obj_colisor);
-        if (bateu_parede || state_timer <= 0) {
-            hspd = 0;
-            state = enemy_state.cooldown;
-            state_timer = 45;     // Janela generosa para o player punir o besouro pós-investida
-            attack_cooldown = 110; // Tempo até ele poder dar outro bote
-        }
-        break;
-        
-    // --- ESTADO 5: COOLDOWN (Janela de Punição) ---
-    case enemy_state.cooldown:
-        sprite_index = spr_walk;
-        image_index = 0;
-        image_speed = 0; 
-        hspd = lerp(hspd, 0, 0.2);
-        image_blend = c_ltgray; // Fica cinza indicando cansaço/vulnerabilidade
-        state_timer--;
-        if (state_timer <= 0) {
-            image_speed = 1;
-            image_blend = c_white;
-            state = enemy_state.chase;
-        }
-        break;
+            break;
+    }
 }
 
-// ==========================================
-// 3. COLISÕES FÍSICAS
-// ==========================================
+// Squash & Stretch (achata no preparo e balança ao andar)
+var _wobble = (state == enemy_state.chase) ? sin(anim_walk) * 0.08 : 0;
+var _prep_squash = (state == enemy_state.chemical_prep) ? -0.22 : 0;
+if (piscar > 0) _prep_squash = 0.25; // Estica ao levar dano!
+
+image_xscale = facing * _escala_x * (1.0 - _prep_squash + _wobble);
+image_yscale = _escala_y * (1.0 + _prep_squash - _wobble);
+
 if (place_meeting(x + hspd, y, obj_colisor)) {
-    while (!place_meeting(x + sign(hspd), y, obj_colisor)) {
-        x += sign(hspd);
-    }
+    while (!place_meeting(x + sign(hspd), y, obj_colisor)) x += sign(hspd);
     hspd = 0;
 }
 x += hspd;
 
 if (place_meeting(x, y + vspd, obj_colisor)) {
-    while (!place_meeting(x, y + sign(vspd), obj_colisor)) {
-        y += sign(vspd);
-    }
+    while (!place_meeting(x, y + sign(vspd), obj_colisor)) y += sign(vspd);
     vspd = 0;
 }
 y += vspd;
 
-// ==========================================
-// 4. MORTE E DROPS
-// ==========================================
 if (hp <= 0) {
-    if (instance_exists(obj_player)) {
-        obj_player.arma_xp += 5;
-        
-        if (obj_player.arma_xp >= obj_player.arma_xp_max) {
-            if (obj_player.arma_nivel == 1) {
-                obj_player.arma_nivel = 2;
-                obj_player.arma_xp = 0;
-                obj_player.arma_xp_max = 20;
-            } else if (obj_player.arma_nivel == 2) {
-                obj_player.arma_nivel = 3;
-                obj_player.arma_xp = obj_player.arma_xp_max;
-            }
-        }
-        
-        if (eh_bombardeiro) {
-            obj_player.buff_fogo_timer = 600;
-        }
-    }
+    tocar_sfx("snd_beetle_carapace", 0.9, 1.1);
+    global.score_atual += 100;
     
-    instance_create_layer(x, y - 6, layer, obj_scrap);
-    
-    if (irandom(99) < 70 && object_exists(obj_item_drop)) {
-        var _carne = instance_create_layer(x - 4, y - 8, layer, obj_item_drop);
-        _carne.tipo_item = 0;
-    }
-    
-    if (eh_bombardeiro && irandom(99) < 50 && object_exists(obj_item_drop)) {
-        var _glandula = instance_create_layer(x + 4, y - 8, layer, obj_item_drop);
-        _glandula.tipo_item = 1;
+    instance_create_depth(x, y - 6, 0, obj_scrap);
+    if (object_exists(obj_item_drop)) {
+        var _drop = instance_create_depth(x, y - 10, 0, obj_item_drop);
+        _drop.tipo_item = (irandom(99) < 65) ? 0 : 1;
     }
     
     if (instance_exists(obj_game_controller)) {
-        obj_game_controller.hitstop_timer = 6;
-        obj_game_controller.shake_magnitude = 5;
+        obj_game_controller.hitstop_timer = 4;
+        obj_game_controller.shake_magnitude = 4;
     }
-    
     instance_destroy();
 }

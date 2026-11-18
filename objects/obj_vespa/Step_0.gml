@@ -1,131 +1,119 @@
-sprite_index = (asset_get_index("spr_vespa_box") != -1) ? asset_get_index("spr_vespa_box") : spr_enemy_box;
-if (!variable_instance_exists(id, "spawn_alpha")) spawn_alpha = 1.0;
-if (!variable_instance_exists(id, "spawn_scale")) spawn_scale = 1.0;
+sprite_index = spr_vespa_box;
+mask_index   = spr_vespa_box;
+
+// Deixa a Vespa menorzinha e ágil (32x32 pixels)
+var _escala_v = 32 / max(1, sprite_get_width(spr_vespa_box));
+
+if (!variable_instance_exists(id, "hp"))            hp = 3;
+if (!variable_instance_exists(id, "hp_max"))        hp_max = hp;
+if (!variable_instance_exists(id, "spawn_alpha"))   spawn_alpha = 1.0;
+if (!variable_instance_exists(id, "spawn_scale"))   spawn_scale = 1.0;
+if (!variable_instance_exists(id, "piscar"))        piscar = 0;
+if (!variable_instance_exists(id, "timer_voo"))     timer_voo = random(10);
+if (!variable_instance_exists(id, "estado_vespa"))  estado_vespa = 0;
+if (!variable_instance_exists(id, "timer_ataque"))  timer_ataque = 80;
+if (!variable_instance_exists(id, "dir_x"))         dir_x = 0;
+if (!variable_instance_exists(id, "dir_y"))         dir_y = 0;
+
 if (spawn_alpha < 1.0) {
-    spawn_alpha = min(1.0, spawn_alpha + 0.03);
-    spawn_scale = lerp(spawn_scale, 1.0, 0.12);
+    spawn_alpha = min(1.0, spawn_alpha + 0.04);
+    spawn_scale = lerp(spawn_scale, 1.0, 0.15);
     image_alpha = spawn_alpha;
-    image_xscale = spawn_scale;
-    image_yscale = spawn_scale;
+    image_xscale = _escala_v * spawn_scale;
+    image_yscale = _escala_v * spawn_scale;
     exit;
 }
-image_alpha = 1.0;
+image_alpha  = 1.0;
+image_xscale = _escala_v * (1.0 + sin(timer_voo * 3) * 0.08);
+image_yscale = _escala_v * (1.0 - sin(timer_voo * 3) * 0.08);
 
-if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
-    image_speed = 0;
+if (instance_exists(obj_game_controller) && (obj_game_controller.hitstop_timer > 0 || obj_game_controller.escolhendo_carta || obj_game_controller.is_dead)) {
     exit;
-} else {
-    image_speed = 1;
 }
 
 if (piscar > 0) piscar--;
+timer_voo += 0.10;
 
-switch (state) {
-    case vespa_state.patrulha:
-        vspd = sin(current_time / 200) * 1.5;
-        hspd = cos(current_time / 300) * 1.0;
-        
-        if (instance_exists(obj_player)) {
-            if (point_distance(x, y, obj_player.x, obj_player.y) <= vision_range) {
-                state = vespa_state.perseguicao;
-            }
-        }
-        break;
-        
-    case vespa_state.perseguicao:
-        if (instance_exists(obj_player)) {
-            var dir = point_direction(x, y, obj_player.x, obj_player.y - 35);
-            hspd = lengthdir_x(vel_voo, dir);
-            vspd = lengthdir_y(vel_voo, dir);
-            
-            var dist = point_distance(x, y, obj_player.x, obj_player.y);
-            if (dist < 110) {
-                alvo_x = obj_player.x;
-                alvo_y = obj_player.y;
-                state_timer = 25;
-                tocar_sfx("snd_wasp_buzz", 0.95, 1.1);
-                state = vespa_state.preparando;
-            } else if (dist > vision_range * 1.5) {
-                state = vespa_state.patrulha;
-            }
-        }
-        break;
-        
-    case vespa_state.preparando:
-        hspd = irandom_range(-1, 1);
-        vspd = -0.5;
-        
-        if (instance_exists(obj_player)) {
-            alvo_x = obj_player.x;
-            alvo_y = obj_player.y;
-            if (obj_player.x != x) image_xscale = sign(obj_player.x - x);
-        }
-        
-        state_timer--;
-        if (state_timer <= 0) {
-            var dir_rasante = point_direction(x, y, alvo_x, alvo_y);
-            hspd = lengthdir_x(vel_voo * 3.8, dir_rasante);
-            vspd = lengthdir_y(vel_voo * 3.8, dir_rasante);
-            state_timer = 25;
-            tocar_sfx("snd_wasp_sting", 0.95, 1.1);
-            state = vespa_state.rasante;
-        }
-        break;
-        
-    case vespa_state.rasante:
-        state_timer--;
-        if (place_meeting(x + hspd, y + vspd, obj_colisor) || state_timer <= 0) {
-            hspd = 0;
-            vspd = 0;
-            state_timer = 35;
-            state = vespa_state.recuperando;
-        }
-        break;
-        
-    case vespa_state.recuperando:
-        hspd = lerp(hspd, 0, 0.2);
-        vspd = sin(current_time / 150) * 0.8;
-        state_timer--;
-        if (state_timer <= 0) {
-            state = vespa_state.perseguicao;
-        }
-        break;
-}
+var _portao_x = instance_exists(obj_game_controller) ? obj_game_controller.portao_x : 120;
 
-if (!place_meeting(x + hspd, y, obj_colisor)) x += hspd;
-if (!place_meeting(x, y + vspd, obj_colisor)) y += vspd;
-
-if (hspd != 0 && state != vespa_state.preparando) {
-    image_xscale = sign(hspd);
+if (instance_exists(obj_player)) {
+    var _dist_p = point_distance(x, y, obj_player.x, obj_player.y);
+    var _focar_p = (_dist_p < 200);
+    var _alvo_x = _focar_p ? obj_player.x : _portao_x;
+    var _alvo_y = obj_player.y - 16;
+    
+    // Empurrão quando leva golpe da lança
+    if (piscar == 3) {
+        x += sign(x - obj_player.x) * 14;
+        y -= 8;
+    }
+    
+    if (estado_vespa == 0) {
+        image_blend = make_color_rgb(220, 160, 40);
+        x = lerp(x, _alvo_x, 0.025);
+        y = lerp(y, (_alvo_y - 75) + sin(timer_voo) * 14, 0.05);
+        
+        timer_ataque--;
+        if (timer_ataque <= 0 && (_dist_p < 220 || abs(x - _portao_x) < 120)) {
+            estado_vespa = 1;
+            timer_ataque = 35;
+            tocar_sfx("snd_wasp_buzz", 1.1, 1.2);
+        }
+    }
+    else if (estado_vespa == 1) {
+        image_blend = c_yellow;
+        y -= 0.8;
+        timer_ataque--;
+        if (timer_ataque <= 0) {
+            estado_vespa = 2;
+            timer_ataque = 20;
+            var _ang = point_direction(x, y, _alvo_x, _alvo_y);
+            dir_x = lengthdir_x(7.0, _ang);
+            dir_y = lengthdir_y(7.0, _ang);
+            tocar_sfx("snd_wasp_sting", 0.95, 1.05);
+        }
+    }
+    else if (estado_vespa == 2) {
+        image_blend = c_red;
+        if (!place_meeting(x + dir_x, y, obj_colisor)) x += dir_x;
+        if (!place_meeting(x, y + dir_y, obj_colisor)) y += dir_y;
+        
+        if (abs(x - _portao_x) <= 35 && instance_exists(obj_game_controller)) {
+            obj_game_controller.portao_hp -= 10;
+            obj_game_controller.portao_piscar = 15;
+            estado_vespa = 3;
+            timer_ataque = 50;
+        }
+        
+        timer_ataque--;
+        if (timer_ataque <= 0 || place_meeting(x, y + 2, obj_colisor)) {
+            estado_vespa = 3;
+            timer_ataque = 45;
+        }
+    }
+    else if (estado_vespa == 3) {
+        image_blend = c_ltgray;
+        y = lerp(y, _alvo_y - 80, 0.06);
+        timer_ataque--;
+        if (timer_ataque <= 0) {
+            estado_vespa = 0;
+            timer_ataque = 90;
+        }
+    }
 }
 
 if (hp <= 0) {
-    tocar_sfx("snd_wasp_buzz", 0.7, 0.85);
+    tocar_sfx("snd_beetle_carapace", 1.1, 1.3);
+    global.score_atual += 150;
+    
+    instance_create_depth(x, y, 0, obj_scrap);
+    if (object_exists(obj_item_drop)) {
+        var _ferrao = instance_create_depth(x, y - 6, 0, obj_item_drop);
+        _ferrao.tipo_item = 2;
+    }
     if (instance_exists(obj_game_controller)) {
-        obj_game_controller.hitstop_timer = 5;
-        obj_game_controller.shake_magnitude = 3;
+        obj_game_controller.hitstop_timer = 4;
+        obj_game_controller.shake_magnitude = 4;
     }
-    
-    if (instance_exists(obj_player)) {
-        obj_player.arma_xp += 5;
-        if (obj_player.arma_xp >= obj_player.arma_xp_max) {
-            if (obj_player.arma_nivel == 1) {
-                obj_player.arma_nivel = 2;
-                obj_player.arma_xp = 0;
-                obj_player.arma_xp_max = 20;
-            } else if (obj_player.arma_nivel == 2) {
-                obj_player.arma_nivel = 3;
-                obj_player.arma_xp = obj_player.arma_xp_max;
-            }
-        }
-    }
-    
-    instance_create_layer(x, y, layer, obj_scrap);
-    
-    if (irandom(99) < 60 && object_exists(obj_item_drop)) {
-        var _drop = instance_create_layer(x, y, layer, obj_item_drop);
-        _drop.tipo_item = 2;
-    }
-    
     instance_destroy();
 }

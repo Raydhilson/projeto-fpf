@@ -1,18 +1,22 @@
-if (!variable_instance_exists(id, "escala_base")) escala_base = 1.15;
+if (!variable_instance_exists(id, "escala_base"))       escala_base = 1.15;
+if (!variable_instance_exists(id, "spin_cooldown"))     spin_cooldown = 0;
+if (!variable_instance_exists(id, "spin_cooldown_max")) spin_cooldown_max = 300;
+if (!variable_instance_exists(id, "spin_dano_bonus"))   spin_dano_bonus = 0;
 
 // =====================================================================
-// 0. SISTEMA DE HITSTOP (PAUSA O RATO)
+// 0. SISTEMA DE HITSTOP E BLOQUEIO DE PAUSE / MORTE / CARTAS
 // =====================================================================
-if (instance_exists(obj_game_controller) && obj_game_controller.hitstop_timer > 0) {
-    image_speed = 0;
-    exit;
-} else {
-    image_speed = 1;
+if (instance_exists(obj_game_controller)) {
+    if (obj_game_controller.is_paused || obj_game_controller.is_dead || obj_game_controller.escolhendo_carta) {
+        image_speed = 0;
+        exit;
+    }
+    if (obj_game_controller.hitstop_timer > 0) {
+        image_speed = 0;
+        exit;
+    }
 }
-
-if (instance_exists(obj_game_controller) && obj_game_controller.is_paused) {
-    exit;
-}
+image_speed = 1;
 
 // =====================================================================
 // 1. LEITURA DE CONTROLES E DIREÇÃO
@@ -31,33 +35,72 @@ if (move_dir != 0 && state != player_state.menu && state != player_state.craft &
     }
 }
 
-var key_jump          = keyboard_check_pressed(global.key_jump) || gamepad_button_check_pressed(0, gp_face1);
-var key_jump_released = keyboard_check_released(global.key_jump) || gamepad_button_check_released(0, gp_face1); 
-var key_attack        = keyboard_check_pressed(global.key_attack)  || gamepad_button_check_pressed(0, gp_face3); 
-var key_roll          = keyboard_check_pressed(global.key_roll)  || gamepad_button_check_pressed(0, gp_face2); 
-var key_throw         = keyboard_check_pressed(global.key_throw)  || gamepad_button_check_pressed(0, gp_shoulderr);
+var key_jump          = keyboard_check_pressed(global.key_jump)     || gamepad_button_check_pressed(0, gp_face1);
+var key_jump_released = keyboard_check_released(global.key_jump)    || gamepad_button_check_released(0, gp_face1); 
+var key_attack        = keyboard_check_pressed(global.key_attack)   || gamepad_button_check_pressed(0, gp_face3); 
+var key_roll          = keyboard_check_pressed(global.key_roll)     || gamepad_button_check_pressed(0, gp_face2); 
+var key_throw         = keyboard_check_pressed(global.key_throw)    || gamepad_button_check_pressed(0, gp_shoulderr);
+var key_spin          = keyboard_check_pressed(global.key_spin)     || keyboard_check_pressed(ord("L")) || gamepad_button_check_pressed(0, gp_shoulderl);
 
 var key_menu    = keyboard_check_pressed(global.key_menu) || gamepad_button_check_pressed(0, gp_start);
 var key_heal    = keyboard_check_pressed(global.key_heal) || gamepad_button_check_pressed(0, gp_padl);
-var key_up      = keyboard_check_pressed(global.key_up)    || keyboard_check_pressed(vk_up)    || keyboard_check_pressed(ord("W")) || gamepad_button_check_pressed(0, gp_padu);
+var key_up      = keyboard_check_pressed(global.key_up)   || keyboard_check_pressed(vk_up)   || keyboard_check_pressed(ord("W")) || gamepad_button_check_pressed(0, gp_padu);
 var key_down    = keyboard_check_pressed(global.key_down) || keyboard_check_pressed(vk_down) || keyboard_check_pressed(ord("S")) || gamepad_button_check_pressed(0, gp_padd);
 var key_confirm = keyboard_check_pressed(global.key_confirm) || gamepad_button_check_pressed(0, gp_face1);
 
-var key_tab_left  = keyboard_check_pressed(global.key_tab_left) || gamepad_button_check_pressed(0, gp_shoulderl);
+var key_tab_left  = keyboard_check_pressed(global.key_tab_left)  || gamepad_button_check_pressed(0, gp_shoulderl);
 var key_tab_right = keyboard_check_pressed(global.key_tab_right) || gamepad_button_check_pressed(0, gp_shoulderr);
 
 // =====================================================================
-// 2. USO DE ITENS (CURATIVO) E BUFFS
+// 2. USO DE ITENS (CURATIVO), GOLPE GIRATÓRIO E BUFFS
 // =====================================================================
-if (state != player_state.menu && state != player_state.craft && key_heal && curativo_count > 0 && hp < hp_max) {
-    curativo_count--;
-    hp = min(hp + 30, hp_max);
-    tocar_sfx("snd_craft_success", 1.05, 1.15);
-    tocar_sfx("snd_mouse_squeak", 1.0, 1.15);
-}
-
-if (buff_fogo_timer > 0 && state != player_state.menu && state != player_state.craft) {
-    buff_fogo_timer--;
+if (state != player_state.menu && state != player_state.craft) {
+    if (spin_cooldown > 0) spin_cooldown--;
+    if (buff_fogo_timer > 0) buff_fogo_timer--;
+    
+    if (key_heal && curativo_count > 0 && hp < hp_max) {
+        curativo_count--;
+        hp = min(hp + 30, hp_max);
+        tocar_sfx("snd_craft_success", 1.05, 1.15);
+        tocar_sfx("snd_mouse_squeak", 1.0, 1.15);
+    }
+    
+    // HABILIDADE ESPECIAL: GOLPE GIRATÓRIO 360° (TECLA L)
+    if (key_spin && spin_cooldown <= 0 && state != player_state.roll) {
+        spin_cooldown = spin_cooldown_max;
+        state = player_state.attack;
+        action_timer = 22;
+        combo_count = 2;
+        sprite_index = spr_player_attack2;
+        image_index = 0;
+        tocar_sfx("snd_spear_thrust", 0.75, 0.85);
+        tocar_sfx("snd_souls_roll", 1.1, 1.25);
+        
+        scale_x = escala_base * 1.5;
+        scale_y = escala_base * 0.75;
+        
+        // Cria Hitbox dupla (Frente e Costas) usando depth 0
+        var _h1 = instance_create_depth(x + 28, y - 12, 0, obj_hitbox);
+        _h1.image_xscale = 2.2;
+        _h1.duracao = 8;
+        _h1.dano = 3 + spin_dano_bonus;
+        if (buff_fogo_timer > 0) _h1.aplica_fogo = true;
+        
+        var _h2 = instance_create_depth(x - 28, y - 12, 0, obj_hitbox);
+        _h2.image_xscale = -2.2;
+        _h2.duracao = 8;
+        _h2.dano = 3 + spin_dano_bonus;
+        if (buff_fogo_timer > 0) _h2.aplica_fogo = true;
+        
+        // Empurra todos os inimigos próximos para longe do Portão!
+        with (obj_enemy) {
+            if (point_distance(x, y, other.x, other.y) < 120) {
+                hspd = 7;
+                vspd = -3.5;
+            }
+        }
+        if (instance_exists(obj_game_controller)) obj_game_controller.shake_magnitude = 5;
+    }
 }
 
 var on_ground = place_meeting(x, y + 1, obj_colisor);
@@ -126,12 +169,12 @@ switch (state) {
         if (key_throw) {
             if (faca_count > 0 && object_exists(obj_faca_arremesso)) {
                 faca_count--;
-                var faca = instance_create_layer(x + (facing * 12), y - 14, "Instances", obj_faca_arremesso);
+                var faca = instance_create_depth(x + (facing * 12), y - 14, 0, obj_faca_arremesso);
                 faca.hspd = facing * 11; faca.vspd = -1;
                 tocar_sfx("snd_dash", 1.15, 1.3);
             } else if (molotov_count > 0 && object_exists(obj_molotov)) {
                 molotov_count--;
-                var molotov = instance_create_layer(x + (facing * 10), y - 15, "Instances", obj_molotov);
+                var molotov = instance_create_depth(x + (facing * 10), y - 15, 0, obj_molotov);
                 molotov.hspd = facing * 6.5; molotov.vspd = -4.5;
                 tocar_sfx("snd_dash", 0.85, 0.95);
             }
@@ -181,12 +224,12 @@ switch (state) {
         if (key_throw) {
             if (faca_count > 0 && object_exists(obj_faca_arremesso)) {
                 faca_count--;
-                var faca = instance_create_layer(x + (facing * 12), y - 14, "Instances", obj_faca_arremesso);
+                var faca = instance_create_depth(x + (facing * 12), y - 14, 0, obj_faca_arremesso);
                 faca.hspd = facing * 12; faca.vspd = -1;
                 tocar_sfx("snd_dash", 1.15, 1.3);
             } else if (molotov_count > 0 && object_exists(obj_molotov)) {
                 molotov_count--;
-                var molotov = instance_create_layer(x + (facing * 10), y - 15, "Instances", obj_molotov);
+                var molotov = instance_create_depth(x + (facing * 10), y - 15, 0, obj_molotov);
                 molotov.hspd = facing * 8; molotov.vspd = -4;
                 tocar_sfx("snd_dash", 0.85, 0.95);
             }
@@ -271,14 +314,14 @@ switch (state) {
             image_speed = 0;
         }
         
-        if (key_attack && arma_nivel >= 2) {
+        if (key_attack) {
             ataque_buffer = true; 
         }
         
         var _frame_hit = (combo_count == 2) ? 12 : 14;
         if (action_timer == _frame_hit) {
             tocar_sfx("snd_spear_thrust", (combo_count == 2) ? 1.1 : 0.94, (combo_count == 2) ? 1.2 : 1.04);
-            var hit = instance_create_layer(x + (facing * 30), y - 12, "Instances", obj_hitbox);
+            var hit = instance_create_depth(x + (facing * 30), y - 12, 0, obj_hitbox);
             hit.image_xscale = facing * 1.5;
             hit.duracao = 5; 
             
@@ -305,7 +348,7 @@ switch (state) {
         action_timer--;
         
         if (action_timer <= 0) {
-            if (ataque_buffer && combo_count == 1 && arma_nivel >= 2) {
+            if (ataque_buffer && combo_count == 1) {
                 if (move_dir != 0) facing = move_dir;
                 combo_count = 2;
                 action_timer = 18;
@@ -427,8 +470,8 @@ switch (state) {
         sprite_index = spr_player_idle;
         craft_timer += 2;
         
-        if (craft_timer == 44) {
-            tocar_sfx("snd_craft_hammer", 1.05, 1.15); // Segunda martelada no meio da barra!
+        if (craft_timer == 22) {
+            tocar_sfx("snd_craft_hammer", 1.05, 1.15);
         }
         
         if (craft_timer >= craft_time_max) {
@@ -517,15 +560,27 @@ if (!is_invulnerable && state != player_state.roll) {
     }
 }
 
+// =====================================================================
+// GATILHO DE MORTE (ACIONA A TABELA TOP 5 DO CONTROLLER)
+// =====================================================================
 if (hp <= 0) {
     hp = 0;
-    instance_activate_all();
-    var _slot = variable_global_exists("slot_atual") ? global.slot_atual : 1;
-    if (save_existe(_slot)) {
-        carregar_jogo(_slot);
+    hspd = 0;
+    vspd = 0;
+    tocar_sfx("snd_mouse_hurt", 0.7, 0.85);
+    
+    if (instance_exists(obj_game_controller)) {
+        obj_game_controller.is_dead = true;
+        obj_game_controller.motivo_derrota = 1; // 1 = Player morreu
+        obj_game_controller.death_index = 0;
+        obj_game_controller.death_alpha = 0;
+        obj_game_controller.hitstop_timer = 0;
+        instance_deactivate_all(true);
+        instance_activate_object(obj_game_controller);
     } else {
         room_restart();
     }
+    exit;
 }
 
 // =====================================================================
@@ -553,7 +608,7 @@ if (place_meeting(x, y + vspd, obj_colisor)) {
 y += vspd;
 
 if (keyboard_check_pressed(ord("U"))) { 
-    repeat(3) { instance_create_layer(x, y - 10, "Instances", obj_scrap); } 
+    repeat(3) { instance_create_depth(x, y - 10, 0, obj_scrap); } 
     carne_count++;
     glandula_count++;
     ferrao_count++;

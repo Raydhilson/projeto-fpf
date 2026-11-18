@@ -1,26 +1,38 @@
-if (sprite_index != -1 && sprite_exists(sprite_index)) {
-    draw_self();
-} else {
-    // Fogueira provisória caso ainda não tenha sprite
-    draw_set_color(make_color_rgb(120, 70, 30));
-    draw_rectangle(x - 10, y - 4, x + 10, y, false);
-    draw_set_color(choose(c_orange, c_yellow, c_red));
-    draw_triangle(x - 8, y - 4, x + 8, y - 4, x, y - 22 + irandom_range(-2, 2), false);
+draw_self();
+
+// Desenha o Portão Visual do Laboratório na coordenada portao_x!
+if (instance_exists(obj_game_controller)) {
+    var _px = obj_game_controller.portao_x;
+    draw_set_color((obj_game_controller.portao_piscar > 0) ? c_red : make_color_rgb(65, 185, 245));
+    draw_rectangle(_px - 12, y - 110, _px + 12, y + 16, false);
     draw_set_color(c_white);
+    draw_rectangle(_px - 12, y - 110, _px + 12, y + 16, true);
 }
 
-if (instance_exists(obj_player) && point_distance(x, y, obj_player.x, obj_player.y) <= 40) {
+// Desenha o Rato Mercador Aliado
+if (sprite_exists(spr_player_idle)) {
+    draw_sprite_ext(spr_player_idle, 0, x - 28, y, 1.15, 1.15, 0, make_color_rgb(255, 215, 110), 1.0);
+}
+
+if (instance_exists(obj_player) && point_distance(x, y, obj_player.x, obj_player.y) < 105) {
     draw_set_font(fnt_menu);
     draw_set_halign(fa_center);
-    var _pt = (!variable_global_exists("idioma") || global.idioma == "PT");
+    draw_set_valign(fa_middle);
     
-    if (salvo_timer > 0) {
-        draw_set_color(c_lime);
-        draw_text(x, y - 42, _pt ? "JOGO SALVO & VIDA RECUPERADA!" : "GAME SAVED & HP RESTORED!");
-    } else {
-        draw_set_color(c_yellow);
-        draw_text(x, y - 42, _pt ? "[E / ENTER] DESCANSAR" : "[E / ENTER] REST & SAVE");
-    }
+    var _txt1 = "RATO MERCADOR (LOJA DE SUCATA)";
+    var _txt2 = "[E] 3 Sucatas: +50 HP Portao e +35 HP Rato  |  [R] 5 Sucatas: +4 Dano Lanca";
+    
+    draw_set_color(c_black);
+    draw_text(x + 1, y - 69, _txt1);
+    draw_text(x + 1, y - 51, _txt2);
+    
+    draw_set_color(make_color_rgb(245, 195, 65));
+    draw_text(x, y - 70, _txt1);
+    draw_set_color((global.scrap >= 3) ? make_color_rgb(80, 215, 105) : c_white);
+    draw_text(x, y - 52, _txt2);
+    
     draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
     draw_set_color(c_white);
+    draw_set_font(-1);
 }

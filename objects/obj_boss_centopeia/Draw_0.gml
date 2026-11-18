@@ -1,3 +1,4 @@
+sprite_index = spr_boss_centopeia_box;
 // ==========================================
 // 0. VERIFICAÇÃO DE ESTADO INICIAL
 // ==========================================

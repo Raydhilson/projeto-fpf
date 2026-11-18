@@ -1,3 +1,6 @@
+if (layer == -1 && layer_exists("Instances")) layer = layer_get_id("Instances");
+sprite_index = spr_boss_centopeia_box;
+mask_index   = spr_boss_centopeia_box;
 // ==========================================
 // 0. SISTEMA DE HITSTOP E INICIALIZAÇÃO SEGURA
 // ==========================================

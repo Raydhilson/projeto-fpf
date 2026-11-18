@@ -13,6 +13,7 @@ if (!variable_global_exists("key_attack"))    global.key_attack    = ord("J");
 if (!variable_global_exists("key_roll"))      global.key_roll      = ord("K");
 if (!variable_global_exists("key_heal"))      global.key_heal      = ord("H");
 if (!variable_global_exists("key_throw"))     global.key_throw     = ord("F");
+if (!variable_global_exists("key_spin"))      global.key_spin      = ord("L");
 if (!variable_global_exists("key_menu"))      global.key_menu      = ord("I");
 if (!variable_global_exists("key_confirm"))   global.key_confirm   = vk_enter;
 if (!variable_global_exists("key_tab_left"))  global.key_tab_left  = ord("Q");
@@ -23,9 +24,9 @@ if (!variable_global_exists("idioma"))        global.idioma        = "PT";
 // 2. ECONOMIA, CONSUMÍVEIS E MATERIAIS
 // ==========================================
 if (!variable_global_exists("scrap")) global.scrap = 0;
-curativo_count = 0; 
-molotov_count  = 0;
-faca_count     = 0;
+curativo_count = 1; 
+molotov_count  = 1;
+faca_count     = 2;
 
 carne_count    = 0; 
 glandula_count = 0; 
@@ -39,10 +40,10 @@ global.multiplicador_crit = 2.0;
 // 3. SISTEMA DE CRAFTING E ABAS
 // ==========================================
 craft_timer = 0;
-craft_time_max = 90; 
-craft_cost = 5;      
+craft_time_max = 45; 
+craft_cost = 1;      
 craft_recipes = ["Curativo", "Molotov", "Faca de Arremesso"];
-craft_cost_array = [3, 5, 8];
+craft_cost_array = [1, 2, 2];
 craft_selected_item = -1; 
 menu_index = 0; 
 
@@ -88,7 +89,7 @@ is_invulnerable = false;
 iframe_timer = 0;
 
 // ==========================================
-// 6. MAESTRIA E BUFFS
+// 6. HABILIDADE ESPECIAL (GOLPE GIRATÓRIO) E BUFFS
 // ==========================================
 arma_xp = 0;
 arma_xp_max = 10;       
@@ -96,6 +97,10 @@ arma_nivel = 1;
 combo_count = 0;        
 ataque_buffer = false;  
 buff_fogo_timer = 0;    
+
+spin_cooldown = 0;
+spin_cooldown_max = 300; // 5 segundos (300 frames)
+spin_dano_bonus = 0;
 
 // ==========================================
 // 7. MÁQUINA DE ESTADOS (FSM)
@@ -112,20 +117,3 @@ enum player_state {
 }
 
 state = player_state.idle;
-
-// Restaurar Save se houver (Incluindo Facas e Escala de XP Máximo)
-if (variable_global_exists("carregando_save") && global.carregando_save == true) {
-    x              = global.load_x;
-    y              = global.load_y;
-    hp             = global.load_hp;
-    curativo_count = global.load_curativos;
-    molotov_count  = global.load_molotovs;
-    faca_count     = variable_global_exists("load_facas") ? global.load_facas : 0;
-    arma_nivel     = global.load_arma_nivel;
-    arma_xp        = global.load_arma_xp;
-    arma_xp_max    = (arma_nivel >= 2) ? 20 : 10;
-    carne_count    = global.load_carne;
-    glandula_count = global.load_glandula;
-    ferrao_count   = global.load_ferrao;
-    global.carregando_save = false; 
-}
